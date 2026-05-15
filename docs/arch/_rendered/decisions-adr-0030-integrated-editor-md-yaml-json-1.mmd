@@ -1,0 +1,25 @@
+stateDiagram-v2
+    [*] --> idle : editor opens (read-only)
+    idle --> loading : operator clicks Edit / presses e
+    loading --> editing : manifest content loaded
+    loading --> error : load failed
+
+    editing --> validating : content change (debounce 100 ms)
+    validating --> editing : validation complete (diagnostics updated)
+
+    editing --> dryRunning : content change, zero errors (debounce 500 ms)
+    dryRunning --> dryRunComplete : dry-run response received
+    dryRunning --> error : API error
+
+    dryRunComplete --> editing : operator continues editing
+    dryRunComplete --> applying : operator clicks Apply → confirmation confirmed
+
+    editing --> applying : operator clicks Apply (no pending dry-run)
+    applying --> applied_succeeded : SSA success
+    applying --> applied_failed : SSA failure
+    applying --> error : network / transport error
+
+    applied_succeeded --> idle : editor resets to read-only
+    applied_failed --> editing : operator can retry or discard
+    error --> idle : operator dismisses error
+    error --> editing : operator dismisses and continues editing

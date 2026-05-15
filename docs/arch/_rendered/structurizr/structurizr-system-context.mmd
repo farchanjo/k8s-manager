@@ -1,0 +1,47 @@
+graph LR
+  linkStyle default fill:#ffffff
+
+  subgraph diagram ["System Context View: K8sManager"]
+    style diagram fill:#ffffff,stroke:#ffffff
+
+    1["<div style='font-weight: bold'>Kubernetes Operator</div><div style='font-size: 70%; margin-top: 0px'>[Person]</div><div style='font-size: 80%; margin-top:10px'>Workstation user managing one<br />or more Kubernetes clusters<br />and interacting with the<br />in-app assistant.</div>"]
+    style 1 fill:#1168bd,stroke:#0b4884,color:#ffffff
+    2["<div style='font-weight: bold'>K8sManager</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>macOS-native Kubernetes<br />manager.</div>"]
+    style 2 fill:#ffffff,stroke:#444444,color:#444444
+    36["<div style='font-weight: bold'>Kubeconfig File</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>User-managed YAML at<br />KUBECONFIG or ~/.kube/config.</div>"]
+    style 36 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    37["<div style='font-weight: bold'>Kubernetes API Server</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Remote cluster API endpoint<br />(multi-cluster). 1.31+ for<br />WebSocket exec and<br />portforward.</div>"]
+    style 37 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    38["<div style='font-weight: bold'>Anthropic Messages API</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Anthropic-hosted LLM endpoint<br />with SSE streaming and<br />tool_use blocks.</div>"]
+    style 38 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    39["<div style='font-weight: bold'>OpenAI API</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>OpenAI-hosted Chat<br />Completions / Responses<br />endpoints.</div>"]
+    style 39 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    40["<div style='font-weight: bold'>OpenAI-Compatible Endpoint</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Local or hosted server<br />speaking the OpenAI API<br />surface (Ollama, LM Studio,<br />vLLM, OpenRouter).</div>"]
+    style 40 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    41["<div style='font-weight: bold'>AWS STS</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>AWS Security Token Service<br />for GetCallerIdentity presign<br />and<br />AssumeRole(WithWebIdentity).</div>"]
+    style 41 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    42["<div style='font-weight: bold'>Google OAuth and STS</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>OAuth2 token endpoint and<br />Workload Identity Federation<br />STS endpoint.</div>"]
+    style 42 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    43["<div style='font-weight: bold'>Microsoft Entra ID / Azure AD</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>OAuth2 endpoints for device<br />flow, service principal,<br />Managed Identity, Workload<br />Identity Federation.</div>"]
+    style 43 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    44["<div style='font-weight: bold'>OIDC Identity Provider</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Generic OIDC issuer<br />(Keycloak, Auth0, Okta,<br />custom) with discovery and<br />JWKS.</div>"]
+    style 44 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    45["<div style='font-weight: bold'>Prometheus Server</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>In-cluster Prometheus<br />(kube-prometheus-stack<br />typical) exposing<br />/api/v1/query,<br />/api/v1/query_range,<br />/api/v1/series.</div>"]
+    style 45 fill:#999999,stroke:#6b6b6b,color:#ffffff
+    46["<div style='font-weight: bold'>Custom Exec Credential Plugin</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>External binary printing an<br />ExecCredential JSON for<br />kubeconfig exec blocks<br />without a native adapter.</div>"]
+    style 46 fill:#999999,stroke:#6b6b6b,color:#ffffff
+
+    2-. "<div>HTTPS query and query_range</div><div style='font-size: 70%'></div>" .->45
+    2-. "<div>POST /v1/messages with SSE<br />streaming</div><div style='font-size: 70%'></div>" .->38
+    2-. "<div>POST chat completions /<br />responses with SSE streaming</div><div style='font-size: 70%'></div>" .->39
+    2-. "<div>POST OpenAI-compatible<br />endpoints</div><div style='font-size: 70%'></div>" .->40
+    1-. "<div>Switches contexts, browses<br />resources, edits YAML, opens<br />terminals, configures<br />providers, chats with<br />assistant, watches metrics</div><div style='font-size: 70%'></div>" .->2
+    2-. "<div>Reads YAML</div><div style='font-size: 70%'></div>" .->36
+    2-. "<div>HTTPS over pooled connections<br />(ADR-0007)</div><div style='font-size: 70%'></div>" .->37
+    2-. "<div>POST /v1/STS<br />GetCallerIdentity (presigned<br />URL)</div><div style='font-size: 70%'></div>" .->41
+    2-. "<div>POST /token + STS token<br />exchange</div><div style='font-size: 70%'></div>" .->42
+    2-. "<div>OAuth2 device flow / service<br />principal / Managed Identity</div><div style='font-size: 70%'></div>" .->43
+    2-. "<div>Authorization Code + PKCE +<br />JWKS</div><div style='font-size: 70%'></div>" .->44
+    2-. "<div>Spawns and parses<br />ExecCredential JSON</div><div style='font-size: 70%'></div>" .->46
+
+  end

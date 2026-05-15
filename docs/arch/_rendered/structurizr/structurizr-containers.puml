@@ -1,0 +1,217 @@
+@startuml
+title <size:24>Container View: K8sManager</size>\n<size:24>Thirteen bounded-context containers plus their adapter layer. Domain cores never import infrastructure (ADR-0011, ADR-0020). Every external system is reached via a dedicated adapter implementing a domain port.</size>
+
+set separator none
+top to bottom direction
+skinparam ranksep 20
+skinparam nodesep 5
+hide stereotype
+
+<style>
+  root {
+    BackgroundColor: #ffffff;
+    FontColor: #444444;
+  }
+  // Element
+  .Element-RWxlbWVudA== {
+    BackgroundColor: #ffffff;
+    LineColor: #444444;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #444444;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+    MaximumWidth: 450;
+  }
+  // Element,External
+  .Element-RWxlbWVudCxFeHRlcm5hbA== {
+    BackgroundColor: #999999;
+    LineColor: #6b6b6b;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #ffffff;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+    MaximumWidth: 450;
+  }
+  // Element,Person
+  .Element-RWxlbWVudCxQZXJzb24= {
+    BackgroundColor: #1168bd;
+    LineColor: #0b4884;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #ffffff;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+    MaximumWidth: 450;
+  }
+  // Relationship
+  .Relationship-UmVsYXRpb25zaGlw {
+    LineThickness: 2;
+    LineStyle: 10-10;
+    LineColor: #444444;
+    FontColor: #444444;
+    FontSize: 24;
+  }
+  // K8sManager
+  .Boundary-SzhzTWFuYWdlcg== {
+    BackgroundColor: #ffffff;
+    LineColor: #444444;
+    LineStyle: 0;
+    LineThickness: 2;
+    FontColor: #444444;
+    FontSize: 24;
+    HorizontalAlignment: center;
+    Shadowing: 0;
+  }
+</style>
+
+person "==Kubernetes Operator\n<size:16>[Person]</size>\n\nWorkstation user managing one or more Kubernetes clusters and interacting with the in-app assistant." <<Element-RWxlbWVudCxQZXJzb24=>> as KubernetesOperator
+rectangle "==Kubeconfig File\n<size:16>[Software System]</size>\n\nUser-managed YAML at KUBECONFIG or ~/.kube/config." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as KubeconfigFile
+rectangle "==Kubernetes API Server\n<size:16>[Software System]</size>\n\nRemote cluster API endpoint (multi-cluster). 1.31+ for WebSocket exec and portforward." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as KubernetesAPIServer
+rectangle "==Anthropic Messages API\n<size:16>[Software System]</size>\n\nAnthropic-hosted LLM endpoint with SSE streaming and tool_use blocks." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as AnthropicMessagesAPI
+rectangle "==OpenAI API\n<size:16>[Software System]</size>\n\nOpenAI-hosted Chat Completions / Responses endpoints." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as OpenAIAPI
+rectangle "==OpenAI-Compatible Endpoint\n<size:16>[Software System]</size>\n\nLocal or hosted server speaking the OpenAI API surface (Ollama, LM Studio, vLLM, OpenRouter)." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as OpenAICompatibleEndpoint
+rectangle "==AWS STS\n<size:16>[Software System]</size>\n\nAWS Security Token Service for GetCallerIdentity presign and AssumeRole(WithWebIdentity)." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as AWSSTS
+rectangle "==Google OAuth and STS\n<size:16>[Software System]</size>\n\nOAuth2 token endpoint and Workload Identity Federation STS endpoint." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as GoogleOAuthandSTS
+rectangle "==Microsoft Entra ID / Azure AD\n<size:16>[Software System]</size>\n\nOAuth2 endpoints for device flow, service principal, Managed Identity, Workload Identity Federation." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as MicrosoftEntraIDAzureAD
+rectangle "==OIDC Identity Provider\n<size:16>[Software System]</size>\n\nGeneric OIDC issuer (Keycloak, Auth0, Okta, custom) with discovery and JWKS." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as OIDCIdentityProvider
+rectangle "==Prometheus Server\n<size:16>[Software System]</size>\n\nIn-cluster Prometheus (kube-prometheus-stack typical) exposing /api/v1/query, /api/v1/query_range, /api/v1/series." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as PrometheusServer
+rectangle "==Custom Exec Credential Plugin\n<size:16>[Software System]</size>\n\nExternal binary printing an ExecCredential JSON for kubeconfig exec blocks without a native adapter." <<Element-RWxlbWVudCxFeHRlcm5hbA==>> as CustomExecCredentialPlugin
+
+rectangle "K8sManager\n<size:16>[Software System]</size>" <<Boundary-SzhzTWFuYWdlcg==>> {
+  rectangle "==Resource Browser\n<size:16>[Container: Swift]</size>\n\nFull CRUD with confirmation, double-confirm delete, audit log, server-side apply; integrated MD/YAML/JSON editor with realtime dry-run apply, diff preview, and Kubernetes schema validation (ADR-0030)." <<Element-RWxlbWVudA==>> as K8sManager.ResourceBrowser
+  rectangle "==Port Forwarding\n<size:16>[Container: Swift]</size>\n\nLocal TCP listener tunnels via WebSocket portforward.k8s.io subprotocol." <<Element-RWxlbWVudA==>> as K8sManager.PortForwarding
+  rectangle "==Helm Management\n<size:16>[Container: Swift]</size>\n\nNative Helm release list/inspect/history/rollback over Secrets type helm.sh/release.v1 (Phase 1); install/upgrade/template/lint native engine (Phase 2 roadmap)." <<Element-RWxlbWVudA==>> as K8sManager.HelmManagement
+  rectangle "==Metrics Observability\n<size:16>[Container: Swift]</size>\n\nPrometheus HTTP API client with auto-discovery and curated PromQL templates." <<Element-RWxlbWVudA==>> as K8sManager.MetricsObservability
+  rectangle "==Terminal Session\n<size:16>[Container: Swift]</size>\n\nPod exec and Node debug sessions via WebSocket v5.channel.k8s.io subprotocol, multi-tab." <<Element-RWxlbWVudA==>> as K8sManager.TerminalSession
+  rectangle "==SwiftkubeClient Adapter\n<size:16>[Container: Swift / SwiftkubeClient / SwiftNIO]</size>\n\nswiftkube/client + async-http-client; per-cluster isolated HTTPClient instances with dedicated MultiThreadedEventLoopGroup (kqueue I/O selector — ADR-0029); PATCH server-side apply custom route." <<Element-RWxlbWVudA==>> as K8sManager.SwiftkubeClientAdapter
+  rectangle "==Yams Kubeconfig Adapter\n<size:16>[Container: Swift / Yams]</size>\n\nParses kubeconfig YAML (read-only)." <<Element-RWxlbWVudA==>> as K8sManager.YamsKubeconfigAdapter
+  rectangle "==GRDB Persistence Adapter\n<size:16>[Container: Swift / GRDB]</size>\n\nWAL SQLite store via GRDB.swift v7+." <<Element-RWxlbWVudA==>> as K8sManager.GRDBPersistenceAdapter
+  rectangle "==Keychain Adapter\n<size:16>[Container: Security framework]</size>\n\nmacOS Keychain (kSecClassGenericPassword) for LLM API keys." <<Element-RWxlbWVudA==>> as K8sManager.KeychainAdapter
+  rectangle "==WebSocket Exec Adapter\n<size:16>[Container: Swift / Foundation]</size>\n\nURLSessionWebSocketTask + v5.channel.k8s.io channel framing." <<Element-RWxlbWVudA==>> as K8sManager.WebSocketExecAdapter
+  rectangle "==WebSocket PortForward Adapter\n<size:16>[Container: Swift / Foundation]</size>\n\nURLSessionWebSocketTask + portforward.k8s.io subprotocol." <<Element-RWxlbWVudA==>> as K8sManager.WebSocketPortForwardAdapter
+  rectangle "==MCP SDK Adapter\n<size:16>[Container: Swift / MCP SDK]</size>\n\nmodelcontextprotocol/swift-sdk with InMemoryTransport." <<Element-RWxlbWVudA==>> as K8sManager.MCPSDKAdapter
+  rectangle "==Anthropic Adapter\n<size:16>[Container: Swift]</size>\n\nSwiftAnthropic 2.2.x — Messages API streaming SSE + prompt caching." <<Element-RWxlbWVudA==>> as K8sManager.AnthropicAdapter
+  rectangle "==OpenAI Adapter\n<size:16>[Container: Swift]</size>\n\nMacPaw/OpenAI 0.4.x — Chat Completions / Responses API + tool_calls." <<Element-RWxlbWVudA==>> as K8sManager.OpenAIAdapter
+  rectangle "==OpenAI-Compatible Adapter\n<size:16>[Container: Swift]</size>\n\nMacPaw/OpenAI with baseURL override for Ollama, LM Studio, vLLM, OpenRouter." <<Element-RWxlbWVudA==>> as K8sManager.OpenAICompatibleAdapter
+  rectangle "==AWS Exec Credential Adapter\n<size:16>[Container: Swift / soto]</size>\n\nsoto-project/soto SigV4 + STS GetCallerIdentity presign + k8s-aws-v1 token assembly." <<Element-RWxlbWVudA==>> as K8sManager.AWSExecCredentialAdapter
+  rectangle "==GCP Exec Credential Adapter\n<size:16>[Container: Swift / jwt-kit / URLSession]</size>\n\nADC + service account JWT (vapor/jwt-kit RS256) + Workload Identity Federation." <<Element-RWxlbWVudA==>> as K8sManager.GCPExecCredentialAdapter
+  rectangle "==Azure Exec Credential Adapter\n<size:16>[Container: Swift / MSAL]</size>\n\nMSAL device flow + service principal; manual IMDS for Managed Identity." <<Element-RWxlbWVudA==>> as K8sManager.AzureExecCredentialAdapter
+  rectangle "==OIDC Exec Credential Adapter\n<size:16>[Container: Swift / AppAuth]</size>\n\nAppAuth-iOS AuthCode+PKCE + refresh + JWKS validation." <<Element-RWxlbWVudA==>> as K8sManager.OIDCExecCredentialAdapter
+  rectangle "==Subprocess Exec Adapter (fallback)\n<size:16>[Container: Swift / Foundation.Process]</size>\n\nSpawns custom exec plugin binaries when no native adapter matches (ADR-0002 compatibility)." <<Element-RWxlbWVudA==>> as K8sManager.SubprocessExecAdapterfallback
+  rectangle "==App Shell\n<size:16>[Container: Swift / SwiftUI]</size>\n\nSwiftUI window with NavigationSplitView 3-column + .inspector + status bar; sidebar; settings; chat surface; terminal surface; metrics surface; command palette ⌘P/⌘K; keyboard shortcuts; SF Symbols + custom symbol set; app self-monitoring (ADR-0027); state restoration on launch (ADR-0026); toast notifications (ADR-0032); loading skeletons / shimmer / spinner (ADR-0031); i18n catalog — en / pt-BR / es-ES baseline with community-extensible Xcode String Catalog (ADR-0033); state-driven UI via @Observable + AsyncSequence (ADR-0034)." <<Element-RWxlbWVudA==>> as K8sManager.AppShell
+  rectangle "==Prometheus Query Adapter\n<size:16>[Container: Swift / URLSession]</size>\n\nCustom HTTP client over URLSession.bytes; matrix/vector/scalar/string result decoder (~340 LoC, no public Swift lib exists)." <<Element-RWxlbWVudA==>> as K8sManager.PrometheusQueryAdapter
+  rectangle "==SQLite Storage\n<size:16>[Container: SQLite 3]</size>\n\nWAL-mode SQLite database for chat history, profiles, cache, log, prefs, audit." <<Element-RWxlbWVudA==>> as K8sManager.SQLiteStorage
+  rectangle "==Preferences Adapter\n<size:16>[Container: Swift / UserDefaults]</size>\n\nUserDefaults overlay for transient UI state (window frame)." <<Element-RWxlbWVudA==>> as K8sManager.PreferencesAdapter
+  rectangle "==Menu Bar Tray\n<size:16>[Container: Swift / SwiftUI / NSStatusItem]</size>\n\nNSStatusItem with live cluster status widget, live metrics sparklines (CPU/mem/network/pods), recent mutations, active sessions, cluster picker. Refresh interval 5-60s; pauses on lid close, low power, or network unreachable." <<Element-RWxlbWVudA==>> as K8sManager.MenuBarTray
+  rectangle "==Analytics Dashboard\n<size:16>[Container: Swift]</size>\n\nMulti-scope analytics dashboards (cluster / namespace / pod / node / workload / service / Helm release / debug timeline / topology). Widgets: sparklines, line charts, heatmaps p50/p95/p99, stacked bars, counts, top lists, event timelines, topology graphs, log error rates, diff viewers, conditions lists. Drill-down via click. Auto-refresh 5-60s." <<Element-RWxlbWVudA==>> as K8sManager.AnalyticsDashboard
+  rectangle "==DomainEventBusActor\n<size:16>[Container: Swift / AsyncStream]</size>\n\nIn-process typed event bus implementing DomainEventBusPort (ADR-0040). Maintains per-subscriber AsyncStream<EventEnvelope> continuations keyed by sourceContext and subscriberId. Emits DomainEventDropped to a dedicated meta-stream on buffer overflow. Producers never suspend; cancellation propagates through Swift structured concurrency Task trees." <<Element-RWxlbWVudA==>> as K8sManager.DomainEventBusActor
+  rectangle "==Context Navigation\n<size:16>[Container: Swift]</size>\n\nActive context, recents, pinned items." <<Element-RWxlbWVudA==>> as K8sManager.ContextNavigation
+  rectangle "==Cluster Connectivity\n<size:16>[Container: Swift]</size>\n\nParses kubeconfig, probes cluster health, owns KubernetesApiPort, ExecCredentialPort, and a ClusterSessionActor per cluster with isolated HTTPClient pool, dedicated MultiThreadedEventLoopGroup (kqueue underneath), credential cache, and watch/exec/portforward/terminal registries (ADR-0025)." <<Element-RWxlbWVudA==>> as K8sManager.ClusterConnectivity
+  rectangle "==Cluster Intelligence\n<size:16>[Container: Swift / MCP]</size>\n\nIn-process MCP server (read-only K8s tool registry + Rego policy gate)." <<Element-RWxlbWVudA==>> as K8sManager.ClusterIntelligence
+  rectangle "==Assistant Chat\n<size:16>[Container: Swift]</size>\n\nChat sessions, tool-use loop, MCP host." <<Element-RWxlbWVudA==>> as K8sManager.AssistantChat
+  rectangle "==LLM Provider\n<size:16>[Container: Swift]</size>\n\nProvider port abstracting Anthropic, OpenAI, OpenAI-compatible endpoints." <<Element-RWxlbWVudA==>> as K8sManager.LLMProvider
+  rectangle "==Local Persistence\n<size:16>[Container: Swift / GRDB / Security]</size>\n\nSQLite (WAL) at ~/.config/k8smanager/storage.sqlite3 for non-secret state; macOS Keychain for LLM API keys; per-cluster JSON view-state files; logs and exports under ~/.config/k8smanager/ (ADR-0026)." <<Element-RWxlbWVudA==>> as K8sManager.LocalPersistence
+}
+
+K8sManager.TerminalSession --> K8sManager.SwiftkubeClientAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Creates ephemeral debug pod when kind=node_debug"
+K8sManager.TerminalSession --> K8sManager.WebSocketExecAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Opens pods/exec WebSocket"
+K8sManager.WebSocketExecAdapter --> KubernetesAPIServer <<Relationship-UmVsYXRpb25zaGlw>> : "WebSocket upgrade with subprotocol v5.channel.k8s.io"
+K8sManager.AssistantChat --> K8sManager.LLMProvider <<Relationship-UmVsYXRpb25zaGlw>> : "Streams replies via LLMProviderPort"
+K8sManager.AssistantChat --> K8sManager.ClusterIntelligence <<Relationship-UmVsYXRpb25zaGlw>> : "Executes tool calls via MCP protocol (in-process transport)"
+K8sManager.AssistantChat --> K8sManager.ContextNavigation <<Relationship-UmVsYXRpb25zaGlw>> : "Reads pinned ContextId for the session"
+K8sManager.AssistantChat --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists sessions, messages, tool-call records"
+K8sManager.AssistantChat --> K8sManager.MCPSDKAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Hosts MCP client side of in-process transport"
+K8sManager.LLMProvider --> K8sManager.AnthropicAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Streams via SwiftAnthropic"
+K8sManager.LLMProvider --> K8sManager.OpenAIAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Streams via MacPaw/OpenAI (api.openai.com)"
+K8sManager.LLMProvider --> K8sManager.OpenAICompatibleAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Streams via MacPaw/OpenAI with baseURL override"
+K8sManager.LLMProvider --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ProviderProfile rows; resolves API key from Keychain via LLMKeyStorePort"
+K8sManager.AnthropicAdapter --> AnthropicMessagesAPI <<Relationship-UmVsYXRpb25zaGlw>> : "POST /v1/messages with SSE streaming"
+K8sManager.OpenAIAdapter --> OpenAIAPI <<Relationship-UmVsYXRpb25zaGlw>> : "POST chat completions / responses with SSE streaming"
+K8sManager.OpenAICompatibleAdapter --> OpenAICompatibleEndpoint <<Relationship-UmVsYXRpb25zaGlw>> : "POST OpenAI-compatible endpoints"
+K8sManager.LocalPersistence --> K8sManager.GRDBPersistenceAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Writes/reads via GRDB.swift v7+"
+K8sManager.LocalPersistence --> K8sManager.KeychainAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Stores LLM API keys"
+K8sManager.GRDBPersistenceAdapter --> K8sManager.SQLiteStorage <<Relationship-UmVsYXRpb25zaGlw>> : "Embedded SQLite with WAL"
+K8sManager.AppShell --> K8sManager.PreferencesAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Transient UI prefs (window frame)"
+K8sManager.ResourceBrowser --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish MutationApplied, MutationFailed, DraftSaved, DraftPruned"
+K8sManager.ClusterConnectivity --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish ClusterSessionOpened, ClusterSessionClosed, ClusterSessionDegraded, WatchStreamReconnected, WatchStreamDropped"
+K8sManager.PortForwarding --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish PortForwardEstablished, PortForwardClosed"
+K8sManager.TerminalSession --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish TerminalSessionOpened, TerminalSessionClosed"
+K8sManager.HelmManagement --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish HelmRollbackInitiated, HelmRollbackCompleted"
+K8sManager.ClusterIntelligence --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish ToolInvoked"
+K8sManager.LocalPersistence --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish AuditEntryAppended"
+K8sManager.AppShell --> K8sManager.DomainEventBusActor <<Relationship-UmVsYXRpb25zaGlw>> : "publish LocaleChanged, ThemeChanged, PreferencesUpdated, ContextSwitched, DiagnosticsCollected"
+K8sManager.DomainEventBusActor --> K8sManager.AnalyticsDashboard <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ClusterSession*, MutationApplied, WatchStream*, PortForward*, HelmRollback*, ToolInvoked, AuditEntryAppended, DraftSaved"
+K8sManager.DomainEventBusActor --> K8sManager.AppShell <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ClusterSession*, MutationApplied, DraftSaved, PortForward*"
+K8sManager.DomainEventBusActor --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe MutationApplied (projects to mutation_audit); AuditEntryAppended (projects to audit_log)"
+K8sManager.DomainEventBusActor --> K8sManager.ClusterIntelligence <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ClusterSessionOpened, ClusterSessionClosed, MutationApplied"
+K8sManager.DomainEventBusActor --> K8sManager.ContextNavigation <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ClusterSessionOpened, ClusterSessionClosed, ContextSwitched"
+K8sManager.DomainEventBusActor --> K8sManager.AssistantChat <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ToolInvoked"
+K8sManager.DomainEventBusActor --> K8sManager.ResourceBrowser <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe WatchStreamReconnected, DraftSaved"
+K8sManager.DomainEventBusActor --> K8sManager.PortForwarding <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe ClusterSessionClosed (cascade teardown)"
+K8sManager.DomainEventBusActor --> K8sManager.TerminalSession <<Relationship-UmVsYXRpb25zaGlw>> : "subscribe MutationApplied (wait for debug Pod ready)"
+K8sManager.AnalyticsDashboard --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel and KubernetesApiPort for kube-state aggregations"
+K8sManager.AnalyticsDashboard --> K8sManager.ResourceBrowser <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ResourceListReadModel and MutationAuditReadModel for resource counts and audit timeline"
+K8sManager.AnalyticsDashboard --> K8sManager.MetricsObservability <<Relationship-UmVsYXRpb25zaGlw>> : "Issues PromQL via prometheusAdapter for sparklines, heatmaps, counts, log error rate"
+K8sManager.AnalyticsDashboard --> K8sManager.HelmManagement <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ReleaseListReadModel and ReleaseDetailReadModel for HelmReleaseDetail scope and topology"
+K8sManager.AnalyticsDashboard --> K8sManager.ClusterIntelligence <<Relationship-UmVsYXRpb25zaGlw>> : "Reads MCPInvocationLogReadModel for debug timeline assistant tool calls"
+K8sManager.AnalyticsDashboard --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists dashboard customisation via DashboardPreferencesPort"
+K8sManager.AnalyticsDashboard --> K8sManager.MenuBarTray <<Relationship-UmVsYXRpb25zaGlw>> : "Reuses widget catalog from tray_metric_widget.cue for shared widgets"
+K8sManager.MenuBarTray --> K8sManager.ContextNavigation <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ActiveContext, switches active context via header dropdown"
+K8sManager.MenuBarTray --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel for health badge"
+K8sManager.MenuBarTray --> K8sManager.MetricsObservability <<Relationship-UmVsYXRpb25zaGlw>> : "Issues PromQL queries for sparklines via prometheusAdapter"
+K8sManager.MenuBarTray --> K8sManager.ResourceBrowser <<Relationship-UmVsYXRpb25zaGlw>> : "Reads MutationAuditReadModel for recent mutations widget"
+K8sManager.MenuBarTray --> K8sManager.PortForwarding <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ActivePortForwardsReadModel for sessions count"
+K8sManager.MenuBarTray --> K8sManager.TerminalSession <<Relationship-UmVsYXRpb25zaGlw>> : "Reads OpenTerminalsReadModel for sessions count"
+K8sManager.AppShell --> K8sManager.MenuBarTray <<Relationship-UmVsYXRpb25zaGlw>> : "Owns lifecycle and observes TrayCommand notifications via TrayCommandPort (open main window, open chat, open settings); menuBarTray is part of app_shell BC but a distinct container"
+KubernetesOperator --> K8sManager.AppShell <<Relationship-UmVsYXRpb25zaGlw>> : "Switches contexts, browses resources, edits YAML, opens terminals, configures providers, chats with assistant, watches metrics"
+KubernetesOperator --> K8sManager.AnalyticsDashboard <<Relationship-UmVsYXRpb25zaGlw>> : "Selects scope; clicks widgets to drill down"
+K8sManager.AppShell --> K8sManager.AnalyticsDashboard <<Relationship-UmVsYXRpb25zaGlw>> : "Reads DashboardCatalogReadModel for the sidebar dashboards section"
+K8sManager.AppShell --> K8sManager.ContextNavigation <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ActiveContext, SidebarReadModel"
+K8sManager.AppShell --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel and KubeconfigLoadReportReadModel"
+K8sManager.AppShell --> K8sManager.AssistantChat <<Relationship-UmVsYXRpb25zaGlw>> : "Reads OpenSessionsReadModel and LiveTurnReadModel"
+K8sManager.AppShell --> K8sManager.LLMProvider <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ProviderListReadModel via settings"
+K8sManager.AppShell --> K8sManager.ResourceBrowser <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ResourceListReadModel, ResourceDetailReadModel, MutationAuditReadModel"
+K8sManager.AppShell --> K8sManager.PortForwarding <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ActivePortForwardsReadModel"
+K8sManager.AppShell --> K8sManager.HelmManagement <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ReleaseListReadModel, ReleaseDetailReadModel"
+K8sManager.AppShell --> K8sManager.MetricsObservability <<Relationship-UmVsYXRpb25zaGlw>> : "Reads PrometheusEndpointStatusReadModel, CuratedQueryCatalogReadModel"
+K8sManager.AppShell --> K8sManager.TerminalSession <<Relationship-UmVsYXRpb25zaGlw>> : "Reads OpenTerminalsReadModel"
+K8sManager.AppShell --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Reads operator preferences via OperatorPreferencesPort"
+K8sManager.ContextNavigation --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel"
+K8sManager.ContextNavigation --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists pins and recents"
+K8sManager.ClusterConnectivity --> K8sManager.YamsKubeconfigAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Loads kubeconfig (read-only)"
+K8sManager.ClusterConnectivity --> K8sManager.SwiftkubeClientAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Probes /readyz via pooled HTTPClient"
+K8sManager.ClusterConnectivity --> K8sManager.AWSExecCredentialAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Resolves credentials via ExecCredentialPort for EKS-style kubeconfig entries"
+K8sManager.ClusterConnectivity --> K8sManager.GCPExecCredentialAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Resolves credentials for GKE-style entries"
+K8sManager.ClusterConnectivity --> K8sManager.AzureExecCredentialAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Resolves credentials for AKS-style entries"
+K8sManager.ClusterConnectivity --> K8sManager.OIDCExecCredentialAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Resolves credentials for OIDC exec blocks"
+K8sManager.ClusterConnectivity --> K8sManager.SubprocessExecAdapterfallback <<Relationship-UmVsYXRpb25zaGlw>> : "Fallback for unknown exec plugins (compat with ADR-0002)"
+K8sManager.YamsKubeconfigAdapter --> KubeconfigFile <<Relationship-UmVsYXRpb25zaGlw>> : "Reads YAML"
+K8sManager.SwiftkubeClientAdapter --> KubernetesAPIServer <<Relationship-UmVsYXRpb25zaGlw>> : "HTTPS over pooled connections (ADR-0007)"
+K8sManager.AWSExecCredentialAdapter --> AWSSTS <<Relationship-UmVsYXRpb25zaGlw>> : "POST /v1/STS GetCallerIdentity (presigned URL)"
+K8sManager.GCPExecCredentialAdapter --> GoogleOAuthandSTS <<Relationship-UmVsYXRpb25zaGlw>> : "POST /token + STS token exchange"
+K8sManager.AzureExecCredentialAdapter --> MicrosoftEntraIDAzureAD <<Relationship-UmVsYXRpb25zaGlw>> : "OAuth2 device flow / service principal / Managed Identity"
+K8sManager.OIDCExecCredentialAdapter --> OIDCIdentityProvider <<Relationship-UmVsYXRpb25zaGlw>> : "Authorization Code + PKCE + JWKS"
+K8sManager.SubprocessExecAdapterfallback --> CustomExecCredentialPlugin <<Relationship-UmVsYXRpb25zaGlw>> : "Spawns and parses ExecCredential JSON"
+K8sManager.ClusterIntelligence --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel, uses KubernetesApiPort"
+K8sManager.ClusterIntelligence --> K8sManager.SwiftkubeClientAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Issues read-only verbs after policy gate"
+K8sManager.ClusterIntelligence --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists MCP invocation log"
+K8sManager.ResourceBrowser --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel"
+K8sManager.ResourceBrowser --> K8sManager.SwiftkubeClientAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "List, get, watch via KubernetesApiPort; PATCH server-side apply via custom adapter route"
+K8sManager.ResourceBrowser --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists cluster_mutation_audit entries"
+K8sManager.PortForwarding --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Reads ClusterReadModel"
+K8sManager.PortForwarding --> K8sManager.WebSocketPortForwardAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Opens portforward.k8s.io WebSocket"
+K8sManager.WebSocketPortForwardAdapter --> KubernetesAPIServer <<Relationship-UmVsYXRpb25zaGlw>> : "WebSocket upgrade to /api/v1/namespaces/.../pods/.../portforward"
+K8sManager.HelmManagement --> K8sManager.SwiftkubeClientAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Lists Secrets owner=helm; reads release blob"
+K8sManager.HelmManagement --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Submits rollback apply via ServerSideApplyPort (owned by cluster_connectivity); no dependency on resource_browser"
+K8sManager.HelmManagement --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Caches release decode result for navigation speed"
+K8sManager.MetricsObservability --> K8sManager.ClusterConnectivity <<Relationship-UmVsYXRpb25zaGlw>> : "Discovers Prometheus Service in cluster"
+K8sManager.MetricsObservability --> K8sManager.PrometheusQueryAdapter <<Relationship-UmVsYXRpb25zaGlw>> : "Issues PromQL via /api/v1/query, /api/v1/query_range"
+K8sManager.MetricsObservability --> K8sManager.LocalPersistence <<Relationship-UmVsYXRpb25zaGlw>> : "Persists endpoint overrides"
+K8sManager.PrometheusQueryAdapter --> PrometheusServer <<Relationship-UmVsYXRpb25zaGlw>> : "HTTPS query and query_range"
+
+@enduml
