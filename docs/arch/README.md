@@ -112,6 +112,15 @@ docs/arch/
   spacing, radius), typography preferences, theme preference, and a
   rich menu bar tray with live cluster metrics, sparklines, recent
   mutations, and quick-action shortcuts.
+- **analytics_dashboard** — multi-scope analytics dashboards with
+  widgets always visible (sparklines, heatmaps p50/p95/p99,
+  stacked bars, top lists, event timelines, topology graphs, log
+  error rates, diff viewers, conditions lists). Drill-down from
+  widget click to logs at timestamp, related scopes, or YAML.
+  Aggregates `metrics_observability`, `cluster_connectivity`,
+  `resource_browser`, `helm_management`, and `cluster_intelligence`
+  read models. Auto-refresh respects energy-saver constraints from
+  the menu bar tray.
 
 ### Dependency direction
 
@@ -127,6 +136,7 @@ graph TB
         terminalSession[Terminal Session]
         helmManagement[Helm Management]
         assistantChat[Assistant Chat]
+        analyticsDashboard[Analytics Dashboard]
     end
 
     subgraph businessLayer [Business / Intelligence Layer]
@@ -144,6 +154,7 @@ graph TB
     appShell --> terminalSession
     appShell --> helmManagement
     appShell --> assistantChat
+    appShell --> analyticsDashboard
 
     contextNavigation --> clusterConnectivity
     resourceBrowser --> clusterConnectivity
@@ -156,6 +167,13 @@ graph TB
     assistantChat --> llmProvider
     assistantChat --> clusterIntelligence
     clusterIntelligence --> clusterConnectivity
+
+    analyticsDashboard --> clusterConnectivity
+    analyticsDashboard --> resourceBrowser
+    analyticsDashboard --> metricsObservability
+    analyticsDashboard --> helmManagement
+    analyticsDashboard --> clusterIntelligence
+    analyticsDashboard --> localPersistence
 
     clusterConnectivity --> localPersistence
     llmProvider --> localPersistence
@@ -214,6 +232,13 @@ graph TB
   (Kubernetes brand palette + Apple HIG materials + dark/light + typography
   + operator-configurable preferences). Proposed.
 - **ADR-0022** — Menu bar tray with live cluster metrics. Proposed.
+- **ADR-0023** — UX patterns: command palette ⌘P/⌘K, k9s-style
+  keyboard shortcut map, progressive disclosure with power-user
+  override, drill-down dashboards, color semantics, accessibility-first.
+  Proposed.
+- **ADR-0024** — Analytics dashboard bounded context (multi-scope:
+  cluster / namespace / pod / node / workload / service / Helm
+  release / debug timeline / topology). Proposed.
 
 ## Validation
 

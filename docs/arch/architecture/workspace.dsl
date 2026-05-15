@@ -39,6 +39,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
             sqliteStore = container "SQLite Storage" "WAL-mode SQLite database for chat history, profiles, cache, log, prefs, audit." "SQLite 3"
             preferencesAdapter = container "Preferences Adapter" "UserDefaults overlay for transient UI state (window frame)." "Swift / UserDefaults"
             menuBarTray = container "Menu Bar Tray" "NSStatusItem with live cluster status widget, live metrics sparklines (CPU/mem/network/pods), recent mutations, active sessions, cluster picker. Refresh interval 5-60s; pauses on lid close, low power, or network unreachable." "Swift / SwiftUI / NSStatusItem"
+            analyticsDashboard = container "Analytics Dashboard" "Multi-scope analytics dashboards (cluster / namespace / pod / node / workload / service / Helm release / debug timeline / topology). Widgets: sparklines, line charts, heatmaps p50/p95/p99, stacked bars, counts, top lists, event timelines, topology graphs, log error rates, diff viewers, conditions lists. Drill-down via click. Auto-refresh 5-60s." "Swift"
         }
 
         // External systems
@@ -56,8 +57,10 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
 
         // Operator interactions
         operator -> appShell "Switches contexts, browses resources, edits YAML, opens terminals, configures providers, chats with assistant, watches metrics"
+        operator -> analyticsDashboard "Selects scope; clicks widgets to drill down"
 
         // App Shell consumes read models
+        appShell -> analyticsDashboard "Reads DashboardCatalogReadModel for the sidebar dashboards section"
         appShell -> contextNavigation "Reads ActiveContext, SidebarReadModel"
         appShell -> clusterConnectivity "Reads ClusterReadModel and KubeconfigLoadReportReadModel"
         appShell -> assistantChat "Reads OpenSessionsReadModel and LiveTurnReadModel"
@@ -144,6 +147,15 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         // App shell preferences
         appShell -> preferencesAdapter "Transient UI prefs (window frame)"
 
+        // Analytics dashboard
+        analyticsDashboard -> clusterConnectivity "Reads ClusterReadModel and KubernetesApiPort for kube-state aggregations"
+        analyticsDashboard -> resourceBrowser "Reads ResourceListReadModel and MutationAuditReadModel for resource counts and audit timeline"
+        analyticsDashboard -> metricsObservability "Issues PromQL via prometheusAdapter for sparklines, heatmaps, counts, log error rate"
+        analyticsDashboard -> helmManagement "Reads ReleaseListReadModel and ReleaseDetailReadModel for HelmReleaseDetail scope and topology"
+        analyticsDashboard -> clusterIntelligence "Reads MCPInvocationLogReadModel for debug timeline assistant tool calls"
+        analyticsDashboard -> localPersistence "Persists dashboard customisation (operator-customised layouts)"
+        analyticsDashboard -> menuBarTray "Reuses widget catalog from tray_metric_widget.cue for shared widgets"
+
         // Menu bar tray
         menuBarTray -> contextNavigation "Reads ActiveContext, switches active context via header dropdown"
         menuBarTray -> clusterConnectivity "Reads ClusterReadModel for health badge"
@@ -165,7 +177,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         container k8sManager "containers" {
             include *
             autoLayout tb
-            description "Twelve bounded-context containers plus their adapter layer. Domain cores never import infrastructure (ADR-0011, ADR-0020). Every external system is reached via a dedicated adapter implementing a domain port."
+            description "Thirteen bounded-context containers plus their adapter layer. Domain cores never import infrastructure (ADR-0011, ADR-0020). Every external system is reached via a dedicated adapter implementing a domain port."
         }
 
         styles {

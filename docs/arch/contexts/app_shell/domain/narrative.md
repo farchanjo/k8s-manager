@@ -301,6 +301,176 @@ All tray preferences are persisted under `app_shell/menu_bar_tray` in
 - `backgroundRefreshEnabled` — bool
 - `popoverPinned` — bool
 
+## Command palette and keyboard shortcuts
+
+Introduced by ADR-0023. The command palette is the single discoverable
+entry point for every command, resource jump, namespace switch, and
+cluster switch in the application. It is activated by `⌘P` (primary)
+or `⌘K` (alternate) from any screen state and provides fuzzy search
+across the full command catalog, recent invocations (ring size 50),
+resource names, namespace names, and cluster names simultaneously.
+
+### Tactical roles
+
+- **`#CommandPalette`** — AggregateRoot. Owns the lifecycle of the
+  palette overlay, the recent-invocations ring, and the current query
+  state. Persisted to `local_persistence` under
+  `app_shell/command_palette/recent_invocations`. The ring stores only
+  `commandId`, `invokedAt`, and `durationMillis` — no resource names,
+  cluster names, or user-typed query strings.
+
+- **`#CommandEntry`** — ValueObject. An immutable description of a
+  single palette command: `commandId`, `title`, `subtitle`,
+  `keyboardShortcut`, `scope`, `whenContext` predicate, and
+  `requiresContext` flag. Declared statically in the CUE schema
+  `command_palette.cue` and supplemented at runtime by entries
+  registered from other bounded contexts.
+
+- **`#ShortcutBinding`** — ValueObject. Maps a `keyChord` to a
+  `commandId` within a `scope` (global, resource_browser, terminal).
+  Carries a `whenContext` predicate string evaluated by
+  `ShortcutScopeEvaluator` at key-press time against the current
+  `ApplicationFocusSnapshot`.
+
+- **`CommandResolverService`** — DomainService. Maintains the in-memory
+  command catalog merged from the static `command_palette.cue` entries
+  and runtime registrations from bounded contexts. Resolves a
+  `commandId` to a callable handler. Detects conflicts at startup (fatal
+  in debug, logged at error in release).
+
+- **`ShortcutDispatchService`** — DomainService. Receives raw key events
+  from the SwiftUI focus system, evaluates `#ShortcutBinding` entries
+  against the current `ApplicationFocusSnapshot`, and dispatches
+  matched commands to `CommandResolverService`. Single-key bindings
+  (k9s-style: `l`, `s`, `d`, `e`, `u`) are evaluated only when the
+  `ApplicationFocusSnapshot.focusedPanel` is `resourceBrowserListRow`.
+
+### Command palette flow
+
+```mermaid
+sequenceDiagram
+    actor Op as Operator
+    participant SW as SwiftUI Window
+    participant CP as CommandPalette
+    participant Ranker as FuzzyRanker
+    participant Preview as ActionPreview
+
+    Op->>SW: Command-P or Command-K
+    SW->>CP: openPalette(triggerSource)
+    CP->>CP: loadRecentInvocations (ring 50)
+    CP-->>Op: overlay visible, recent items shown, input focused
+
+    Op->>CP: keystroke (incremental)
+    CP->>Ranker: rank(query, catalog + recentInvocations)
+    Ranker-->>CP: orderedResults [CommandEntry]
+    CP->>Preview: previewFor(selectedEntry)
+    Preview-->>Op: type-ahead action preview rendered
+
+    Op->>CP: Return to invoke
+    CP->>CP: recordInvocation(commandId, timestamp, duration)
+    CP->>SW: executeCommand(commandId, context)
+    CP-->>Op: overlay dismissed, focus returned to trigger
+```
+
+## Progressive disclosure
+
+The three-layer disclosure model applies to all resource views across
+the application shell. Layer transitions are driven by explicit operator
+gestures and are never triggered automatically.
+
+- **Layer 1 — Overview KPIs** (always visible): aggregate health, pod
+  ready counts, restart counts, age, and the five-color semantic status
+  badge. Sidebar lazy-reveals resource kinds grouped by category; only
+  the active group's kinds are expanded in the sidebar to avoid visual
+  overload.
+
+- **Layer 2 — Detail Panel** (on click or Return): events, conditions,
+  owner references, and the RED method metrics panel (requests/errors
+  left column, latency right column). Activated by clicking a list row
+  or pressing Return when a row is selected.
+
+- **Layer 3 — Config / YAML** (deliberate `⌘E` or `e` key): full YAML
+  editor and advanced config controls. Only reachable from Layer 2 via
+  an explicit gesture. The YAML editor is never opened automatically.
+
+Sidebar lazy reveal: when the sidebar has more than twelve resource
+kinds in the current namespace, kinds are grouped by category (Workloads,
+Networking, Configuration, Storage, RBAC, CRDs). Only the active
+category is expanded. Expanding a category is a one-click gesture.
+
+Power-user mode: when enabled in Settings > General, Layers 1 and 2
+are collapsed into a single dense list view that shows name, namespace,
+status, age, and resource-specific quick-stats in one row. Power-user
+mode does not affect Layer 3 (YAML editor) access.
+
+Layering invariant: `AppShell` never reads kubeconfig files directly,
+never invokes the Kubernetes API, and never holds credential material.
+No layer transition may trigger an implicit mutation or a read of
+credential material.
+
+## Onboarding and accessibility
+
+### First-launch tour
+
+On cold start when no onboarding state is persisted, the application
+presents a three-step welcome overlay: step 1 is a welcome message,
+step 2 guides the operator through importing a kubeconfig file, and step
+3 introduces the AI assistant with an example prompt. The tour can be
+skipped at any step by pressing Escape. Onboarding state (complete or
+skipped) is persisted to `local_persistence` under
+`app_shell/onboarding_state`. The tour is resumable from Settings >
+General via a "Restart onboarding tour" action.
+
+Empty states carry action hints: when the cluster list is empty the
+content area displays "Configure your first cluster" with an "Add
+cluster" action button. When the LLM provider has no key configured and
+the operator adds one, a "Try a prompt" CTA appears pointing to the
+assistant chat panel.
+
+The first time the operator initiates a mutating operation, a
+one-time modal explains the mutation safety policy as specified in
+ADR-0012. The operator must acknowledge before the mutation flow
+proceeds. This modal is presented exactly once per installation.
+
+### Keyboard-only navigation
+
+The full application shell is navigable without a pointer device. Tab
+and Shift-Tab traverse all interactive elements in DOM order. Arrow
+keys navigate within list and sidebar rows. Return activates the focused
+element. Escape closes overlays and returns to the previous state.
+`⌘P` opens the command palette from any focused element. All palette
+result rows, sidebar items, and resource list rows are keyboard-focusable
+and activatable with Return.
+
+### VoiceOver labels
+
+Every widget in the shell declares an `accessibilityLabel`. Cluster
+health badges announce cluster name and health status. Resource list
+rows announce kind, name, namespace, and status. The command palette
+overlay declares `accessibilityLabel("Command Palette")` and traps
+focus within the overlay while open. Result rows announce title,
+subtitle, and keyboard shortcut. The type-ahead preview region posts an
+`accessibilityAnnouncement` on each result-set change.
+
+### WCAG AA target
+
+All text tokens defined in `design_tokens.cue` achieve a minimum 4.5:1
+contrast ratio against their background surface token in both Light and
+Dark appearances. Status tokens achieve at least 3:1 against the
+`surfaceBackground` token in both appearances. When the operator enables
+Increase Contrast (Increased Contrast mode), the brand accent token is
+replaced with a higher-contrast variant. All interactive element borders
+receive increased opacity in Increased Contrast mode.
+
+### Reduce motion
+
+When `NSWorkspace.shared.accessibilityDisplayShouldReduceMotion` is true,
+or when the `reduceMotion` knob in the `#ThemePreference` schema is set
+to true, all panel open/close transitions and disclosure-layer transitions
+are immediate — no spring animation, no opacity crossfade, no transform.
+The operator may set the `reduceMotion` knob independently of the system
+flag; the system flag takes precedence when it is true.
+
 ## Out of scope
 
 - Resource browsing, Helm, dashboards, telemetry, auto-update

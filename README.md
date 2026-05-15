@@ -30,7 +30,7 @@ Electron. K8sManager is built for operators who live on macOS and want:
 
 ## Scope (MVP++)
 
-Twelve bounded contexts, each owning its own ubiquitous language:
+Thirteen bounded contexts, each owning its own ubiquitous language:
 
 - `cluster_connectivity` — parse kubeconfig, probe cluster health,
   own `KubernetesApiPort` and `ExecCredentialPort`.
@@ -60,6 +60,11 @@ Twelve bounded contexts, each owning its own ubiquitous language:
   auto-discovery and curated PromQL templates.
 - `terminal_session` — Pod exec and Node debug sessions via WebSocket
   `v5.channel.k8s.io`; multi-tab.
+- `analytics_dashboard` — always-on multi-scope analytics dashboards
+  (cluster, namespace, pod, node, workload, service, Helm release,
+  debug timeline, topology). 11 widget kinds including sparklines,
+  heatmaps, top lists, topology graphs, log error rates. Drill-down
+  from any widget click.
 
 ## Architecture in one diagram
 
@@ -75,6 +80,7 @@ graph TB
         terminalSession[Terminal Session]
         helmManagement[Helm Management]
         assistantChat[Assistant Chat]
+        analyticsDashboard[Analytics Dashboard]
     end
 
     subgraph businessLayer [Business / Intelligence Layer]
@@ -92,6 +98,7 @@ graph TB
     appShell --> terminalSession
     appShell --> helmManagement
     appShell --> assistantChat
+    appShell --> analyticsDashboard
 
     contextNavigation --> clusterConnectivity
     resourceBrowser --> clusterConnectivity
@@ -104,6 +111,13 @@ graph TB
     assistantChat --> llmProvider
     assistantChat --> clusterIntelligence
     clusterIntelligence --> clusterConnectivity
+
+    analyticsDashboard --> clusterConnectivity
+    analyticsDashboard --> resourceBrowser
+    analyticsDashboard --> metricsObservability
+    analyticsDashboard --> helmManagement
+    analyticsDashboard --> clusterIntelligence
+    analyticsDashboard --> localPersistence
 
     clusterConnectivity --> localPersistence
     llmProvider --> localPersistence
@@ -159,6 +173,72 @@ Refresh interval is operator-configurable (5 / 15 / 30 / 60 seconds or
 manual). Refresh pauses automatically on laptop lid close, system low
 power mode, or unreachable cluster. Full spec in
 [ADR-0022](docs/arch/decisions/adr-0022-menu-bar-tray-with-live-metrics.md).
+
+## UX patterns
+
+The user experience layer combines the Lens multi-cluster workflow
+with the k9s keyboard-first power-user model, the Grafana RED / USE
+dashboard methodology, the Raycast / Linear / GitHub command-palette
+pattern, and the Nielsen Norman three-layer progressive disclosure
+strategy. Captured in
+[ADR-0023](docs/arch/decisions/adr-0023-ux-patterns-command-palette-and-shortcuts.md).
+
+- **Command palette** — `⌘P` (primary) or `⌘K` (alternative) opens
+  a fuzzy-search palette over commands, resources, namespaces,
+  clusters, and recent invocations.
+- **k9s-style shortcut map** — `l` logs, `s` shell, `d` describe,
+  `e` edit YAML, `u` used-by, `:` command mode, `/` inline search,
+  `Ctrl-N` cycle namespaces, `?` hotkey help, `⌘1..9` pinned
+  clusters, plus full macOS-native shortcuts (`⌘W`, `⌘R`, `⌘F`,
+  `⌘,`, `Esc`).
+- **Progressive disclosure** — Overview KPIs always visible, Detail
+  on click, Config on deliberate intent. A power-user toggle in
+  Settings opens every advanced control at once.
+- **Drill-down dashboards** — every analytics widget click resolves
+  to logs at the timestamp, related scopes, or YAML.
+- **Color semantics** — consistent green / red / yellow / blue / gray
+  across status badges, sparklines, log lines, and notifications.
+- **Accessibility** — keyboard-only navigation, VoiceOver labels,
+  WCAG AA contrast, Dynamic Type, reduce motion mirrored from
+  system, focus-ring visible on every interactive element.
+
+## Analytics dashboards
+
+A first-class `analytics_dashboard` bounded context provides nine
+scope presets so operators get always-on visual debugging and load
+analysis at every level:
+
+- **Cluster Overview** — nodes, pods by phase, namespaces, CPU and
+  memory cluster-wide, top namespaces.
+- **Namespace Detail** — workloads, requests vs limits vs usage,
+  network in / out, top pods, recent events.
+- **Pod Detail (debug)** — CPU and memory time-series with limit
+  overlays, restart and OOMKilled correlation (exit code 137),
+  network rx / tx, disk I/O, log error rate sparkline, events
+  timeline, container breakdown.
+- **Node Detail** — kubelet metrics, conditions (Ready,
+  MemoryPressure, DiskPressure, PIDPressure), pod density, top
+  consuming pods, capacity vs allocatable.
+- **Workload Detail** — replicas desired vs available, rollout
+  progress, image versions, rollout history, restart rate.
+- **Service Detail** — endpoints, selector match, latency
+  p50 / p95 / p99 heatmap (RED method).
+- **Helm Release Detail** — version timeline, manifest diff,
+  hook outcomes.
+- **Debug Timeline** — Kubernetes events + mutation audit +
+  assistant tool calls, cross-scope chronological view.
+- **Topology Graph** — owner references + service selectors + Helm
+  release relationships, interactive zoom and pan.
+
+Every widget is clickable: a click on a CPU spike drills down to
+the pod logs at that exact timestamp; a heatmap column drills to
+the logs of the slow requests; a topology node opens the
+corresponding detail scope. Widgets follow the Grafana RED and USE
+methods and a consistent color palette (green healthy, red error,
+yellow warning, blue info, gray unknown). Heatmaps expose bimodal
+latency distributions that single percentile lines hide. Full
+specification in
+[ADR-0024](docs/arch/decisions/adr-0024-analytics-dashboard-bounded-context.md).
 
 ## Technology stack
 

@@ -159,6 +159,58 @@ any port that can issue mutations.
   NOT appear in any audit entry field. The `MutationCommandFactory`
   redacts Secret data values before serialising the command.
 
+### Contextual keyboard shortcuts
+
+The `resource_browser` context registers `#ShortcutBinding` entries in
+the `app_shell` `ShortcutDispatchService` with `whenContext` predicates
+that restrict activation to the resource browser list row focus domain.
+Single-key bindings are never active inside a text input field, the
+inline search bar, or an embedded terminal pane.
+
+Bindings registered by kind:
+
+- **Pod** — `l` opens the log stream panel via `terminal_session`;
+  `s` opens an exec shell (container selection prompt when multi-container)
+  via `terminal_session`; `d` opens the describe view at Layer 2 (read-only,
+  no mutation command constructed).
+- **Deployment** — `s` opens the scale dialog sheet; confirming constructs
+  a `#ScaleReplicas` mutation command evaluated by `MutationGuardPort` and
+  subject to the single-confirm modal required by ADR-0012. `s` also applies
+  to `StatefulSet` and `ReplicaSet` via the same shortcut binding with
+  `resource.kind in [Deployment, StatefulSet, ReplicaSet]` predicate.
+  Rollout restart is available via the command palette (`restart` query)
+  and via the detail pane action button; no single-key shortcut is assigned
+  for restart to avoid accidental invocation.
+- **ConfigMap** — `e` opens the YAML editor at Layer 3 with the live
+  server manifest; saving constructs an `#ApplyYAML` mutation command
+  subject to the ADR-0012 diff preview and confirmation policy.
+- **Secret** — `e` opens the YAML editor at Layer 3; the editor renders
+  data values base64-decoded for readability and re-encodes on save. A
+  persistent warning banner is shown within the editor: "Secret data is
+  visible — ensure no screen-sharing is active." Saving constructs an
+  `#ApplyYAML` mutation command with Secret data values redacted from the
+  `#MutationAuditEntry` per ADR-0012 audit field redaction rules.
+- **Service** — `u` opens the used-by panel showing backing Endpoints,
+  EndpointSlices, and the owning workload resolved via owner references
+  (read-only; no mutation command).
+- **CRD instance** — `e` opens the YAML editor at Layer 3 with inline
+  schema validation against the CRD OpenAPI schema registered in the
+  `KindCatalogue`; schema violations are surfaced as inline annotations
+  before the operator can save; saving constructs an `#ApplyYAML` mutation
+  command subject to ADR-0012 confirmation policy.
+
+All mutating shortcut actions (`s` for scale, `e` for edit/apply) route
+through `MutationCommandFactory` → `MutationGuardPort` → single-confirm
+modal (or double-confirm for delete via `⌘⌫`) → `MutationDispatchService`
+as specified in ADR-0012. The mutation guard evaluates the
+`mutation_guard.rego` policy including the kind allowlist, confirmation
+freshness (token age ≤ 5 minutes), and double-confirm requirement for
+delete operations.
+
+The `?` key in the resource browser opens a hotkey help overlay listing
+all active bindings for the currently selected resource kind. The overlay
+is navigable via VoiceOver.
+
 ## Out of scope
 
 - `exec` into a container (deferred; requires pty-level UX and
