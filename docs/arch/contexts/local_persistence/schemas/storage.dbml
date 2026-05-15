@@ -47,7 +47,7 @@ Table chat_sessions {
   created_at varchar [not null, note: "RFC 3339."]
   updated_at varchar [not null, note: "RFC 3339; updated on every message append."]
   title varchar [null, note: "User-visible label; null until the assistant infers one."]
-  provider_profile_id varchar [ref: > provider_profiles.id, null, note: "UUIDv7. FK to the LLM profile used in this session. Nullable so sessions survive profile deletion."]
+  provider_profile_id varchar [null, note: "UUIDv7. FK to the LLM profile used in this session. Nullable so sessions survive profile deletion. Delete action: set null (see Ref block at end of file)."]
   cluster_id varchar [null, note: "UUIDv7 of the pinned cluster. No FK — cluster state is managed in per-cluster JSON files (ADR-0025)."]
   archived_at varchar [null, note: "RFC 3339. Null while active. Set to indicate the session was archived by the operator."]
 
@@ -61,7 +61,7 @@ Table chat_sessions {
 
 Table chat_messages {
   id varchar [pk, note: "UUIDv7."]
-  session_id varchar [not null, ref: > chat_sessions.id, note: "UUIDv7. Cascading FK to the owning session."]
+  session_id varchar [not null, note: "UUIDv7. FK to the owning session. Delete action: cascade (see Ref block at end of file)."]
   role varchar [not null, note: "'system' | 'user' | 'assistant' | 'tool'"]
   content text [not null, note: "Full message content. For tool results this is the rendered output."]
   tool_calls_json text [null, note: "Serialised tool-call array for assistant turns. Redacted per the secret_redaction policy (ADR-0027) before storage; field is null for non-assistant roles."]
@@ -162,7 +162,7 @@ Table cluster_mutation_audit {
 
 Table mcp_wire_log {
   id varchar [pk, note: "UUIDv7."]
-  session_id varchar [not null, ref: > chat_sessions.id, note: "UUIDv7. FK to the owning chat session."]
+  session_id varchar [not null, note: "UUIDv7. FK to the owning chat session. Delete action: cascade (see Ref block at end of file)."]
   direction varchar [not null, note: "'inbound' | 'outbound'"]
   payload_redacted text [not null, note: "MCP wire frame with secrets scrubbed per the redaction policy (ADR-0027). Hard-capped at 256 KiB; truncated beyond that limit."]
   created_at varchar [not null, note: "RFC 3339."]
