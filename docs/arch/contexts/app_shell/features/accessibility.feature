@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 # DDD Role: ReadModel (accessibility preferences), ApplicationService (a11y enforcement)
 # Context: app_shell
 # Related ADRs: ADR-0021 (design system and contrast tokens), ADR-0023 (keyboard-only navigation, VoiceOver contract)

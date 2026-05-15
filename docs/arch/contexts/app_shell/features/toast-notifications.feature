@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 @adr-0032
 Feature: Toast notification system
   As an operator of K8sManager

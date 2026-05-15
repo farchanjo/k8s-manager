@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Menu bar tray overview
   As a K8sManager operator
   I want a persistent macOS menu bar status item with a popover

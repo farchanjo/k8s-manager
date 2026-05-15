@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Multi-tab terminal sessions
   As a cluster operator using K8sManager
   I want to manage multiple independent terminal sessions simultaneously in tabs

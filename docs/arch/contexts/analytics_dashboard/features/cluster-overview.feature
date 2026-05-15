@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Cluster Overview Dashboard
 
   The Cluster Overview dashboard is always visible when the operator selects

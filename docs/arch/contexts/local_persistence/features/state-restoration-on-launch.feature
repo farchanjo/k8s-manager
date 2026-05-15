@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: State restoration on cold launch
 
   As a platform engineer using K8sManager

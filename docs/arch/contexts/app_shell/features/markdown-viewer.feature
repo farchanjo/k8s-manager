@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Markdown viewer with side-by-side live preview
   As an operator of K8sManager
   I want to view and edit Markdown content with a live rendered preview

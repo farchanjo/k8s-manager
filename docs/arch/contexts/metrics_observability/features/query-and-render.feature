@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Query Prometheus and render metric charts in K8sManager
 
   As an operator viewing resources in K8sManager,

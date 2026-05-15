@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 # DDD Role: ApplicationService (first-launch orchestration), ReadModel (onboarding state)
 # Context: app_shell
 # Related ADRs: ADR-0021 (design system), ADR-0023 (command palette and shortcuts), ADR-0012 (mutating operations policy)

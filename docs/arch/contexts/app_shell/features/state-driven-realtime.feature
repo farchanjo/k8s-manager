@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 @adr-0034
 Feature: State-driven realtime UI architecture
   As an operator of K8sManager
@@ -28,6 +29,7 @@ Feature: State-driven realtime UI architecture
 
   Scenario: No manual refresh button is visible in the primary resource list
     Given the operator is viewing the pod list for namespace "production"
+    When the operator inspects the toolbar of the content list
     Then no "Refresh" button is visible in the content list toolbar
     And no "Refresh" keyboard shortcut is registered for the content list view
     And the pod list stays current via the Kubernetes watch stream

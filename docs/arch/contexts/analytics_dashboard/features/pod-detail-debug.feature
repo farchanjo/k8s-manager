@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Pod Detail Debug Dashboard
 
   The Pod Detail dashboard provides deep diagnostic visibility into a single

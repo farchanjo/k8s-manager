@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Icon catalog — consistent SF Symbols iconography
   As an operator using K8sManager on macOS
   I want every Kubernetes resource kind, status state, and action

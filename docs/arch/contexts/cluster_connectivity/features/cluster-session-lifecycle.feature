@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Cluster session lifecycle management
 
   As a platform engineer using K8sManager

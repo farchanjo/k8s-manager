@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Port-forward session lifecycle and failure handling
   As a cluster operator using K8sManager
   I want port-forward sessions to close cleanly when I stop them

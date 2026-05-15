@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Latency Heatmap on Service Detail
 
   The Service Detail dashboard includes a Heatmap widget that renders Prometheus

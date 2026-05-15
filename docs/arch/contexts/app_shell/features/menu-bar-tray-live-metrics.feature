@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Menu bar tray live metrics
   As a K8sManager operator
   I want live cluster metrics displayed in the tray popover

@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Diagnostics bundle export
   As an operator or support engineer working with K8sManager
   I want to export a self-contained diagnostics bundle as a zip file

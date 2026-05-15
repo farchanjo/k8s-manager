@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 # DDD Role: DomainService (ResourceBrowserService, ShortcutDispatchService), ValueObject (ShortcutBinding)
 # Context: resource_browser
 # Related ADRs: ADR-0023 (keyboard shortcut vocabulary and whenContext predicate), ADR-0012 (mutating operations policy)

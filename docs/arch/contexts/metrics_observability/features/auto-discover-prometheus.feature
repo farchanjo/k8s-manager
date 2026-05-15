@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Auto-discover Prometheus endpoint for a Kubernetes cluster
 
   As an operator connecting K8sManager to a Kubernetes cluster,

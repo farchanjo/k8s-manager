@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 # DDD Role: ValueObject (#LocalePreference), DomainService (LocaleResolverService), Port (TranslationCatalogPort)
 # Context: app_shell
 # Related ADRs: ADR-0033 (internationalisation and multi-language support)

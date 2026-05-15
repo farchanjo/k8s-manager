@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Topology Graph Dashboard
 
   The Topology Graph dashboard renders an interactive, zoomable node-edge graph

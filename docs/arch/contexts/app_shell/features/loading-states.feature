@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 @adr-0031
 Feature: Loading states and async resource UX
   As an operator of K8sManager

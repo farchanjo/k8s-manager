@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: JSON editor with syntax highlighting and schema validation
   As an operator of K8sManager
   I want to edit JSON content within the integrated editor

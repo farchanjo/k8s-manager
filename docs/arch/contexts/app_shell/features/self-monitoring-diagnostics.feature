@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: App self-monitoring diagnostics
   As an operator running K8sManager on macOS
   I want live visibility into the application's own resource usage

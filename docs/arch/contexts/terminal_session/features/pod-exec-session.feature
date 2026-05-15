@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Pod exec session
   As a cluster operator using K8sManager
   I want to open an interactive terminal session inside a running Pod container

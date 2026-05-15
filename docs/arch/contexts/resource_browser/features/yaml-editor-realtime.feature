@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: YAML editor real-time validation and dry-run apply
   As an operator of K8sManager
   I want to edit Kubernetes resource manifests in an integrated YAML editor
@@ -47,7 +48,7 @@ Feature: YAML editor real-time validation and dry-run apply
   Scenario: Schema validation marks an unknown field as a warning
     Given a Deployment named "worker" is open in the editor in editing mode
     And the operator types "  unknownField: true" under "spec:" in the buffer
-    And 150 milliseconds elapse after the last keystroke
+    When 150 milliseconds elapse after the last keystroke
     Then a diagnostic marker appears in the gutter on the line containing "unknownField"
     And the diagnostic severity is "warning"
     And the diagnostic source is "k8s-schema"

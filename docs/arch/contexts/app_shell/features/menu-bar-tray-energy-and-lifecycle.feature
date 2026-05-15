@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Menu bar tray energy management and application lifecycle
   As a K8sManager operator
   I want the tray to conserve energy when the system is constrained

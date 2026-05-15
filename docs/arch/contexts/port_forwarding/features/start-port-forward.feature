@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Start port-forward session
   As a cluster operator using K8sManager
   I want to open a port-forward tunnel from a local TCP port to a Pod port

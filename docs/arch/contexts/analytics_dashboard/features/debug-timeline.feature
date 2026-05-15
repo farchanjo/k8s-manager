@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Debug Timeline Dashboard
 
   The Debug Timeline dashboard renders a unified, filterable, chronological

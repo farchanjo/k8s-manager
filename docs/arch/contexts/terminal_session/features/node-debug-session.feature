@@ -1,3 +1,4 @@
+# DDD role: BehaviouralSpecification
 Feature: Node debug session
   As a cluster operator using K8sManager
   I want to open a privileged debug shell on a Kubernetes node
