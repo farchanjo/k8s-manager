@@ -99,6 +99,68 @@ tables are —
   Keychain entry under the application's service. Confirmation
   requires two affirmative actions.
 
+## Filesystem layout (`~/.config/k8smanager/`)
+
+ADR-0026 moves the storage root from
+`~/Library/Application Support/com.archanjo.K8sManager/` to the
+XDG-style path `~/.config/k8smanager/`. All other rules from
+ADR-0010 (WAL mode, GRDB, Keychain for secrets, redaction policy,
+append-only migrations) carry forward unchanged.
+
+```mermaid
+graph LR
+    Root["~/.config/k8smanager/"]
+    Root --> SQLite["storage.sqlite3\n(WAL, GRDB, ADR-0010 rules)"]
+    Root --> Cache["cache/\n(transient — safe to delete)"]
+    Cache --> ResCache["resource_list/"]
+    Cache --> PromCache["prometheus/"]
+    Root --> Clusters["clusters/"]
+    Clusters --> ClusterDir["<clusterId>/\n(one per cluster UUIDv7)"]
+    ClusterDir --> VS["view_state.json"]
+    ClusterDir --> PF["restorable_port_forwards.json"]
+    ClusterDir --> RR["recent_resources.json"]
+    Root --> Logs["logs/\n(daily rotation, 30-day cap)"]
+    Root --> Exports["exports/\n(operator-initiated CSVs)"]
+```
+
+Key write rules:
+
+- Per-cluster JSON files are written atomically (write-to-tmp then
+  `rename(2)`) within a 5-second debounced window by
+  `ClusterSessionActor` (ADR-0025).
+- `storage.sqlite3` is written exclusively through `PersistenceActor`.
+- `cache/` is wiped on app version bump; never store authoritative data here.
+- Log lines must not contain credential material; the `RedactionPolicy`
+  Rego rule and log-formatter regex scrub enforce this.
+
+## State restoration on cold launch
+
+On every cold launch `PersistenceActor` assembles a
+`#RestorationManifest` from `storage.sqlite3` and the per-cluster JSON
+files. The bootstrap sequence then:
+
+1. Opens the SQLite database and runs pending migrations.
+2. Renders the initial shell with a loading state on `MainActor`.
+3. Spawns `ClusterSessionActor` instances for pinned and recently used
+   clusters in a parallel `TaskGroup`.
+4. Restores dashboard custom layouts and chat session list.
+5. Presents a `#RestorationPrompt` of kind `"reopen_terminals"` if any
+   terminal sessions were open at last shutdown (operator opt-in).
+6. Presents a `#RestorationPrompt` of kind `"reopen_port_forwards"` if
+   any port-forward listeners were active at last shutdown (operator
+   opt-in).
+
+### First-run storage migration
+
+On the first launch of a build that uses the new path, the bootstrap
+checks for a legacy database at
+`~/Library/Application Support/com.archanjo.K8sManager/storage.sqlite3`.
+If found, a `#RestorationPrompt` of kind `"migrate_storage_path"` is
+shown. Accepting moves the file to `~/.config/k8smanager/storage.sqlite3`
+via `rename(2)` and leaves the legacy directory empty. Declining creates
+a fresh database at the new path without touching the legacy file.
+Subsequent launches skip this prompt regardless of choice.
+
 ## Out of scope
 
 - Kubeconfig persistence. Kubeconfigs remain read-only on disk

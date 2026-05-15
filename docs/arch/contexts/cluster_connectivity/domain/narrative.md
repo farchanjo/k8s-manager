@@ -79,6 +79,83 @@ whether a cluster is reachable.
   one outgoing HTTP request. The context never persists, serialises,
   or transmits an `AuthInfo` to any other context.
 
+## Per-cluster session isolation
+
+ADR-0025 introduces a `#ClusterSession` AggregateRoot for each active
+cluster. Every cluster the operator opens or pins materialises exactly
+one `ClusterSessionActor` (a Swift actor per ADR-0011) that owns the
+aggregate. Nothing inside a session is accessible from outside that
+actor boundary.
+
+### Tactical roles added by ADR-0025
+
+- **`#ClusterSession`** — AggregateRoot. Holds all transport and
+  runtime state that is specific to one cluster connection.
+- **`ClusterSessionActor`** — DomainService (Swift actor). Sole owner
+  and lifecycle manager of a `#ClusterSession`. Orchestrates all
+  sub-tasks via `withThrowingTaskGroup`.
+- **`#ClusterSessionEvent`** — ValueObject. The discriminated union of
+  events (`#SessionOpened`, `#SessionDegraded`, `#SessionDisconnected`,
+  `#SessionTerminated`, `#PoolStatsSnapshot`) published by a
+  `ClusterSessionActor` to observers via `AsyncStream`.
+
+### Components isolated per `#ClusterSession`
+
+```mermaid
+graph TB
+    subgraph CSA["ClusterSessionActor (one per cluster)"]
+        CS["#ClusterSession\nAggregateRoot"]
+        subgraph T["Transport"]
+            ELG["EventLoopGroup\n(dedicated)"]
+            HC["HTTPClient\n(dedicated)"]
+            CC["Credential cache"]
+        end
+        subgraph R["Registries"]
+            WSR["WatchStreamRegistry"]
+            ESR["ExecSessionRegistry"]
+            PFR["PortForwardRegistry"]
+            TSR["TerminalSessionRegistry"]
+        end
+        subgraph VS["View state"]
+            SBE["Sidebar expansion"]
+            CSP["Content scroll position"]
+            DTS["Detail tab selection"]
+            NSF["Namespace filter"]
+            SRQ["Search query"]
+        end
+    end
+    ELG --> HC
+    HC --> CC
+    CS --> T
+    CS --> R
+    CS --> VS
+```
+
+Switching the active cluster changes only the `activeClusterId` in
+`ContextNavigationState`; every `ClusterSessionActor` continues running
+and its state is preserved intact.
+
+## Idle pool reaping
+
+The `connectionPool.idleTimeout` setting from ADR-0007 (45 seconds)
+applies within each `#ClusterSession`'s dedicated `HTTPClient`. Idle
+HTTP/1.1 connections are reaped after 45 s of disuse. The
+`EventLoopGroup` is not torn down on idle connection reaping; it remains
+alive for the duration of the session.
+
+An optional `idleTimeoutMinutes` field on `#ClusterSession` (default `0`,
+meaning disabled) triggers a full `ClusterSessionActor` teardown after N
+consecutive minutes of session-level idleness. When teardown occurs, the
+`EventLoopGroup` is stopped and all OS threads for that cluster are
+released. Re-opening the cluster recreates the group from scratch.
+
+The interaction between the two timers:
+
+- `connectionPool.idleTimeout = 45s` — controls HTTP connection reaping
+  within an active session. Always in effect.
+- `idleTimeoutMinutes` — controls full session teardown. Off by default;
+  configurable via `operator_preferences` in ADR-0026.
+
 ## Out of scope
 
 - Resource listing, watch streams, exec, port-forward, log

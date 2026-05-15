@@ -471,6 +471,141 @@ are immediate — no spring animation, no opacity crossfade, no transform.
 The operator may set the `reduceMotion` knob independently of the system
 flag; the system flag takes precedence when it is true.
 
+## App self-monitoring
+
+Introduced by ADR-0027. K8sManager monitors its own process-level and
+session-level resource consumption and exposes the data in three
+surfaces: Settings → Diagnostics (live counters and sparklines), the
+menu bar tray (opt-in widget), and the analytics dashboard
+(`SelfMonitoring` scope, ADR-0024).
+
+### Tactical roles
+
+- **`#SelfMonitoringState`** — AggregateRoot. Persists operator
+  preferences: sample interval, tray surface toggle, ring-buffer
+  retention, and export-enabled flag. Restored from `local_persistence`
+  under `app_shell/self_monitoring_state`.
+
+- **`#SelfMetricSample`** — Entity. One snapshot collected at a single
+  timestamp. Carries 17 fields covering CPU, memory, threads, file
+  descriptors, network I/O, active Kubernetes sessions, SQLite and cache
+  sizes, Swift actor count, and SwiftNIO event loop group count.
+
+- **`#DiagnosticsBundle`** — ValueObject. Metadata record embedded as
+  `bundle-manifest.json` inside every exported diagnostics zip. Created
+  by `DiagnosticsBundleExporter`; never mutated after the bundle is
+  sealed.
+
+- **`SelfMonitoringSampler`** — DomainService. Polls Darwin APIs
+  (`mach_task_info`, `TASK_VM_INFO`, `proc_pidinfo`) and instrumented
+  atomic counters on the configured interval (default 5 s). Feeds the
+  in-memory ring buffer (default 60 min).
+
+- **`DiagnosticsBundleExporter`** — DomainService. Packages the 24 h
+  SQLite history of `#SelfMetricSample` records and sanitized log files
+  into a zip at `~/.config/k8smanager/exports/`. Runs the log redactor
+  before sealing; aborts on any redaction failure (fail-safe).
+
+### Data flow
+
+```mermaid
+graph LR
+    Darwin["Darwin APIs\nmach_task_info / TASK_VM_INFO\nproc_pidinfo"]
+    Counters["Instrumented counters\nwatch/exec/pf/chat/actor/kqueue"]
+    Sampler["SelfMonitoringSampler"]
+    Ring["MetricsBuffer\n(ring 60 min + SQLite 24 h)"]
+    DiagView["Settings → Diagnostics\nlive counters + sparklines"]
+    TrayW["Tray widget\n(opt-in)"]
+    AnalyticsS["Analytics dashboard\nSelfMonitoring scope"]
+    Exporter["DiagnosticsBundleExporter"]
+    Zip["exports/*.zip"]
+
+    Darwin --> Sampler
+    Counters --> Sampler
+    Sampler --> Ring
+    Ring --> DiagView
+    Ring --> TrayW
+    Ring --> AnalyticsS
+    Ring --> Exporter
+    Exporter --> Zip
+```
+
+### Invariants
+
+- The sampler never uploads metric data over the network.
+- The exporter aborts the entire export if any log-redaction step fails;
+  no partial bundle is written.
+- Metrics that are unavailable in the App Sandbox degrade to the sentinel
+  value `−1` and are rendered as "unavailable" in the UI; they never
+  cause a crash or an invalid sample record.
+
+## Iconography (SF Symbols + custom set)
+
+Governed by ADR-0028 — SF Symbols and native iconography (refines ADR-0021).
+All symbol references in `app_shell` views are declared in the `#IconCatalog`
+ValueObject (`contexts/app_shell/schemas/icon_catalog.cue`). No view may
+use a symbol name that is not catalogued there.
+
+### Tactical roles
+
+- **`#IconCatalog`** (ValueObject) — the canonical registry of all symbol
+  references. Each entry carries: `id` (kebab-case slug), `symbolName`
+  (SF Symbols stock name or `k8s.*` custom name), `renderingMode`,
+  `variant`, `accessibilityLabel`, `semantic` tag, and `isCustomSymbol`
+  flag. CUE constraints enforce non-empty labels and the `k8s.` prefix
+  for custom symbols.
+
+- **`IconResolver`** (DomainService) — translates an `#IconCatalog` slug
+  to a fully-resolved `#SymbolRenderHint` at render time. Reads
+  `#ColorTokens` from the design token registry to populate palette
+  layer tints. Checks `#available(macOS 15, *)` and falls back to
+  `macOS14FallbackName` when present.
+
+### Rendering pipeline
+
+```mermaid
+graph LR
+    A["Catalog id\n(slug)"] --> B["IconResolver\n(DomainService)"]
+    B --> C{"isCustomSymbol?"}
+    C -- "false" --> D["Image(systemName:)\nSF Symbols 6 stock"]
+    C -- "true" --> E["Image(symbolName:)\nk8s.* .symbolset\nin Assets.xcassets"]
+    D --> F["IconView wrapper"]
+    E --> F
+    F --> G[".symbolRenderingMode()"]
+    G --> H[".foregroundStyle()\nfrom #ColorTokens"]
+    H --> I[".accessibilityLabel()\nfrom #IconCatalog"]
+    I --> J{"animation?"}
+    J -- "none" --> K["Static glyph"]
+    J -- "pulse/bounce/variableColor" --> L[".symbolEffect()\n(suppressed if reduceMotion)"]
+    L --> K
+```
+
+### Custom symbol set
+
+Kubernetes-specific kinds that have no adequate SF Symbols stock mapping
+are authored as custom `.symbolset` assets embedded in `Assets.xcassets`:
+
+| Custom name | Represents | Availability |
+|:---|:---|:---|
+| `k8s.pod` | Pod (cubic outline) | Bundle-embedded |
+| `k8s.deployment` | Deployment (arrows-around-squares) | Bundle-embedded |
+| `k8s.statefulset` | StatefulSet (ordered stack) | Bundle-embedded |
+| `k8s.daemonset` | DaemonSet (broadcast glyph) | Bundle-embedded |
+| `k8s.helm.wheel` | Helm release / app icon (7-spoke wheel) | Bundle-embedded |
+
+All custom symbols are designed to the SF Symbols Regular weight template
+and support Regular, Semibold, and Bold weight variants. They are available
+offline without any network request.
+
+### BDD coverage
+
+`icon-catalog.feature` covers: kind consistency across sidebar / list /
+detail header; status fill variants in the ApiServerHealth widget;
+palette layer contrast in light and dark appearances; offline
+availability of custom symbols; accessibility label presence at every
+call site; `symbolEffect(.pulse)` for pending state with reduce-motion
+suppression.
+
 ## Out of scope
 
 - Resource browsing, Helm, dashboards, telemetry, auto-update

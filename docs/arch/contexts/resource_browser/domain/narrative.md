@@ -134,6 +134,51 @@ any port that can issue mutations.
   of #MutationAuditEntry rows. Consumed by `app_shell` for the audit
   history panel.
 
+## Resource iconography
+
+All Kubernetes resource-kind icons shown in the resource browser (sidebar
+rows, content-list leading area, detail pane header) are resolved from
+the `#IconCatalog` ValueObject defined in
+`contexts/app_shell/schemas/icon_catalog.cue` (ADR-0028). The
+`resource_browser` context does not define symbols independently; it
+consumes the catalog via the `IconResolver` DomainService in `app_shell`.
+
+The kind-to-symbol mapping for all kinds supported by this context
+(ADR-0013) is:
+
+| Kind | Symbol name | Custom |
+|:---|:---|:---:|
+| Pod | `k8s.pod` | Yes |
+| Deployment | `k8s.deployment` | Yes |
+| StatefulSet | `k8s.statefulset` | Yes |
+| DaemonSet | `k8s.daemonset` | Yes |
+| ReplicaSet | `square.3.layers.3d` | No |
+| Job | `clock` | No |
+| CronJob | `clock.arrow.circlepath` | No |
+| Service | `antenna.radiowaves.left.and.right` | No |
+| Ingress | `arrow.left.and.right.righttriangle.left.righttriangle.right` | No |
+| ConfigMap | `doc.text` | No |
+| Secret | `lock.doc` | No |
+| PersistentVolumeClaim | `externaldrive` | No |
+| PersistentVolume | `externaldrive.connected.to.line.below` | No |
+| StorageClass | `externaldrive.badge.checkmark` | No |
+| NetworkPolicy | `shield` | No |
+| Role | `person.badge.key` | No |
+| ClusterRole | `person.badge.key` | No |
+| RoleBinding | `person.2.badge.key` | No |
+| ClusterRoleBinding | `person.2.badge.key` | No |
+| ServiceAccount | `person.crop.circle.badge.checkmark` | No |
+| CustomResourceDefinition | `rectangle.dashed` | No |
+| Node | `server.rack` | No |
+| Helm release | `shippingbox` | No |
+
+Custom symbols (`k8s.*`) are embedded in the app bundle and are available
+offline. All entries use `renderingMode: hierarchical` with the appropriate
+`kindAccent*` token from `#ColorTokens`. Every call site in the resource
+browser views uses the `IconView` wrapper, which applies the
+`.accessibilityLabel` from the catalog entry — no view declares an ad-hoc
+accessibility label for a kind symbol.
+
 ## Invariants
 
 - The kind allowlist encoded in ADR-0013 and evaluated by the

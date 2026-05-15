@@ -1,11 +1,31 @@
 # ADR-0007 — Connection pool and persistent keep-alive for the Kubernetes API client
 
-- Status — Proposed
+- Status — Proposed; refined by ADR-0025 (per-cluster isolated HTTPClient pools); refined by ADR-0029 (kqueue I/O event selector)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — performance, kubernetes, swiftnio, connection-pool
+
+> **Refinement note (2026-05-15).** ADR-0025 supersedes the shared-client
+> model chosen here (Option A — shared `HTTPClient` with per-cluster
+> configuration overlays). Each cluster now materialises a dedicated
+> `HTTPClient` and `EventLoopGroup` inside its own `ClusterSessionActor`
+> (ADR-0025 Option C). All pool parameters defined in this ADR
+> (`idleTimeout = 45s`, `concurrentHTTP1ConnectionsPerHostSoftLimit = 8`,
+> `timeout.connect = 10s`, `timeout.read = 30s`, `httpVersion = .automatic`,
+> `proxy = .environment`) carry forward unchanged — they apply per-session
+> rather than globally. The watch-stream dedicated client rule also carries
+> forward per-session.
+
+> **Refinement note — I/O selector (2026-05-15).** ADR-0029 pins the kernel
+> I/O event notification mechanism for all HTTP pool operations to
+> `kqueue(2)` on macOS via SwiftNIO `MultiThreadedEventLoopGroup`. Each
+> `ClusterSessionActor` creates its own group (see ADR-0025); the kqueue FD
+> count per session equals `max(2, ProcessInfo.activeProcessorCount / 4)`
+> event loops. Pool socket readability and writability events are delivered
+> via `EVFILT_READ` and `EVFILT_WRITE` filters; pool-idle timer reaping uses
+> `EVFILT_TIMER`. No alternative selector (`select(2)`, `poll(2)`) is used.
 
 ## Context and problem statement
 

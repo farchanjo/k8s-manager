@@ -1,11 +1,18 @@
 # ADR-0021 — App shell design system and main layout
 
-- Status — Proposed
+- Status — Proposed; iconography pinned by ADR-0028
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — ui, design-system, layout, accessibility, typography, color, material
+
+> **Iconography note** — The SF Symbols section of this ADR (symbol name
+> assignments per Kubernetes kind, rendering modes, symbol variants, animation
+> effects, accessibility label policy, and the `#IconCatalog` CUE schema) has
+> been superseded by ADR-0028 — SF Symbols and native iconography. ADR-0028
+> is the canonical reference for all symbol-related decisions. The SF Symbols
+> subsection below is retained for historical context only.
 
 ## Context and problem statement
 

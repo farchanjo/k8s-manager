@@ -27,6 +27,20 @@ Electron. K8sManager is built for operators who live on macOS and want:
 - 100% native REST API — no `kubectl`, `helm`, `aws`, `gcloud`, or
   `kubelogin` subprocess (except as a documented fallback for
   unrecognised exec plugins).
+- Per-cluster isolated HTTPClient pools backed by **kqueue** I/O
+  event selection on macOS — every cluster gets its own pool and
+  event loops; nothing leaks between clusters.
+- Session restoration that survives quit and relaunch — open
+  terminals, port-forwards, dashboard layouts, chat sessions all
+  come back where you left them.
+- Self-monitoring built in — live CPU, memory, threads, network,
+  SQLite size, active sessions, and kqueue events / second
+  visible in Settings → Diagnostics.
+- All state under a single backup-friendly directory
+  `~/.config/k8smanager/` (SQLite, per-cluster view state, logs,
+  exports).
+- SF Symbols iconography across the entire UI; custom symbol set
+  for Kubernetes kinds without stock equivalents.
 
 ## Scope (MVP++)
 
@@ -239,6 +253,48 @@ yellow warning, blue info, gray unknown). Heatmaps expose bimodal
 latency distributions that single percentile lines hide. Full
 specification in
 [ADR-0024](docs/arch/decisions/adr-0024-analytics-dashboard-bounded-context.md).
+
+## Async architecture and isolation
+
+K8sManager is async end-to-end. Every I/O operation is driven by
+[kqueue](https://man.openbsd.org/kqueue.2) through SwiftNIO's
+`MultiThreadedEventLoopGroup` (ADR-0029). Each open cluster runs its
+own `ClusterSessionActor` with a dedicated event-loop group, isolated
+`HTTPClient` pool, credential cache, watch / exec / port-forward /
+terminal registries, and view state (ADR-0025). Nothing leaks across
+clusters.
+
+State persistence is operator-friendly: everything lives under
+`~/.config/k8smanager/` (ADR-0026) — a single backup-friendly XDG-style
+directory containing `storage.sqlite3` (chat history, provider
+profiles, audit log), `clusters/<id>/` (per-cluster view state),
+`cache/` (transient), `logs/`, and `exports/`. macOS Keychain still
+holds LLM API keys.
+
+Every cold launch reads a `RestorationManifest` and rebuilds the world:
+pinned and recent cluster sessions in parallel, dashboard layouts,
+chat sessions, and operator-opt-in prompts for reopening previously
+active terminals and port-forwards.
+
+Self-monitoring is first-class (ADR-0027). Settings → Diagnostics
+shows live CPU, RSS memory, threads, file descriptors, network, SQLite
+size, active sessions per kind, and kqueue events / second sampled
+every 5 seconds. An optional menu bar widget exposes the same.
+Operators can export a redacted diagnostics bundle (`.zip`) for issue
+triage.
+
+## Iconography
+
+The UI uses [SF Symbols 6+](https://developer.apple.com/sf-symbols/)
+as the primary symbol library, with a small custom `.symbolset` bundle
+for Kubernetes kinds that have no stock equivalent (Pod, Deployment,
+StatefulSet, DaemonSet). Symbols render in hierarchical or palette
+mode depending on context (status badges use `.fill` variants;
+sidebar uses `.symbolRenderingMode(.hierarchical)`). Each
+`Image(systemName:)` is paired with an explicit
+`.accessibilityLabel()`. No emoji is ever used in UI. Full catalogue
+in
+[ADR-0028](docs/arch/decisions/adr-0028-sf-symbols-native-iconography.md).
 
 ## Technology stack
 

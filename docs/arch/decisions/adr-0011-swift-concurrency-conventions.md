@@ -1,11 +1,33 @@
 # ADR-0011 — Swift concurrency conventions for a fluid async UI
 
-- Status — Proposed
+- Status — Proposed; extended by ADR-0025 (ClusterSessionActor per cluster); extended by ADR-0029 (kqueue I/O event selector via SwiftNIO)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — concurrency, swift, async-await, actors, performance
+
+> **Extension note — kqueue I/O selector (2026-05-15).** ADR-0029 names
+> the kernel I/O event notification mechanism that underlies the async I/O
+> model described in this ADR. Every `async`/`await` operation that touches
+> a socket, file, or timer ultimately routes through `kqueue(2)` on macOS —
+> via SwiftNIO `MultiThreadedEventLoopGroup` for Kubernetes API channels, and
+> via libdispatch `kqueue`-backed dispatch sources for `Task.sleep(for:)` and
+> `ContinuousClock`-based timers. The ban on `DispatchQueue.main.async` for
+> I/O and the ban on `Thread.sleep` in this ADR are direct consequences of
+> keeping all I/O notifications on the kqueue path.
+
+> **Extension note (2026-05-15).** ADR-0025 adds `ClusterSessionActor`
+> to the actor ownership map defined in this ADR. One
+> `ClusterSessionActor` instance is spawned per active cluster; it
+> owns the cluster's `#ClusterSession` AggregateRoot (dedicated
+> `HTTPClient`, `EventLoopGroup`, credential cache, watch stream
+> registry, exec session registry, port-forward registry, terminal
+> session registry, and per-cluster view state). All mutations to a
+> cluster's session go through awaited method calls on its
+> `ClusterSessionActor`. Sub-tasks are orchestrated via
+> `withThrowingTaskGroup` so that actor cancellation tears down all
+> child tasks in order without violating the `Task.detached` ban.
 
 ## Context and problem statement
 

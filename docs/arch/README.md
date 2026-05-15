@@ -42,6 +42,27 @@ and validation policies.
   (Phase 2 per ADR-0015); auto-discovered Prometheus dashboards;
   port-forwarding and terminal sessions (Pod exec + Node debug,
   multi-tab) via WebSocket.
+- **Per-cluster isolation** — each cluster materialises its own
+  `ClusterSession` with dedicated `HTTPClient`, `EventLoopGroup`,
+  credential cache, and registries; nothing leaks across clusters
+  (ADR-0025).
+- **I/O event selection** — kqueue everywhere via SwiftNIO's
+  `MultiThreadedEventLoopGroup` on macOS; the only kernel event
+  notification primitive used (ADR-0029).
+- **Filesystem layout** — `~/.config/k8smanager/` houses
+  `storage.sqlite3`, `clusters/<id>/` per-cluster view state, `cache/`,
+  `logs/`, `exports/` (ADR-0026).
+- **State restoration** — every cold launch restores the active
+  context, pinned and recent cluster sessions, dashboard layouts,
+  chat sessions, and prompts for terminal and port-forward
+  reopen (ADR-0026).
+- **App self-monitoring** — live CPU, RSS memory, threads, file
+  descriptors, network, SQLite size, active sessions, kqueue
+  events/s; settings → Diagnostics + optional tray widget +
+  analytics dashboard scope (ADR-0027).
+- **Iconography** — SF Symbols 6+ catalogue with custom
+  `.symbolset` glyphs for Kubernetes kinds where stock symbols
+  do not exist (ADR-0028).
 
 ## Layout
 
@@ -239,6 +260,17 @@ graph TB
 - **ADR-0024** — Analytics dashboard bounded context (multi-scope:
   cluster / namespace / pod / node / workload / service / Helm
   release / debug timeline / topology). Proposed.
+- **ADR-0025** — Per-cluster isolation strategy (dedicated
+  `HTTPClient`, `EventLoopGroup`, registries per cluster).
+  Proposed. Refines ADR-0007.
+- **ADR-0026** — State persistence and filesystem layout under
+  `~/.config/k8smanager/`. Proposed. Refines ADR-0010.
+- **ADR-0027** — App self-monitoring (in-app diagnostics).
+  Proposed.
+- **ADR-0028** — SF Symbols and native iconography. Proposed.
+  Refines ADR-0021.
+- **ADR-0029** — kqueue I/O event selector strategy. Proposed.
+  Refines ADR-0007, ADR-0011, ADR-0025.
 
 ## Validation
 

@@ -1,11 +1,23 @@
 # ADR-0010 — Local persistence — SQLite for non-secret state, macOS Keychain for LLM API keys
 
-- Status — Proposed; driver library pinned by ADR-0019
+- Status — Proposed; driver library pinned by ADR-0019; refined by ADR-0026 (filesystem layout under `~/.config/k8smanager/`)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — persistence, sqlite, keychain, secrets, storage
+
+> **Refinement note (2026-05-15).** ADR-0026 moves the storage root from
+> `~/Library/Application Support/com.archanjo.K8sManager/` to
+> `~/.config/k8smanager/`. The SQLite file is now at
+> `~/.config/k8smanager/storage.sqlite3`. All other rules in this ADR
+> — WAL mode, GRDB driver, PRAGMA settings, append-only migrations,
+> Keychain placement under `service = "com.archanjo.K8sManager.llm"`,
+> redaction policy, and the `PersistenceActor` sole-writer model —
+> carry forward without change. Per-cluster view state and restorable
+> session data are stored in per-cluster JSON files under
+> `~/.config/k8smanager/clusters/<clusterId>/` (ADR-0026, ADR-0025),
+> not in the SQLite database.
 
 > **Pinning note (2026-05-15).** The SQLite Swift driver is pinned to
 > **`groue/GRDB.swift`** version 7.10.x (Swift 6.1+ obligatory) per

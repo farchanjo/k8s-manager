@@ -1,4 +1,4 @@
-workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assistant, in-process MCP server, native cloud auth, and 100% REST-API integration (no kubectl/helm/aws/gcloud/kubelogin subprocess) — MVP++ per ADR-0006, ADR-0012, ADR-0018." {
+workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assistant, in-process MCP server, native cloud auth, 100% REST-API integration (no kubectl/helm/aws/gcloud/kubelogin subprocess), per-cluster isolated HTTPClient pools backed by kqueue I/O event selection, session restoration across launches, ~/.config/k8smanager/ filesystem layout, and SF Symbols iconography — MVP++ per ADR-0006, ADR-0012, ADR-0018, ADR-0025, ADR-0026, ADR-0028, ADR-0029." {
 
     model {
         operator = person "Kubernetes Operator" "Workstation user managing one or more Kubernetes clusters and interacting with the in-app assistant."
@@ -6,13 +6,13 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         k8sManager = softwareSystem "K8sManager" "macOS-native Kubernetes manager." {
 
             // Bounded-context containers (domain cores)
-            appShell = container "App Shell" "SwiftUI window, sidebar, menu bar, settings, chat surface, terminal surface, metrics surface." "Swift / SwiftUI"
+            appShell = container "App Shell" "SwiftUI window with NavigationSplitView 3-column + .inspector + status bar; sidebar; settings; chat surface; terminal surface; metrics surface; command palette (Cmd-P/Cmd-K); keyboard shortcut map; SF Symbols iconography (ADR-0028); app self-monitoring diagnostics (ADR-0027); state restoration on launch (ADR-0026)." "Swift / SwiftUI"
             contextNavigation = container "Context Navigation" "Active context, recents, pinned items." "Swift"
-            clusterConnectivity = container "Cluster Connectivity" "Parses kubeconfig, probes cluster health, owns KubernetesApiPort and ExecCredentialPort." "Swift"
+            clusterConnectivity = container "Cluster Connectivity" "Parses kubeconfig, probes cluster health, owns KubernetesApiPort, ExecCredentialPort, and a ClusterSessionActor per cluster with isolated HTTPClient pool, dedicated MultiThreadedEventLoopGroup (kqueue underneath), credential cache, and watch/exec/portforward/terminal registries (ADR-0025)." "Swift"
             clusterIntelligence = container "Cluster Intelligence" "In-process MCP server (read-only K8s tool registry + Rego policy gate)." "Swift / MCP"
             assistantChat = container "Assistant Chat" "Chat sessions, tool-use loop, MCP host." "Swift"
             llmProvider = container "LLM Provider" "Provider port abstracting Anthropic, OpenAI, OpenAI-compatible endpoints." "Swift"
-            localPersistence = container "Local Persistence" "SQLite (WAL) for non-secret state; macOS Keychain adapter for LLM API keys." "Swift / GRDB / Security"
+            localPersistence = container "Local Persistence" "SQLite (WAL) at ~/.config/k8smanager/storage.sqlite3 for non-secret state; macOS Keychain for LLM API keys; per-cluster JSON view-state files; logs and exports under ~/.config/k8smanager/ (ADR-0026)." "Swift / GRDB / Security"
             resourceBrowser = container "Resource Browser" "Full CRUD with confirmation, double-confirm delete, audit log, server-side apply." "Swift"
             portForwarding = container "Port Forwarding" "Local TCP listener tunnels via WebSocket portforward.k8s.io subprotocol." "Swift"
             helmManagement = container "Helm Management" "Native Helm release list/inspect/history/rollback over Secrets type helm.sh/release.v1 (Phase 1); install/upgrade/template/lint native engine (Phase 2 roadmap)." "Swift"
@@ -20,7 +20,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
             terminalSession = container "Terminal Session" "Pod exec and Node debug sessions via WebSocket v5.channel.k8s.io subprotocol, multi-tab." "Swift"
 
             // Infrastructure adapters
-            swiftkubeAdapter = container "SwiftkubeClient Adapter" "swiftkube/client + async-http-client; per-cluster HTTPClient overlays; PATCH server-side apply custom." "Swift / SwiftkubeClient / SwiftNIO"
+            swiftkubeAdapter = container "SwiftkubeClient Adapter" "swiftkube/client + async-http-client; per-cluster isolated HTTPClient instances with dedicated MultiThreadedEventLoopGroup (kqueue I/O selector — ADR-0029); PATCH server-side apply custom route." "Swift / SwiftkubeClient / SwiftNIO"
             yamsAdapter = container "Yams Kubeconfig Adapter" "Parses kubeconfig YAML (read-only)." "Swift / Yams"
             grdbAdapter = container "GRDB Persistence Adapter" "WAL SQLite store via GRDB.swift v7+." "Swift / GRDB"
             keychainAdapter = container "Keychain Adapter" "macOS Keychain (kSecClassGenericPassword) for LLM API keys." "Security framework"
