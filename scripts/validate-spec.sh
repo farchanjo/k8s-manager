@@ -244,28 +244,28 @@ else
 fi
 
 # ── STEP 8: DBML lint ─────────────────────────────────────────────────────────
+#
+# Uses @dbml/core Parser directly. dbml2sql tolerates duplicate-endpoint refs
+# and exits 0 on broken files; @dbml/core enforces structural rules and is
+# the parser used by dbdocs and dbdiagram.io. This step exits non-zero on
+# any parse error so CI catches the class of bug fixed in May 2026.
 
 echo ""
-echo "==> [8/9] DBML lint (dbml2sql)"
+echo "==> [8/9] DBML lint (@dbml/core parser)"
 
 _dbml_file="${CONTEXTS_DIR}/local_persistence/schemas/storage.dbml"
 
 if [[ -f "${_dbml_file}" ]]; then
-  # Prefer local install (pnpm); fall back to system PATH.
-  _dbml_bin="${REPO_ROOT}/node_modules/.bin/dbml2sql"
-  if [[ ! -x "${_dbml_bin}" ]] && _cmd_exists dbml2sql; then
-    _dbml_bin="dbml2sql"
-  fi
-  if [[ -x "${_dbml_bin}" ]] || [[ "${_dbml_bin}" == "dbml2sql" ]]; then
-    if ! "${_dbml_bin}" "${_dbml_file}" --postgres >/dev/null 2>/tmp/k8s-spec-dbml-err.txt; then
-      echo "  dbml2sql error:"
+  if [[ -d "${REPO_ROOT}/node_modules/@dbml/core" ]] && _cmd_exists node; then
+    if node -e "const {Parser}=require('@dbml/core'); const fs=require('fs'); try { Parser.parse(fs.readFileSync(process.argv[1],'utf8'),'dbml'); } catch (e) { console.error(e.message); process.exit(1); }" "${_dbml_file}" 2>/tmp/k8s-spec-dbml-err.txt; then
+      _pass "DBML lint — storage.dbml parses cleanly"
+    else
+      echo "  @dbml/core error:"
       sed 's/^/    /' /tmp/k8s-spec-dbml-err.txt
       _fail "DBML lint — storage.dbml parse failed"
-    else
-      _pass "DBML lint — storage.dbml parses cleanly"
     fi
   else
-    _skip "DBML lint" "dbml2sql not found; install via pnpm add -D @dbml/cli"
+    _skip "DBML lint" "@dbml/core not installed; run pnpm install"
   fi
 else
   _skip "DBML lint" "storage.dbml not found at expected path"
