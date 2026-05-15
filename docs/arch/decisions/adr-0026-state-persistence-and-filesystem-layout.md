@@ -140,8 +140,8 @@ such as `gh`, `starship`, `lazygit`, `k9s`, `kubectx`, and `helm`.
 ### Option C — XDG `~/.config/k8smanager/` (chosen)
 
 - Good, because `~/.config` is immediately discoverable by the operator profile (DevOps / platform
-  engineers) who universally encounter it through `gh`, `starship`, `lazygit`, `k9s`, `kubectx`,
-  and `helm`.
+  engineers) who universally encounter it through `gh`, `starship`, `lazygit`, `k9s`, `kubectx`, and
+  `helm`.
 - Good, because clean separation into `cache/`, `clusters/`, `logs/`, and `exports/` subdirectories
   supports per-category operations (wipe cache, inspect logs) without touching other data.
 - Good, because `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures the complete

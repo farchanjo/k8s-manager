@@ -66,11 +66,10 @@ application.
 
 ### Option C — `#AsyncResource<T>` sum type (chosen)
 
-- Good, because a single `enum` with four cases (`idle`, `loading`, `success`, `failure`)
-  eliminates all invalid state combinations; Swift's exhaustive `switch` enforces handling at every
-  call site.
-- Good, because the uniform 200 ms throttle implementation applies once at the sum type level
-  rather than being reimplemented in every view model.
+- Good, because a single `enum` with four cases (`idle`, `loading`, `success`, `failure`) eliminates
+  all invalid state combinations; Swift's exhaustive `switch` enforces handling at every call site.
+- Good, because the uniform 200 ms throttle implementation applies once at the sum type level rather
+  than being reimplemented in every view model.
 - Good, because the single vocabulary across all 30+ views is encoded in the CUE schema for
   machine-checked spec validation and maps to a stable operator mental model.
 - Bad, because it introduces a bespoke type that developers must learn; the four-case vocabulary is

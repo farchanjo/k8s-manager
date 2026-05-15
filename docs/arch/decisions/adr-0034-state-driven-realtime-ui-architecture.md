@@ -57,8 +57,8 @@ views, defines the data flow contract from Kubernetes watch streams through doma
 
 - Good, because Combine is Apple-supported with extensive community documentation and has been
   battle-tested in production SwiftUI apps since 2019.
-- Bad, because `@Published` properties wrapped in `Publisher` require `receive(on:)` and `sink`
-  with `AnyCancellable` storage when accessed from `@MainActor` async contexts; both pre-date Swift
+- Bad, because `@Published` properties wrapped in `Publisher` require `receive(on:)` and `sink` with
+  `AnyCancellable` storage when accessed from `@MainActor` async contexts; both pre-date Swift
   strict concurrency and produce `Sendable` warnings for `ObservableObject` types shared across
   actors.
 - Bad, because Apple's own SwiftUI tutorials for Swift 6 migrate away from `ObservableObject`;
@@ -81,9 +81,9 @@ views, defines the data flow contract from Kubernetes watch streams through doma
 
 - Good, because TCA enforces unidirectional data flow, has excellent ergonomics for complex state
   machines, and is highly testable with its `Store`/`Effect` model.
-- Bad, because TCA is a heavyweight third-party dependency (pulling in `swift-composable-architecture`,
-  `swift-case-paths`, `swift-dependencies`, etc.) that competes with Observation tracking through its
-  own `Store` reference type.
+- Bad, because TCA is a heavyweight third-party dependency (pulling in
+  `swift-composable-architecture`, `swift-case-paths`, `swift-dependencies`, etc.) that competes
+  with Observation tracking through its own `Store` reference type.
 - Bad, because for a greenfield project whose primary state model is a stream of Kubernetes events,
   TCA's action/reducer ceremony adds complexity without proportional benefit over the simpler
   `@Observable` + `AsyncSequence` model.

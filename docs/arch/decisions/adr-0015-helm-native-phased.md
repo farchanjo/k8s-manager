@@ -120,7 +120,8 @@ This option is chosen.
 ### Option A — Full native big-bang
 
 - Good, because a single milestone delivers the complete Helm capability surface (template engine,
-  install, upgrade, rollback, OCI pull, HTTP repo) without shipping an intentionally limited product.
+  install, upgrade, rollback, OCI pull, HTTP repo) without shipping an intentionally limited
+  product.
 - Bad, because the template engine alone is estimated at 19,000 to 29,000 lines of Swift (13 to 20
   months); delivering all capabilities together delays any operator-visible value by over a year.
 - Bad, because there is no existing Swift port of Go's `text/template` or Sprig; the engineering

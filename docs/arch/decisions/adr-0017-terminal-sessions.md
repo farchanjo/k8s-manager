@@ -120,8 +120,8 @@ analysis.
   consistent with the existing cluster connectivity context.
 - Good, because Swift actor model maps naturally to one-session-one-actor, keeping all mutable
   session state (receive buffer, last-activity timestamp, current size) fully contained.
-- Bad, because the v5 channel-framing layer (1-byte prefix demux/mux) must be implemented and
-  tested in application code; an off-by-one in channel parsing silently corrupts terminal output.
+- Bad, because the v5 channel-framing layer (1-byte prefix demux/mux) must be implemented and tested
+  in application code; an off-by-one in channel parsing silently corrupts terminal output.
 - Bad, because fallback detection for v4 requires conditional logic in the receive loop for clusters
   older than 1.31.
 
@@ -129,8 +129,8 @@ analysis.
 
 - Good, because it provides lower-level control over raw frame access and back-pressure-aware reads
   not exposed by Foundation's opaque `URLSessionWebSocketTask`.
-- Bad, because it adds a significant SwiftNIO dependency tree (approximately 12 transitive packages),
-  contradicting ADR-0002's preference for minimal external dependencies.
+- Bad, because it adds a significant SwiftNIO dependency tree (approximately 12 transitive
+  packages), contradicting ADR-0002's preference for minimal external dependencies.
 - Bad, because SwiftNIO's event-loop model requires careful bridging to Swift Concurrency; ADR-0011
   explicitly warns against callback-based concurrency models that resist structured-concurrency
   composition.
@@ -139,8 +139,8 @@ analysis.
 
 ### Option C — SPDY / HTTP/1.1 upgrade (legacy)
 
-- Good, because it would provide compatibility with clusters running Kubernetes versions earlier than
-  1.13 that used SPDY as the exec transport.
+- Good, because it would provide compatibility with clusters running Kubernetes versions earlier
+  than 1.13 that used SPDY as the exec transport.
 - Bad, because SPDY support was removed from `kubectl` in 1.28 and is not supported by any modern
   cluster; investing in it has no future benefit.
 - Bad, because Apple's Foundation network stack does not implement SPDY, requiring a third-party

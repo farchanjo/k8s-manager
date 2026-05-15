@@ -169,9 +169,9 @@ already provides idiomatic kqueue integration.
 ### Option B — `select(2)` and `poll(2)` as portable fallback
 
 - Good, because both are POSIX standard and portable to Linux and Windows POSIX layers.
-- Bad, because `select` FD_SETSIZE (typically 1 024) rules it out for applications holding more
-  than ~1 000 concurrent FDs, a ceiling that K8sManager reaches with 8 concurrent cluster sessions
-  and active watch streams.
+- Bad, because `select` FD_SETSIZE (typically 1 024) rules it out for applications holding more than
+  ~1 000 concurrent FDs, a ceiling that K8sManager reaches with 8 concurrent cluster sessions and
+  active watch streams.
 - Bad, because `poll` linear scan means O(N) cost per wakeup; unacceptable at the expected FD
   counts.
 - Bad, because neither `select` nor `poll` provides `EVFILT_TIMER` or `EVFILT_PROC`; timer and
@@ -181,8 +181,8 @@ already provides idiomatic kqueue integration.
 
 - Good, because libuv provides a cross-platform async I/O loop (kqueue on Darwin, epoll on Linux,
   IOCP on Windows) behind a single API, which would have value in a cross-platform application.
-- Bad, because SwiftNIO has no libuv backend; bridging libuv's C callback API to Swift
-  continuations requires non-trivial `withCheckedContinuation` boilerplate at every call site.
+- Bad, because SwiftNIO has no libuv backend; bridging libuv's C callback API to Swift continuations
+  requires non-trivial `withCheckedContinuation` boilerplate at every call site.
 - Bad, because this application is macOS-only (ADR-0001); the cross-platform value proposition of
   libuv does not apply, and it would be a large C library added as a SwiftPM dependency (failing
   ADR-0019 criteria).

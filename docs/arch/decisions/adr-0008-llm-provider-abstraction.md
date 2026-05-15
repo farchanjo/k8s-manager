@@ -52,22 +52,26 @@ without being aware of these differences. Adapters absorb the variance.
 
 ### Option A — Custom port plus per-provider adapters (chosen)
 
-- Good, because the hexagonal seam is clean: the domain core never imports a vendor SDK or HTTP type.
+- Good, because the hexagonal seam is clean: the domain core never imports a vendor SDK or HTTP
+  type.
 - Good, because adding a fourth provider requires only one new adapter and one new profile kind.
-- Good, because offline local-model use (Ollama, LM Studio) is a first-class path, not an afterthought.
+- Good, because offline local-model use (Ollama, LM Studio) is a first-class path, not an
+  afterthought.
 - Bad, because every new provider-specific feature (Anthropic prompt caching, OpenAI Responses API)
   must be lifted into the port as a `providerHints` hint before the UI can use it.
 
 ### Option B — Use an existing aggregator SDK (LiteLLM, LangChain.swift)
 
 - Good, because N-provider coverage is obtained at no per-provider implementation cost.
-- Bad, because it pulls in a large opaque dependency with an error model the codebase cannot control.
+- Bad, because it pulls in a large opaque dependency with an error model the codebase cannot
+  control.
 - Bad, because these SDKs are Python-first with thin, often non-idiomatic Swift bindings.
 
 ### Option C — Direct provider SDKs side by side
 
 - Good, because each provider SDK exposes its best-in-class API surface directly.
-- Bad, because three different mental models exist inside the assistant bounded context simultaneously.
+- Bad, because three different mental models exist inside the assistant bounded context
+  simultaneously.
 - Bad, because OpenAI-compatible servers (Ollama, LM Studio) still require a bespoke adapter,
   delivering no savings over Option A for those cases.
 

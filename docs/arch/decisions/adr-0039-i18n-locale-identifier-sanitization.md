@@ -65,8 +65,8 @@ keyword extensions) reach `Foundation.Locale`, regardless of what is stored in S
 
 ### Option B — Strip ICU keyword extensions silently before passing to `Foundation.Locale`
 
-- Good, because it avoids storing the rejected identifier; the sanitized value is immediately
-  usable without requiring the caller to handle a rejection path.
+- Good, because it avoids storing the rejected identifier; the sanitized value is immediately usable
+  without requiring the caller to handle a rejection path.
 - Bad, because silent stripping can produce a semantically different locale than the one the
   operator intended — for example, stripping `@calendar=buddhist` from `th-TH@calendar=buddhist`
   yields `th-TH`, which uses a different calendar system.

@@ -147,7 +147,8 @@ Cons:
 - Bad, because simultaneously supporting right-click `NSMenu` and left-click window requires
   dropping back to AppKit, defeating the benefit of the pure SwiftUI path.
 - Bad, because scene lifecycle is tied to the SwiftUI app scene graph; pausing subscriptions on
-  popover close requires observing `scenePhase`, which is coarser than `NSPopover` delegate callbacks.
+  popover close requires observing `scenePhase`, which is coarser than `NSPopover` delegate
+  callbacks.
 
 ### Option C — Separate floating NSWindow
 

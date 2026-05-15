@@ -48,8 +48,8 @@ The system needs a feedback mechanism that:
 
 - Good, because it is easy to implement, impossible to miss, and works well for system-level status
   notifications (offline, degraded cluster).
-- Bad, because it occupies valuable vertical space for every notification including ephemeral success
-  states, and visually dominates the content the operator is actively working with.
+- Bad, because it occupies valuable vertical space for every notification including ephemeral
+  success states, and visually dominates the content the operator is actively working with.
 - Bad, because it cannot show multiple simultaneous notifications and provides no natural home for
   action buttons (Undo, Retry, View audit log).
 
@@ -73,8 +73,8 @@ The system needs a feedback mechanism that:
 - Good, because the stack position is operator-configurable and auto-dismiss timers respect the
   hover and reduce-motion contracts.
 - Bad, because the default `bottom_right` position may overlap with other overlays (e.g., a future
-  guided-tour overlay); this is mitigated by reserving the bottom 80 pt above the status bar as
-  the exclusive toast zone.
+  guided-tour overlay); this is mitigated by reserving the bottom 80 pt above the status bar as the
+  exclusive toast zone.
 
 ## Decision outcome
 

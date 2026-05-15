@@ -66,8 +66,8 @@ This ADR captures the conventions.
 
 - Good, because a single mental model for all async work eliminates context-switching between
   Combine and async/await across the codebase.
-- Good, because SwiftUI's native integration with `async`/`await` and `@Observable` removes the
-  need for Combine publisher chains for UI state propagation.
+- Good, because SwiftUI's native integration with `async`/`await` and `@Observable` removes the need
+  for Combine publisher chains for UI state propagation.
 - Good, because Swift 6 strict concurrency mode (`-strict-concurrency=complete`) catches actor
   isolation violations and missing `Sendable` conformances at compile time, before they become
   runtime bugs.
@@ -78,8 +78,8 @@ This ADR captures the conventions.
 
 ### Option B — Combine
 
-- Good, because Combine is battle-tested across the Apple ecosystem and has well-understood
-  patterns for publisher composition and subscriber lifetime.
+- Good, because Combine is battle-tested across the Apple ecosystem and has well-understood patterns
+  for publisher composition and subscriber lifetime.
 - Bad, because Apple's recommended migration path away from Combine toward Swift Concurrency means
   adopting Combine now is choosing the deprecated path in a greenfield project.
 - Bad, because introducing both Combine and async/await creates a double mental model that
@@ -89,8 +89,8 @@ This ADR captures the conventions.
 
 - Good, because it allows pragmatic adoption of Combine where third-party adapters offer no
   async/await surface.
-- Bad, because there is no Combine-only third-party adapter that the project must adopt;
-  introducing Combine voluntarily creates a second reactive surface to maintain.
+- Bad, because there is no Combine-only third-party adapter that the project must adopt; introducing
+  Combine voluntarily creates a second reactive surface to maintain.
 - Bad, because bridging Combine publishers into async sequences adds boilerplate (`.values`,
   `AsyncPublisher`) that obscures intent without providing correctness benefits.
 

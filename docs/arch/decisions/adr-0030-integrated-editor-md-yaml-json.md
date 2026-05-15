@@ -76,8 +76,8 @@ concurrency?
 - Good, because it is simpler to integrate for basic syntax highlighting with a straightforward
   `CodeEditor` view API.
 - Bad, because it does not expose a tree-sitter pipeline or a structured gutter API for diagnostic
-  overlays, effectively requiring a significant custom overlay layer to satisfy this ADR's diagnostic
-  marker requirement.
+  overlays, effectively requiring a significant custom overlay layer to satisfy this ADR's
+  diagnostic marker requirement.
 - Bad, because its highlight.js grammar pipeline is incompatible with the tree-sitter extension
   pattern; fewer than 200 stars on GitHub indicates lighter community activity.
 

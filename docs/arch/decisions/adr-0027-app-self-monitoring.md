@@ -131,9 +131,9 @@ material is stripped by the log redactor before the zip is sealed.
 ### Option A — No in-app monitoring (status quo)
 
 - Good, because it has zero implementation cost and adds no additional maintenance surface.
-- Bad, because Activity Monitor cannot correlate CPU spikes with specific Kubernetes cluster sessions
-  or watch stream counts; operator diagnostics remain manual and disconnected from application
-  context.
+- Bad, because Activity Monitor cannot correlate CPU spikes with specific Kubernetes cluster
+  sessions or watch stream counts; operator diagnostics remain manual and disconnected from
+  application context.
 - Bad, because invisible resource leaks accumulate silently, degrading user experience without any
   in-app signal.
 
@@ -145,15 +145,15 @@ material is stripped by the log redactor before the zip is sealed.
   target persona (platform engineer, not developer).
 - Bad, because Instruments sessions cannot be bundled and shared as a file without manual export
   steps and careful sanitization of credential material from signpost payloads.
-- Bad, because no live in-app display is provided; the operator must switch to a separate application
-  to observe resource health.
+- Bad, because no live in-app display is provided; the operator must switch to a separate
+  application to observe resource health.
 
 ### Option C — In-app diagnostics panel with sampler and bundle export (chosen)
 
 - Good, because operators gain immediate visibility into K8sManager's health without leaving the
   application or installing external tooling.
-- Good, because the support workflow is one-click export with guaranteed redaction; support engineers
-  receive reproducible, redacted bundles from field reports.
+- Good, because the support workflow is one-click export with guaranteed redaction; support
+  engineers receive reproducible, redacted bundles from field reports.
 - Good, because Darwin APIs (`mach_task_info`, `TASK_VM_INFO`, `proc_pidinfo`) are stable with
   negligible overhead at 5 s intervals (< 0.02 % CPU).
 - Good, because the design integrates naturally with the existing ADR-0022 tray widget model and

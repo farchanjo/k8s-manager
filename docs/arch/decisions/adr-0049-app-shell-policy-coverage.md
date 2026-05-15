@@ -45,12 +45,12 @@ Without Rego policies, these invariants can silently regress across refactors wi
 
 1. **Skip Rego for app_shell** — maintain status quo. Rejects the audit finding; leaves 28 feature
    files and 16 schemas without machine-enforceable enforcement.
-2. **Single monolithic `app_shell_policy.rego`** — consolidate all invariants into one file.
-   Simple to discover; hard to maintain; deny rules across energy, locale, single-instance, and
+2. **Single monolithic `app_shell_policy.rego`** — consolidate all invariants into one file. Simple
+   to discover; hard to maintain; deny rules across energy, locale, single-instance, and
    accessibility concerns become entangled.
 3. **Four focused policies** — `energy_policy.rego`, `locale_policy.rego`,
-   `single_instance_policy.rego`, `accessibility_policy.rego`. Each covers one concern; each
-   ships with a companion `_test.rego`.
+   `single_instance_policy.rego`, `accessibility_policy.rego`. Each covers one concern; each ships
+   with a companion `_test.rego`.
 
 ## Pros and cons of the options
 
@@ -66,8 +66,8 @@ Without Rego policies, these invariants can silently regress across refactors wi
 - Pro: one file to find.
 - Con: mixing unrelated deny rules in one package makes it difficult to reason about which concern
   is violated when a rule fires.
-- Con: the package namespace `app_shell` is too broad; future policies from other ADRs would
-  collide or extend this file unexpectedly.
+- Con: the package namespace `app_shell` is too broad; future policies from other ADRs would collide
+  or extend this file unexpectedly.
 - Con: a single large file with dozens of test cases is harder to review.
 
 ### Option 3 — Four focused policies
@@ -118,8 +118,8 @@ input.localeSwitchLatencyMs — int
 
 Invariants:
 
-- `localeIdentifier` matches `^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$` (per ADR-0039
-  MEDIUM-04 sanitization).
+- `localeIdentifier` matches `^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$` (per ADR-0039 MEDIUM-04
+  sanitization).
 - `pluralizationEngine` must be `"Foundation.NumberFormatter"` (no custom logic — CLDR fidelity
   required).
 - `localeSwitchLatencyMs <= 50`.
@@ -166,8 +166,8 @@ Invariants:
 
 ### Consequences
 
-- **Positive** — four CI-enforced policies close the audit gap for `app_shell`; regressions
-  produce build failures.
+- **Positive** — four CI-enforced policies close the audit gap for `app_shell`; regressions produce
+  build failures.
 - **Positive** — focused package names (`k8smanager.app_shell.energy`, etc.) prevent naming
   collisions with future policy additions.
 - **Positive** — each policy ships with `_test.rego` (>=3 allow, >=3 deny scenarios), ensuring

@@ -62,10 +62,10 @@ conventions for secrets.
 - Good, because secrets remain in the platform-curated Keychain, meeting macOS user expectations.
 - Good, because non-secret state benefits from relational queries and schema migrations via GRDB.
 - Good, because a single SQLite WAL file is straightforward to back up and restore.
-- Good, because GRDB's `PersistenceActor` sole-writer model eliminates write-write contention without
-  application-level locking code.
-- Bad, because two separate storage surfaces (SQLite file and Keychain) must both be addressed in the
-  "delete local data" and backup-restore workflows.
+- Good, because GRDB's `PersistenceActor` sole-writer model eliminates write-write contention
+  without application-level locking code.
+- Bad, because two separate storage surfaces (SQLite file and Keychain) must both be addressed in
+  the "delete local data" and backup-restore workflows.
 
 ### Option B — SQLite + SQLCipher for secrets and metadata
 

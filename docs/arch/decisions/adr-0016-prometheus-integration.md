@@ -111,12 +111,13 @@ gracefully.
 
 ### Option C — Auto-discovery with manual override and well-known fallback (chosen)
 
-- Good, because a three-tier pipeline transparently handles the most common case (kube-prometheus-stack
-  default install) without any operator configuration.
+- Good, because a three-tier pipeline transparently handles the most common case
+  (kube-prometheus-stack default install) without any operator configuration.
 - Good, because the manual override escape hatch covers non-standard deployments (external ingress,
   service mesh, external load balancer) without blocking them.
 - Good, because the kube-apiserver proxy approach for the well-known tier reuses the existing
-  authenticated cluster connection, requiring no separate network reachability to in-cluster addresses.
+  authenticated cluster connection, requiring no separate network reachability to in-cluster
+  addresses.
 - Bad, because the three-tier discovery logic adds implementation complexity and must be maintained
   as Prometheus deployment conventions evolve.
 - Bad, because discovery cannot locate endpoints not represented as Kubernetes Services (e.g., an

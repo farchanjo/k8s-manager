@@ -79,8 +79,8 @@ model best serves K8sManager operators while keeping the development team's over
   locales end-to-end; no community PR coordination overhead for locale additions.
 - Bad, because it excludes French, German, Japanese, Chinese, Korean, Arabic, and other large
   developer communities with no upgrade path short of a new ADR.
-- Bad, because every subsequent locale addition requires a new ADR or amendment, creating
-  governance overhead disproportionate to what is a purely additive change to a `.xcstrings` file.
+- Bad, because every subsequent locale addition requires a new ADR or amendment, creating governance
+  overhead disproportionate to what is a purely additive change to a `.xcstrings` file.
 
 ### Option C — Extensible community framework (chosen)
 

@@ -43,9 +43,9 @@ exercises this case but no ADR defines the policy or the regex.
 
 ### Option 1 — No validation
 
-- Bad, because Kubernetes label values permit characters (`}`, `|`, `~`, `+`) that are meaningful
-  in PromQL, creating a trivial injection surface where a crafted resource name can escape the
-  intended label matcher and issue arbitrary queries.
+- Bad, because Kubernetes label values permit characters (`}`, `|`, `~`, `+`) that are meaningful in
+  PromQL, creating a trivial injection surface where a crafted resource name can escape the intended
+  label matcher and issue arbitrary queries.
 
 ### Option 2 — Escape special characters
 
@@ -55,10 +55,9 @@ exercises this case but no ADR defines the policy or the regex.
 
 ### Option 3 — Whitelist regex applied to substitution values (chosen)
 
-- Good, because the allowed character set `^[a-zA-Z0-9._-]{1,63}$` is the intersection of
-  Kubernetes RFC 1123 label values, DNS subdomain components, and characters safe inside PromQL
-  string literals and regex matchers; it is enforced at the substitution boundary before any
-  query construction.
+- Good, because the allowed character set `^[a-zA-Z0-9._-]{1,63}$` is the intersection of Kubernetes
+  RFC 1123 label values, DNS subdomain components, and characters safe inside PromQL string literals
+  and regex matchers; it is enforced at the substitution boundary before any query construction.
 - Good, because the Rego policy at the enforcement point is auditable, testable, and produces an
   explicit `PromQLInjectionAttemptBlocked` audit entry for every rejection.
 - Bad, because resource names with characters outside the whitelist (valid in CRD names) cannot be
@@ -70,9 +69,8 @@ exercises this case but no ADR defines the policy or the regex.
 - Good, because passing values via `?param=` form-encoded parameters to the Prometheus HTTP API
   prevents injection by construction — the URL encoding layer isolates the value from the query
   string.
-- Bad, because not all PromQL templates can be parameterised at the Prometheus HTTP API level;
-  the whitelist regex is still required for templates that cannot be rewritten to use parameter
-  binding.
+- Bad, because not all PromQL templates can be parameterised at the Prometheus HTTP API level; the
+  whitelist regex is still required for templates that cannot be rewritten to use parameter binding.
 
 ## Decision outcome
 

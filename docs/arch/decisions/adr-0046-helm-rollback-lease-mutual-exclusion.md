@@ -44,12 +44,13 @@ exercises this case but no ADR defines the mutual exclusion mechanism.
 ### Option 1 — No mutex
 
 - Bad, because two concurrent rollbacks for the same release can each write a "current" revision
-  Secret, leaving the release history chain with two active revisions or incorrect manifests applied.
+  Secret, leaving the release history chain with two active revisions or incorrect manifests
+  applied.
 
 ### Option 2 — Client-side mutex (in-memory)
 
-- Bad, because an in-memory lock within one application instance cannot coordinate with a second
-  app instance or a second operator on the same cluster; the race surface remains fully open for
+- Bad, because an in-memory lock within one application instance cannot coordinate with a second app
+  instance or a second operator on the same cluster; the race surface remains fully open for
   concurrent operators.
 
 ### Option 3 — Annotation-based mutex on the release Secret

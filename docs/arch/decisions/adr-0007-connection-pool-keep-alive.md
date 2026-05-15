@@ -81,8 +81,8 @@ rules that keep the pool healthy across cluster switches and kubeconfig reloads.
   general-purpose pool slots uncontaminated.
 - Good, because pool parameters (`idleTimeout`, connection limits, timeouts) are centralised in one
   place and carry forward into per-session actors (ADR-0025 refinement).
-- Bad, because per-cluster CA/cert overlays require a bespoke extension on top of `async-http-client`
-  that must be maintained as the library evolves.
+- Bad, because per-cluster CA/cert overlays require a bespoke extension on top of
+  `async-http-client` that must be maintained as the library evolves.
 
 ### Option B — One `HTTPClient` per cluster
 

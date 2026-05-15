@@ -118,8 +118,8 @@ Disadvantages:
   implementation.
 - Bad, because single-key bindings conflict with native macOS text input (search fields, YAML
   editors, terminal panes), causing silent input corruption.
-- Bad, because commands are undiscoverable with no visual affordance, no fuzzy search, and no way
-  to surface cross-context actions.
+- Bad, because commands are undiscoverable with no visual affordance, no fuzzy search, and no way to
+  surface cross-context actions.
 - Bad, because VoiceOver users cannot enumerate available actions; accessibility compliance is
   impossible with this model.
 

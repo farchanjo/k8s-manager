@@ -20,30 +20,30 @@ SQLite file can recompute the chain over modified rows and replace every digest,
 detection entirely. The threat model requires that chain verification be key-gated so that
 recomputation is computationally infeasible without the secret key.
 
-The gap was identified in a security audit cross-referencing `mutation_audit_entry.cue` (lines 82–93)
-against the Gherkin scenario. The feature file promises HMAC semantics; the schema delivers plain
-SHA-256. This ADR closes that discrepancy.
+The gap was identified in a security audit cross-referencing `mutation_audit_entry.cue` (lines
+82–93) against the Gherkin scenario. The feature file promises HMAC semantics; the schema delivers
+plain SHA-256. This ADR closes that discrepancy.
 
 ## Decision drivers
 
 - **Tamper evidence** — an adversary with local filesystem write access must not be able to silently
   repair a modified audit chain.
-- **Key confidentiality** — the verification key must not be accessible to the same threat actor that
-  can write to the SQLite file; therefore the key must live outside the database.
-- **macOS-native key management** — consistent with ADR-0010, Keychain is the designated secret store;
-  no third-party key management dependency is introduced.
+- **Key confidentiality** — the verification key must not be accessible to the same threat actor
+  that can write to the SQLite file; therefore the key must live outside the database.
+- **macOS-native key management** — consistent with ADR-0010, Keychain is the designated secret
+  store; no third-party key management dependency is introduced.
 - **Zero additional infrastructure** — the solution must work with the existing GRDB stack and macOS
   Security framework; no network-accessible HSM or KMS is needed.
-- **Failure graceful** — Keychain unavailability (locked device, Keychain wipe) must produce a clearly
-  surfaced degraded state, not a silent audit gap.
+- **Failure graceful** — Keychain unavailability (locked device, Keychain wipe) must produce a
+  clearly surfaced degraded state, not a silent audit gap.
 
 ## Considered options
 
 1. **Plain SHA-256 (status quo)** — retain the existing hash chain. Accepts the gap: an adversary
    with write access can recompute the chain and conceal tampering.
 2. **HMAC-SHA256 with Keychain-stored key** — generate a 256-bit random key on first launch, store
-   it in macOS Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and compute each entry's
-   digest as `HMAC-SHA256(key, previousEntryDigest || canonicalEntryJSON)`.
+   it in macOS Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and compute each
+   entry's digest as `HMAC-SHA256(key, previousEntryDigest || canonicalEntryJSON)`.
 3. **Ed25519 per-entry signatures** — generate an Ed25519 signing key, store the private key in
    Keychain, and sign each canonical entry JSON independently.
 4. **Append-only Apple log API (`os_log` unified logging)** — delegate audit to Apple's unified
@@ -88,8 +88,8 @@ SHA-256. This ADR closes that discrepancy.
 ### Option 4 — Append-only Apple log API
 
 - Pro: tamper resistance is handled by logd at OS level; no application-level key management.
-- Con: logd entries are not queryable with SQL; the existing audit UI (timeline widget, export) would
-  require a complete rewrite.
+- Con: logd entries are not queryable with SQL; the existing audit UI (timeline widget, export)
+  would require a complete rewrite.
 - Con: logd retention policies are controlled by the OS, not the application; entries can be pruned
   before the operator reviews them.
 - Con: the audit export feature (CSV, forensic review) cannot source from logd in a structured way.
@@ -118,8 +118,8 @@ established for LLM key storage.
   - `kSecAttrAccessible`: `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
   - `kSecAttrLabel`: `"K8sManager audit chain MAC key"`
 - The key is generated once on first launch and never regenerated automatically. If the key item is
-  absent (fresh install, Keychain wipe, new device migration), `AuditChainKeyManager` generates a new
-  key, stores it, and records the event in the diagnostics log.
+  absent (fresh install, Keychain wipe, new device migration), `AuditChainKeyManager` generates a
+  new key, stores it, and records the event in the diagnostics log.
 
 **Per-entry digest:**
 
@@ -136,8 +136,8 @@ entryDigest = HMAC-SHA256(key, previousEntryDigest_hex || canonicalEntryJSON_utf
 **Genesis row:**
 
 - `previousEntryDigest` is the sentinel `"0" * 64` (64 zero hex characters).
-- The trigger in `audit-trigger.sql` already enforces this structural invariant for empty tables;
-  it is unchanged (the trigger cannot verify HMAC — that remains an application-layer concern).
+- The trigger in `audit-trigger.sql` already enforces this structural invariant for empty tables; it
+  is unchanged (the trigger cannot verify HMAC — that remains an application-layer concern).
 
 **Key version tracking:**
 
@@ -154,8 +154,8 @@ entryDigest = HMAC-SHA256(key, previousEntryDigest_hex || canonicalEntryJSON_utf
 
 **Key unavailability:**
 
-- If the Keychain is locked at verification time, the chain is paused (not marked corrupt).
-  The UI surfaces "Audit chain paused — Keychain locked. Unlock to resume verification."
+- If the Keychain is locked at verification time, the chain is paused (not marked corrupt). The UI
+  surfaces "Audit chain paused — Keychain locked. Unlock to resume verification."
 - If the Keychain item is absent (possible after a Keychain wipe or device migration), the audit
   chain is marked corrupt for the prior entries (which cannot be re-verified). The sequence number
   resets to 0, a new genesis entry is written with the freshly generated key, and prior entries
@@ -164,8 +164,8 @@ entryDigest = HMAC-SHA256(key, previousEntryDigest_hex || canonicalEntryJSON_utf
 **Key rotation (v1 limitation):**
 
 - Not supported in v1. Rotating the key invalidates all existing HMAC tags. A future version may
-  implement rotation by: (a) re-signing all rows under the new key, (b) bumping `keyVersion`,
-  and (c) removing the old Keychain item. This ADR will be superseded when rotation is implemented.
+  implement rotation by: (a) re-signing all rows under the new key, (b) bumping `keyVersion`, and
+  (c) removing the old Keychain item. This ADR will be superseded when rotation is implemented.
 
 ### Consequences
 
@@ -184,12 +184,12 @@ entryDigest = HMAC-SHA256(key, previousEntryDigest_hex || canonicalEntryJSON_utf
 
 - Unit test: `ChainVerifier` correctly verifies a 100-entry chain built with the test HMAC key.
 - Unit test: `ChainVerifier` rejects a chain where entry #48 has a tampered `canonicalEntryJSON`.
-- Unit test: `AuditChainKeyManager` generates a key, stores it in Keychain, and retrieves it on
-  a simulated second launch without regenerating.
+- Unit test: `AuditChainKeyManager` generates a key, stores it in Keychain, and retrieves it on a
+  simulated second launch without regenerating.
 - Integration test: Keychain locked → audit verification pauses; Keychain unlocked → verification
   resumes.
-- Integration test: Keychain item deleted → chain marked corrupt; new genesis entry created with
-  new key; prior entries remain readable.
+- Integration test: Keychain item deleted → chain marked corrupt; new genesis entry created with new
+  key; prior entries remain readable.
 - Spec lane: `spec validate --lane audit` walks all rows and reports any HMAC mismatch.
 
 ## More information
@@ -201,8 +201,9 @@ entryDigest = HMAC-SHA256(key, previousEntryDigest_hex || canonicalEntryJSON_utf
   82–93 semantics, added `keyVersion` field).
 - Schema updated: `docs/arch/contexts/local_persistence/schemas/keychain_entry.cue` — see companion
   `docs/arch/contexts/local_persistence/schemas/audit_chain_key.cue` for the new key entry shape.
-- Trigger updated: `docs/arch/contexts/local_persistence/policies/audit-trigger.sql` (lines 60–73
-  — comment clarification; trigger logic unchanged).
-- Gherkin updated: `docs/arch/contexts/resource_browser/features/chaos/audit-log-tamper-detected.feature`
-  — added three scenarios: HMAC key missing, HMAC verify fail, Keychain locked at verification.
+- Trigger updated: `docs/arch/contexts/local_persistence/policies/audit-trigger.sql` (lines 60–73 —
+  comment clarification; trigger logic unchanged).
+- Gherkin updated:
+  `docs/arch/contexts/resource_browser/features/chaos/audit-log-tamper-detected.feature` — added
+  three scenarios: HMAC key missing, HMAC verify fail, Keychain locked at verification.
 - Key rotation design: deferred to ADR-0047-v2 (not yet created).

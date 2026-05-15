@@ -46,8 +46,8 @@ contract.
 
 ### Option 2 — Global app-wide limit
 
-- Bad, because multi-cluster operators legitimately drive higher throughput in parallel sessions;
-  a global cap unfairly throttles independent conversation contexts.
+- Bad, because multi-cluster operators legitimately drive higher throughput in parallel sessions; a
+  global cap unfairly throttles independent conversation contexts.
 
 ### Option 3 — Per-session sliding window with explicit error envelope (chosen)
 
@@ -60,8 +60,8 @@ contract.
 
 ### Option 4 — Per-tool quota
 
-- Bad, because adding per-tool quotas without telemetry to justify differentiated limits adds
-  schema complexity with no clear benefit; this can be layered on later.
+- Bad, because adding per-tool quotas without telemetry to justify differentiated limits adds schema
+  complexity with no clear benefit; this can be layered on later.
 
 ## Decision outcome
 
