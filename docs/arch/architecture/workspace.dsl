@@ -38,6 +38,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
             prometheusAdapter = container "Prometheus Query Adapter" "Custom HTTP client over URLSession.bytes; matrix/vector/scalar/string result decoder (~340 LoC, no public Swift lib exists)." "Swift / URLSession"
             sqliteStore = container "SQLite Storage" "WAL-mode SQLite database for chat history, profiles, cache, log, prefs, audit." "SQLite 3"
             preferencesAdapter = container "Preferences Adapter" "UserDefaults overlay for transient UI state (window frame)." "Swift / UserDefaults"
+            menuBarTray = container "Menu Bar Tray" "NSStatusItem with live cluster status widget, live metrics sparklines (CPU/mem/network/pods), recent mutations, active sessions, cluster picker. Refresh interval 5-60s; pauses on lid close, low power, or network unreachable." "Swift / SwiftUI / NSStatusItem"
         }
 
         // External systems
@@ -142,6 +143,16 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
 
         // App shell preferences
         appShell -> preferencesAdapter "Transient UI prefs (window frame)"
+
+        // Menu bar tray
+        menuBarTray -> contextNavigation "Reads ActiveContext, switches active context via header dropdown"
+        menuBarTray -> clusterConnectivity "Reads ClusterReadModel for health badge"
+        menuBarTray -> metricsObservability "Issues PromQL queries for sparklines via prometheusAdapter"
+        menuBarTray -> resourceBrowser "Reads MutationAuditReadModel for recent mutations widget"
+        menuBarTray -> portForwarding "Reads ActivePortForwardsReadModel for sessions count"
+        menuBarTray -> terminalSession "Reads OpenTerminalsReadModel for sessions count"
+        menuBarTray -> appShell "Quick actions: open main window, open chat, open settings"
+        appShell -> menuBarTray "Owns lifecycle; menuBarTray is part of app_shell BC but a distinct container"
     }
 
     views {

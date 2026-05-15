@@ -106,8 +106,12 @@ docs/arch/
 - **terminal_session** — Pod exec and Node debug sessions via
   WebSocket `v5.channel.k8s.io`; multi-tab; debug container created
   per ADR-0012 (mutating op with confirmation).
-- **app_shell** — window lifecycle, sidebar, menu bar, settings
-  surface, chat surface, terminal surface, metrics surface.
+- **app_shell** — window lifecycle (NavigationSplitView 3-column +
+  inspector + status bar), sidebar, settings surface, chat surface,
+  terminal surface, metrics surface, design tokens (color, material,
+  spacing, radius), typography preferences, theme preference, and a
+  rich menu bar tray with live cluster metrics, sparklines, recent
+  mutations, and quick-action shortcuts.
 
 ### Dependency direction
 
@@ -206,6 +210,10 @@ graph TB
   matrix). Proposed.
 - **ADR-0020** — SwiftPM workspace topology (one target per bounded
   context plus shared kernel plus adapters). Proposed.
+- **ADR-0021** — App shell design system and layout
+  (Kubernetes brand palette + Apple HIG materials + dark/light + typography
+  + operator-configurable preferences). Proposed.
+- **ADR-0022** — Menu bar tray with live cluster metrics. Proposed.
 
 ## Validation
 

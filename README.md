@@ -35,8 +35,12 @@ Twelve bounded contexts, each owning its own ubiquitous language:
 - `cluster_connectivity` — parse kubeconfig, probe cluster health,
   own `KubernetesApiPort` and `ExecCredentialPort`.
 - `context_navigation` — active context, recents, pinned.
-- `app_shell` — window lifecycle, sidebar, menu bar, chat surface,
-  terminal surface, metrics surface.
+- `app_shell` — window lifecycle (NavigationSplitView 3-column +
+  inspector + status bar), sidebar, settings surface, chat surface,
+  terminal surface, metrics surface, design tokens (color, material,
+  spacing, radius), typography preferences, theme preference, and a
+  rich menu bar tray with live cluster metrics, sparklines, recent
+  mutations, and quick-action shortcuts.
 - `llm_provider` — Anthropic, OpenAI, OpenAI-compatible behind one
   port.
 - `assistant_chat` — sessions, messages, streaming, tool-use loop.
@@ -113,6 +117,48 @@ direction enforced at the Swift Package Manager target level (see
 — the domain core never imports infrastructure. MADR 4.0 ADRs in
 [`docs/arch/decisions/`](docs/arch/decisions/) drive every cross-cutting
 choice.
+
+## Design system
+
+K8sManager adopts the official **Kubernetes brand palette** (Pantone
+285C, hex `#326CE5`) as its accent color, paired with the modern
+**Apple Human Interface Guidelines** for everything else — materials,
+typography, layout, motion, and dark / light mode adaptation. Operators
+can override the accent with the macOS system tint and configure mono
+font, UI scale, and density via Settings.
+
+| Aspect | Default |
+|---|---|
+| Accent | Kubernetes blue `#326CE5` (light) / `#5E8FF0` (dark) |
+| Surfaces | SwiftUI Materials — `.sidebar`, `.regular`, `.thin`, `.ultraThin`, `.thick` |
+| Liquid Glass | Enabled on macOS 26+; graceful fallback to `.regularMaterial` below |
+| Typography | SF Pro Display (≥20 pt), SF Pro Text (<20 pt), SF Mono (code) |
+| Layout | NavigationSplitView 3-column + `.inspector` + status bar |
+| Dark / Light | System default; operator can force light or dark per ADR-0021 |
+| Configurable | UI scale, density, accent source, mono font, mono size, reduce motion, Liquid Glass toggle |
+
+Full details in
+[ADR-0021](docs/arch/decisions/adr-0021-app-shell-design-system-and-layout.md).
+
+## Menu bar tray
+
+A first-class menu bar `NSStatusItem` keeps the operator one click
+away from cluster health, with live metrics and quick actions:
+
+- Cluster picker dropdown (instant context switch).
+- Live sparklines for CPU, memory, and network usage (last 60 minutes).
+- Stacked-bar Pod counts by phase (Running / Pending / Failed /
+  Succeeded).
+- Node Ready / NotReady counts and namespace totals.
+- Recent mutating operations (per ADR-0012) with outcome icon.
+- Active port-forward and terminal session counts.
+- Quick actions: open main window, open assistant chat, pause refresh,
+  open settings.
+
+Refresh interval is operator-configurable (5 / 15 / 30 / 60 seconds or
+manual). Refresh pauses automatically on laptop lid close, system low
+power mode, or unreachable cluster. Full spec in
+[ADR-0022](docs/arch/decisions/adr-0022-menu-bar-tray-with-live-metrics.md).
 
 ## Technology stack
 
