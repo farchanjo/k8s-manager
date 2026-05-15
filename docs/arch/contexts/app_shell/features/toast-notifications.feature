@@ -84,3 +84,43 @@ Feature: Toast notification system
     And no slide or scale transform is applied
     When the toast is dismissed
     Then the exit animation also uses opacity fade only
+
+  # ---------------------------------------------------------------------------
+  # F19 — Notification delivery dropped (ADR-0041)
+  # Detecting entity: DomainEventBusActor (shared kernel infrastructure)
+  # Detection: AsyncStream.Continuation.yield(with:) returns .dropped;
+  #            DomainEventBusActor emits DomainEventDropped to the meta-stream.
+  # Recovery: subscriber triggers read-model reconciliation from local_persistence.
+  # ---------------------------------------------------------------------------
+
+  @F19 @chaos
+  Scenario: OS notification permission revoked mid-session — queued toasts logged in diagnostics
+    Given the operator granted macOS notification permission at app launch
+    And K8sManager has a pending toast queue with 3 undelivered toasts
+    When the operator revokes K8sManager's notification permission in System Settings while the app is running
+    Then the NSUserNotificationCenter delegate receives a permission-denied callback
+    And the toast notification pipeline emits a DomainEventDropped meta-event for each undelivered toast
+    And each undelivered toast is written to the diagnostics log at level WARN with its title and timestamp
+    And those toast entries appear in the self-monitoring diagnostics panel under "Dropped notifications"
+    And no unhandled error or crash occurs in the toast stack
+
+  @F19 @chaos
+  Scenario: System tray suspended — queued toasts replayed on resume within TTL
+    Given the macOS system tray is suspended (e.g. via a fast-user-switch or display sleep)
+    And 2 toasts are emitted while the tray is suspended
+    When the tray suspension lifts and the application becomes active again (NSApplicationDidBecomeActive)
+    Then the toast pipeline replays each queued toast in emission order
+    And each toast is delivered only if its 5-minute TTL has not expired
+    And any toast whose TTL expired during suspension is discarded without display
+    And a DomainEventDropped meta-event is emitted for each TTL-expired toast
+    And the diagnostics log records the drop with subscriberId, drop count, and expiry timestamp
+
+  @F19 @chaos
+  Scenario: Toast notification pipeline crash — error logged with no user-facing cascade
+    Given the DomainEventBusActor has at least one toast-notification subscriber registered
+    When the subscriber's AsyncStream buffer overflows (more than 64 events enqueued per ADR-0040)
+    Then the DomainEventBusActor observes a .dropped result from AsyncStream.Continuation.yield(with:)
+    And a DomainEventDropped envelope is emitted to the meta-stream with the subscriber ID and drop count
+    And an "events.dropped" entry is written to the diagnostics log (not the mutation audit log)
+    And the toast stack continues operating normally — no blocking dialog or error banner is shown
+    And on the next read-model reconciliation the subscriber re-queries local_persistence for current state
