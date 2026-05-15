@@ -1,6 +1,6 @@
 # ADR-0005 — Bounded contexts for the MVP
 
-- Status — Superseded by ADR-0006
+- Status — Superseded by ADR-0006 (closed 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

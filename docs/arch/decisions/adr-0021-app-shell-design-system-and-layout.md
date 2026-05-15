@@ -1,7 +1,6 @@
 # ADR-0021 — App shell design system and main layout
 
-- Status — Proposed; refined by ADR-0028 (SF Symbols and native iconography supersedes the SF
-  Symbols section of this ADR)
+- Status — Superseded by ADR-0028 (closed 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
