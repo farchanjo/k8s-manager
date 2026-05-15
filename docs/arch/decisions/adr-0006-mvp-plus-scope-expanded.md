@@ -40,6 +40,19 @@ into the existing hexagonal model without contradicting earlier ADRs.
   (schema evolution, WAL safety, vacuum policy), so it earns a
   bounded context rather than living as an opaque adapter.
 
+## Considered options
+
+- **Option A** — Seven bounded contexts (the canonical MVP+ catalogue
+  introduced here) — `cluster_connectivity`, `context_navigation`,
+  `app_shell`, `llm_provider`, `assistant_chat`, `cluster_intelligence`,
+  `local_persistence`.
+- **Option B** — Keep the three ADR-0005 contexts; fold the assistant,
+  the LLM provider, the MCP server, and the SQLite store into
+  `app_shell` as internal modules.
+- **Option C** — Collapse the assistant chat, LLM provider, MCP server,
+  and persistence into a single new "assistant" bounded context;
+  leave the original three intact.
+
 ## Decision outcome
 
 The MVP+ catalogue is **seven bounded contexts**:
@@ -65,36 +78,26 @@ The MVP+ catalogue is **seven bounded contexts**:
 
 ### Dependency direction
 
-```
-+-------------------------------------------------------------+
-|                          app_shell                          |
-+----------------------+---------------+----------------------+
-                       |               |
-                       v               v
-            +---------------------+   +-------------------+
-            |  context_navigation |   |  assistant_chat   |
-            +----------+----------+   +---+----------+----+
-                       |                  |          |
-                       v                  v          v
-            +---------------------+   +-------+ +---------------+
-            | cluster_connectivity|   | llm_  | | cluster_      |
-            +----------+----------+   | prov. | | intelligence  |
-                       |              +---+---+ +-------+-------+
-                       |                  |             |
-                       +------------------+-------------+
-                                          |
-                                          v
-                                +---------------------+
-                                |  local_persistence  |
-                                +----------+----------+
-                                           |
-                                           v
-                                +---------------------+
-                                | infrastructure layer|
-                                | (SQLite, Keychain,  |
-                                | URLSession, NIO,    |
-                                | SwiftkubeClient)    |
-                                +---------------------+
+```mermaid
+graph TB
+    appShell["app_shell"]
+    contextNav["context_navigation"]
+    assistantChat["assistant_chat"]
+    clusterConn["cluster_connectivity"]
+    llmProv["llm_provider"]
+    clusterIntel["cluster_intelligence"]
+    localPers["local_persistence"]
+    infra["infrastructure layer\n(SQLite, Keychain, URLSession, NIO, SwiftkubeClient)"]
+
+    appShell --> contextNav
+    appShell --> assistantChat
+    contextNav --> clusterConn
+    assistantChat --> llmProv
+    assistantChat --> clusterIntel
+    clusterConn --> localPers
+    llmProv --> localPers
+    clusterIntel --> localPers
+    localPers --> infra
 ```
 
 No cycles. `cluster_intelligence` reads `ClusterReadModel` from
@@ -141,16 +144,16 @@ imports any of them.
 - No domain target imports `SwiftkubeClient`, `URLSession`, `GRDB`,
   `Security` (Keychain), or any other infrastructure library.
 
-## Pros and cons of the alternatives
+## Pros and cons of the options
 
-### Alternative — keep three contexts; fold the assistant into `app_shell`
+### Option B — Keep three contexts plus inline assistant
 
 - **Pros** — minimal directory churn.
 - **Cons** — `app_shell` would carry transport, tool, and
   persistence concerns and would become the largest context by far;
   the hexagonal layering would collapse around the chat feature.
 
-### Alternative — single "assistant" context owning LLM, MCP, and persistence
+### Option C — Single assistant context owning LLM, MCP, and persistence
 
 - **Pros** — fewer directories.
 - **Cons** — the SQLite store underpins more than the assistant

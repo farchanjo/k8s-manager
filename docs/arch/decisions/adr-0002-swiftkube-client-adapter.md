@@ -1,11 +1,25 @@
 # ADR-0002 — SwiftkubeClient as primary Kubernetes API adapter
 
-- Status — Proposed
+- Status — Proposed; library set pinned by ADR-0019; exec plugin strategy refined by ADR-0018
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — kubernetes, client, adapter, hexagonal
+
+> **Pinning note (2026-05-15).** The library set adopted for this adapter
+> is pinned by **ADR-0019** (Adopted Swift libraries) — specifically
+> `swiftkube/client` 0.26.0, `swift-server/async-http-client` 1.33.x, and
+> `URLSessionWebSocketTask` (Foundation built-in) for exec/portforward
+> channel framing. PATCH server-side apply is implemented as a custom
+> adapter route over `async-http-client` because `swiftkube/client` does
+> not yet expose it.
+>
+> **Exec plugin note (2026-05-15).** The exec-plugin port introduced
+> here has been split into a family of native adapters by **ADR-0018**
+> (AWS, GCP, Azure, OIDC). The original generic subprocess strategy is
+> retained as a fallback adapter (`SubprocessExecCredentialAdapter`) for
+> kubeconfig entries that reference unrecognised exec plugins.
 
 ## Context and problem statement
 

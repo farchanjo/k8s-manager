@@ -92,32 +92,16 @@ timestamps. The shared kernel is a deliberate exception to the
 
 ### Hexagonal dependency direction
 
-```
-+---------------------------------------------------------+
-|                       app_shell                         |
-|       (SwiftUI views, menu bar, settings surface)       |
-+-----------------------+---------------------------------+
-                        |
-                        | reads
-                        v
-+---------------------------------------------------------+
-|                 context_navigation                      |
-|       (active context, recents, pinned, switcher)       |
-+-----------------------+---------------------------------+
-                        |
-                        | reads
-                        v
-+---------------------------------------------------------+
-|                cluster_connectivity                     |
-|     (kubeconfig parser, clusters, health probes)        |
-+---------------------------------------------------------+
-                        |
-                        | domain ports
-                        v
-+---------------------------------------------------------+
-|        infrastructure adapters (out of scope here)      |
-|         SwiftkubeClient adapter, Yams, URLSession       |
-+---------------------------------------------------------+
+```mermaid
+graph TB
+    appShell["app_shell\n(SwiftUI views, menu bar, settings surface)"]
+    contextNav["context_navigation\n(active context, recents, pinned, switcher)"]
+    clusterConn["cluster_connectivity\n(kubeconfig parser, clusters, health probes)"]
+    infra["infrastructure adapters (out of scope here)\n(SwiftkubeClient adapter, Yams, URLSession)"]
+
+    appShell -->|reads| contextNav
+    contextNav -->|reads| clusterConn
+    clusterConn -->|domain ports| infra
 ```
 
 Each upper layer depends only on the layer below; no cycles. The

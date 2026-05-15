@@ -144,6 +144,38 @@ Table operator_preferences {
   updated_at_rfc3339 text [not null]
 }
 
+// Migration note: cluster_mutation_audit added in migration ADR-0012.
+// This table records every operator-initiated mutation to a Kubernetes
+// cluster, including the confirmation token, field manager, and outcome.
+// Rows are append-only (never updated or deleted by the application).
+// Sensitive credential material MUST NOT appear in any column.
+Table cluster_mutation_audit {
+  id text [pk, note: "UUIDv7"]
+  command_id text [not null, note: "UUIDv7; correlates with the issued #MutationCommand"]
+  kubernetes_context_id text [not null, note: "Shared kernel ContextId UUIDv7"]
+  kind text [not null, note: "GVK kind (Pod, Deployment, Secret, etc.)"]
+  api_group text [null, note: "Empty for core/v1, otherwise group (apps, batch, networking.k8s.io, ...)"]
+  api_version text [not null]
+  namespace text [null, note: "Cluster-scoped resources leave this null"]
+  name text [not null]
+  verb text [not null, note: "get|list|watch|create|update|patch|delete|scale|rolloutRestart"]
+  field_manager_id text [not null, note: "Server-side apply field manager (com.archanjo.K8sManager by default)"]
+  manifest_digest text [null, note: "sha256 of the YAML payload for apply operations"]
+  confirmation_token text [not null, note: "UUIDv7 issued by the confirmation modal"]
+  double_confirmed boolean [not null, default: false, note: "True for destructive verbs (delete) after second confirmation"]
+  requested_at_rfc3339 text [not null]
+  completed_at_rfc3339 text [null]
+  outcome text [not null, note: "succeeded|denied_by_policy|failed|cancelled"]
+  kubernetes_status_code int [null]
+  detail text [null, note: "Operator-facing reason; MUST NOT include credential material"]
+
+  Indexes {
+    (kubernetes_context_id, requested_at_rfc3339) [name: "idx_mutation_audit_context_time"]
+    (verb, outcome) [name: "idx_mutation_audit_verb_outcome"]
+    (kind, namespace, name) [name: "idx_mutation_audit_target"]
+  }
+}
+
 Ref: provider_capabilities.provider_profile_id > provider_profiles.id [delete: cascade]
 Ref: chat_sessions.provider_profile_id > provider_profiles.id [delete: restrict]
 Ref: chat_messages.session_id > chat_sessions.id [delete: cascade]

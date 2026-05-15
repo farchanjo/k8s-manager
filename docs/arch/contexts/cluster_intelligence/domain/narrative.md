@@ -71,6 +71,28 @@ registry's `version`.
   MCP host (in `assistant_chat`) speaks to this context via the
   MCP protocol surface only.
 
+```mermaid
+sequenceDiagram
+    participant host as AssistantSessionActor (MCP host)
+    participant server as MCPServerActor
+    participant gate as PolicyGate
+    participant api as KubernetesApiPort
+
+    host->>server: tools/call(name, args, pinnedContextId)
+    server->>server: validate args against input JSON Schema
+    server->>gate: evaluate(invocation)
+    alt denied
+        gate-->>server: denied_by_policy
+        server-->>host: tool_result(denied_by_policy)
+    else allowed
+        gate-->>server: allow
+        server->>api: GET /api/v1/...
+        api-->>server: HTTP response (truncated if > outputMaxBytes)
+        server-->>host: tool_result(payload)
+    end
+    server->>server: log MCPInvocation(outcome, timing)
+```
+
 ## Read models exposed to other contexts
 
 - `MCPRegistrySnapshotReadModel` — the current registry version
@@ -81,6 +103,12 @@ registry's `version`.
 
 ## Invariants
 
+- The `ClusterIntelligence` domain core never imports
+  `swiftkube/client`, `async-http-client`, `URLSession`, `GRDB`, or
+  the `modelcontextprotocol/swift-sdk` directly. The Kubernetes API,
+  the MCP wire protocol, and the invocation log are reached through
+  `KubernetesApiPort`, the in-process MCP transport port, and
+  `MCPInvocationLogPort` respectively.
 - The registry advertises only tools whose verbs are a subset of
   `{get, list, watch}`.
 - Every invocation passes through the policy gate before any

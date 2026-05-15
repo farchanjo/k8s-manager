@@ -5,93 +5,145 @@
 Protocol (MCP) server that exposes read-only Kubernetes tools to the
 assistant.
 
-> Project status — **architecture and specification phase**. No code is
-> committed yet. The repository currently holds the spec-as-source-of-truth
-> under [`docs/arch/`](docs/arch/) — Architecture Decision Records (MADR
-> 4.0), CUE schemas, Gherkin features, Rego policies, and a Structurizr C4
-> workspace. Implementation begins after the specification stabilises.
+> Project status — **architecture and specification phase**. No
+> application code is committed yet. The repository currently holds the
+> spec-as-source-of-truth under [`docs/arch/`](docs/arch/) — Architecture
+> Decision Records (MADR 4.0), CUE schemas, Gherkin features, Rego
+> policies, DBML database schemas, and a Structurizr C4 workspace.
+> Implementation begins after the specification stabilises.
 
 ## Why a new manager?
 
-Existing tools (Lens, OpenLens, Headlamp) target cross-platform Electron.
-K8sManager is built for operators who live on macOS and want:
+Existing tools (Lens, OpenLens, Headlamp) target cross-platform
+Electron. K8sManager is built for operators who live on macOS and want:
 
-- Native window chrome, menu bar, keyboard handling, drag and drop, dark
-  mode, Spotlight integration.
+- Native window chrome, menu bar, keyboard handling, drag and drop,
+  dark mode, Spotlight integration.
 - Sub-second cold start, idle memory under 100 MB, single binary.
-- A built-in assistant that talks to **your** chosen LLM provider (cloud
-  or local via Ollama / LM Studio / vLLM / OpenRouter) and reasons over
-  your cluster through a strict, auditable, **read-only** Kubernetes tool
-  surface — no surprises.
-- 100% native — no `kubectl`, `helm`, `aws`, `gcloud`, or `kubelogin`
-  subprocesses. Every protocol speaks REST API.
+- A built-in assistant that talks to **your** chosen LLM provider
+  (cloud or local via Ollama / LM Studio / vLLM / OpenRouter) and
+  reasons over your cluster through a strict, auditable, **read-only**
+  Kubernetes tool surface — no surprises.
+- 100% native REST API — no `kubectl`, `helm`, `aws`, `gcloud`, or
+  `kubelogin` subprocess (except as a documented fallback for
+  unrecognised exec plugins).
 
-## Planned scope (MVP+)
+## Scope (MVP++)
 
-Seven bounded contexts, each owning its own ubiquitous language:
+Twelve bounded contexts, each owning its own ubiquitous language:
 
-- `cluster_connectivity` — parse kubeconfig, probe cluster health.
+- `cluster_connectivity` — parse kubeconfig, probe cluster health,
+  own `KubernetesApiPort` and `ExecCredentialPort`.
 - `context_navigation` — active context, recents, pinned.
-- `app_shell` — window lifecycle, sidebar, menu bar, chat surface.
-- `llm_provider` — Anthropic, OpenAI, OpenAI-compatible behind one port.
+- `app_shell` — window lifecycle, sidebar, menu bar, chat surface,
+  terminal surface, metrics surface.
+- `llm_provider` — Anthropic, OpenAI, OpenAI-compatible behind one
+  port.
 - `assistant_chat` — sessions, messages, streaming, tool-use loop.
-- `cluster_intelligence` — in-process MCP server with read-only K8s tools.
-- `local_persistence` — SQLite (WAL) for non-secret state; macOS Keychain
-  for LLM API keys.
-
-Additional bounded contexts on the roadmap (post-spec stabilisation):
-`resource_browser` (full CRUD with confirmation, paridade Lens),
-`port_forwarding`, `helm_management`, `metrics_observability` (Prometheus
-auto-discovery), `terminal_session` (Pod exec + Node debug via WebSocket,
-multi-tab).
+- `cluster_intelligence` — in-process MCP server with read-only K8s
+  tools (`kube_list_pods`, `kube_describe`, `kube_get_yaml`,
+  `kube_events`, `kube_logs`, `kube_top_pods`, `kube_cluster_info`).
+- `local_persistence` — SQLite (WAL) for non-secret state; macOS
+  Keychain for LLM API keys.
+- `resource_browser` — **full CRUD** with confirmation, double-confirm
+  delete, server-side apply, YAML diff preview, dynamic CRD discovery.
+- `port_forwarding` — local TCP listener tunnels via WebSocket
+  `portforward.k8s.io` subprotocol.
+- `helm_management` — native Helm release list / inspect / history /
+  rollback over Secrets `owner=helm` (Phase 1); install / upgrade /
+  template / lint native engine on roadmap (Phase 2 per ADR-0015).
+- `metrics_observability` — Prometheus HTTP API client with
+  auto-discovery and curated PromQL templates.
+- `terminal_session` — Pod exec and Node debug sessions via WebSocket
+  `v5.channel.k8s.io`; multi-tab.
 
 ## Architecture in one diagram
 
-```
-+-------------------------------------------------------------+
-|                          app_shell                          |
-+----------------------+---------------+----------------------+
-                       |               |
-                       v               v
-            +---------------------+   +-------------------+
-            |  context_navigation |   |  assistant_chat   |
-            +----------+----------+   +---+----------+----+
-                       |                  |          |
-                       v                  v          v
-            +---------------------+   +-------+ +---------------+
-            | cluster_connectivity|   | llm_  | | cluster_      |
-            +----------+----------+   | prov. | | intelligence  |
-                       |              +---+---+ +-------+-------+
-                       |                  |             |
-                       +------------------+-------------+
-                                          |
-                                          v
-                                +---------------------+
-                                |  local_persistence  |
-                                +---------------------+
+```mermaid
+graph TB
+    appShell[App Shell]
+
+    subgraph uiLayer [UI / Feature Layer]
+        contextNavigation[Context Navigation]
+        resourceBrowser[Resource Browser]
+        portForwarding[Port Forwarding]
+        metricsObservability[Metrics Observability]
+        terminalSession[Terminal Session]
+        helmManagement[Helm Management]
+        assistantChat[Assistant Chat]
+    end
+
+    subgraph businessLayer [Business / Intelligence Layer]
+        clusterConnectivity[Cluster Connectivity]
+        clusterIntelligence[Cluster Intelligence]
+        llmProvider[LLM Provider]
+    end
+
+    localPersistence[Local Persistence]
+
+    appShell --> contextNavigation
+    appShell --> resourceBrowser
+    appShell --> portForwarding
+    appShell --> metricsObservability
+    appShell --> terminalSession
+    appShell --> helmManagement
+    appShell --> assistantChat
+
+    contextNavigation --> clusterConnectivity
+    resourceBrowser --> clusterConnectivity
+    portForwarding --> clusterConnectivity
+    metricsObservability --> clusterConnectivity
+    terminalSession --> clusterConnectivity
+    helmManagement --> clusterConnectivity
+    helmManagement --> resourceBrowser
+
+    assistantChat --> llmProvider
+    assistantChat --> clusterIntelligence
+    clusterIntelligence --> clusterConnectivity
+
+    clusterConnectivity --> localPersistence
+    llmProvider --> localPersistence
+    clusterIntelligence --> localPersistence
+    assistantChat --> localPersistence
 ```
 
 Strategic DDD bounded contexts. Hexagonal port-and-adapter dependency
-direction (domain core never imports infrastructure). MADR 4.0 ADRs in
+direction enforced at the Swift Package Manager target level (see
+[ADR-0020](docs/arch/decisions/adr-0020-swiftpm-workspace-topology.md))
+— the domain core never imports infrastructure. MADR 4.0 ADRs in
 [`docs/arch/decisions/`](docs/arch/decisions/) drive every cross-cutting
 choice.
 
-## Technology stack (planned)
+## Technology stack
 
-| Layer | Technology |
-|---|---|
-| Runtime | Swift 6, SwiftUI, macOS 14 Sonoma minimum |
-| Kubernetes client | SwiftkubeClient (community, async/await, SwiftNIO transport) |
-| Connection pool | `async-http-client` with per-cluster TLS overlays |
-| LLM providers | Anthropic Messages, OpenAI Chat Completions / Responses, OpenAI-compatible |
-| MCP | `modelcontextprotocol/swift-sdk` (in-process transport) |
-| Local store | SQLite (WAL) via GRDB.swift; macOS Keychain for LLM API keys |
-| YAML | Yams |
-| Distribution | Direct download, Developer ID signed, notarized via `notarytool`; optional Homebrew Cask |
+Library choices are pinned in
+[ADR-0019](docs/arch/decisions/adr-0019-adopted-swift-libraries.md).
+Highlights:
 
-Library choices are tracked under
-[`docs/arch/decisions/`](docs/arch/decisions/) and may be refined as the
-specification evolves.
+| Layer | Library | Tier |
+|---|---|---|
+| Runtime | Swift 6.1, SwiftUI, macOS 14 Sonoma minimum | — |
+| Kubernetes client | `swiftkube/client` 0.26 + `async-http-client` 1.33 | A |
+| Exec / port-forward transport | `URLSessionWebSocketTask` (Foundation) | A |
+| LLM Anthropic | `jamesrochabrun/SwiftAnthropic` 2.2 | B (`@preconcurrency`) |
+| LLM OpenAI and compatible | `MacPaw/OpenAI` 0.4 | B (`@preconcurrency`) |
+| MCP | `modelcontextprotocol/swift-sdk` 0.12 with `InMemoryTransport` | A |
+| YAML | `jpsim/Yams` 6.2 | A |
+| Local store | `groue/GRDB.swift` 7.10 (WAL) | A |
+| Crypto / X.509 / JWT | `apple/swift-crypto`, `swift-certificates`, `swift-asn1`, `vapor/jwt-kit` | A |
+| AWS auth | `soto-project/soto` 7.14 (SigV4 + STS presign + EKS token assembly) | A |
+| GCP auth | manual (URLSession + jwt-kit) — community library archived Oct 2025 | — |
+| Azure auth | MSAL for Objective-C (Swift bridging) | B |
+| OIDC generic | `openid/AppAuth-iOS` 2.0 | B |
+| Prometheus query | custom client (~340 LoC); no public Swift library exists | — |
+| Compression | Foundation `Compression` framework (built-in) | A |
+| Logging / Collections / DI | `swift-log`, `swift-collections`, `swift-dependencies`, `swift-concurrency-extras` | A |
+| Distribution | Direct download, Developer ID signed, notarized via `notarytool`; optional Homebrew Cask | — |
+
+Native cloud credential resolution (AWS, GCP, Azure, OIDC) is captured
+in [ADR-0018](docs/arch/decisions/adr-0018-native-cloud-credential-resolution.md).
+A subprocess fallback adapter remains for unrecognised exec plugins per
+[ADR-0002](docs/arch/decisions/adr-0002-swiftkube-client-adapter.md).
 
 ## Repository layout
 
@@ -114,33 +166,31 @@ specification evolves.
                 └── domain/          ubiquitous language narrative
 ```
 
-The spec under `docs/arch/` is the single source of truth. Every cross
-cutting choice that survives implementation review lands in an ADR
-before the code that implements it.
-
-## Architectural decisions (current set)
+## Decisions
 
 The full index lives in [`docs/arch/README.md`](docs/arch/README.md).
-At the time of writing the repository holds eleven proposed ADRs
-covering platform choice, Kubernetes adapter, kubeconfig read-only
-invariant, distribution and notarization, bounded contexts (initial and
-expanded), connection pooling, LLM provider abstraction, MCP host and
-in-process server, local persistence and Keychain split, and Swift
-concurrency conventions.
+At the time of writing the repository holds 20 proposed ADRs covering
+platform choice, Kubernetes adapter, kubeconfig read-only invariant,
+distribution and notarization, bounded contexts (initial and expanded),
+connection pooling, LLM provider abstraction, MCP host and in-process
+server, local persistence and Keychain split, Swift concurrency
+conventions, mutating operations policy, resource browser scope,
+port-forwarding lifecycle, Helm phased delivery, Prometheus integration,
+terminal sessions, native cloud credential resolution, adopted Swift
+libraries, and Swift Package Manager workspace topology.
 
 ## Roadmap
 
 The roadmap is captured in ADRs rather than a separate document — each
 new capability lands as a new ADR before the first commit of code that
-implements it. The high level direction is:
+implements it. The high-level direction is:
 
-1. Stabilise the MVP+ spec — finish remaining ADRs on resource browser,
-   port forwarding, Helm strategy, Prometheus integration, terminal
-   sessions.
-2. Pin library choices after maturity audits (Swift package ecosystem
-   surveys; results are inlined into the relevant ADRs).
-3. Begin implementation behind a Swift Package Manager workspace that
-   matches the seven bounded contexts as separate targets.
+1. Stabilise the MVP++ spec — all 20 ADRs proposed; review and accept.
+2. Begin implementation under a Swift Package Manager workspace
+   (ADR-0020): 14 targets including 12 bounded-context cores, a shared
+   kernel, an application target, and a parallel adapter tree.
+3. Phase 2 work on native Helm (template engine + Sprig port; full
+   install/upgrade) per ADR-0015 — large multi-quarter effort.
 
 ## Contributing
 

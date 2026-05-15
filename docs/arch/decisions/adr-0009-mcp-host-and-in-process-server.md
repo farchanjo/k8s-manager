@@ -1,11 +1,19 @@
 # ADR-0009 — MCP host plus an in-process MCP server exposing read-only Kubernetes tools
 
-- Status — Proposed
+- Status — Proposed; transport library pinned by ADR-0019
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — mcp, model-context-protocol, kubernetes, tool-use, assistant
+
+> **Pinning note (2026-05-15).** The MCP host and in-process server use
+> the official **`modelcontextprotocol/swift-sdk`** (version 0.12.1)
+> with its `InMemoryTransport` — a pair of `AsyncStream` instances
+> wired directly between host and server inside the same process.
+> Spec evolution is tracked by version-pinning the SDK; the wire
+> protocol is preserved so external stdio-based MCP servers can be
+> added later without changing the host contract.
 
 ## Context and problem statement
 

@@ -1,11 +1,20 @@
 # ADR-0008 — LLM provider abstraction over Anthropic, OpenAI, and OpenAI-compatible endpoints
 
-- Status — Proposed
+- Status — Proposed; library set pinned by ADR-0019
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — llm, abstraction, hexagonal, anthropic, openai, ollama
+
+> **Pinning note (2026-05-15).** The concrete adapter libraries adopted
+> are pinned by **ADR-0019** — `jamesrochabrun/SwiftAnthropic` 2.2.2 for
+> the Anthropic adapter, `MacPaw/OpenAI` 0.4.9 for both the OpenAI and
+> OpenAI-compatible adapters (the latter via `baseURL` override).
+> Both libraries are imported with `@preconcurrency` until upstream
+> migrates to Swift 6 language mode. `Recouse/EventSource` 0.1.8 is the
+> standby SSE parser for cases where direct `URLSession.bytes` is
+> insufficient.
 
 ## Context and problem statement
 

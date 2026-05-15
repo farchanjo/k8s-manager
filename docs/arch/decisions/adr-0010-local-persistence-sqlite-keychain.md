@@ -1,11 +1,18 @@
 # ADR-0010 — Local persistence — SQLite for non-secret state, macOS Keychain for LLM API keys
 
-- Status — Proposed
+- Status — Proposed; driver library pinned by ADR-0019
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — persistence, sqlite, keychain, secrets, storage
+
+> **Pinning note (2026-05-15).** The SQLite Swift driver is pinned to
+> **`groue/GRDB.swift`** version 7.10.x (Swift 6.1+ obligatory) per
+> ADR-0019. Schema additions for mutating-operation audit
+> (`cluster_mutation_audit`) and any new bounded contexts introduced
+> after ADR-0010 land as numbered migrations under the existing
+> `schema_migrations` regime; no schema is mutated outside a migration.
 
 ## Context and problem statement
 

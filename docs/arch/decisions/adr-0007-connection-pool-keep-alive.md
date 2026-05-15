@@ -42,6 +42,30 @@ reloads.
   not close every pooled connection synchronously on the UI
   thread.
 
+## Considered options
+
+### Option A — Shared `HTTPClient` with per-cluster configuration overlays (chosen)
+
+- **Pros** — single set of event loops, low resource ceiling,
+  fast warm-pool latency, watch streams cleanly separated.
+- **Cons** — overlay implementation is bespoke on top of
+  `async-http-client`; one buggy overlay could leak across
+  clusters if it mutates shared state.
+
+### Option B — One `HTTPClient` per cluster
+
+- **Pros** — perfect isolation; no shared state.
+- **Cons** — N clusters × event-loop groups; significant memory
+  overhead at idle; shutdown ordering complicates exit.
+
+### Option C — `URLSession` per cluster with custom delegate
+
+- **Pros** — Apple-supported transport; integrates with macOS
+  networking diagnostics.
+- **Cons** — HTTP/2 stream cancellation is awkward; watch-style
+  long-poll handling on `URLSession` is brittle; loses
+  SwiftkubeClient ergonomics.
+
 ## Decision outcome
 
 - Use one **shared `HTTPClient` instance per process**, owned by
@@ -107,30 +131,6 @@ reloads.
 - A watch stream cancellation does not change the shared-pool size.
 - An idle test of five minutes finds the pool reaping to zero
   connections after `idleTimeout` and re-establishing on demand.
-
-## Considered options
-
-### Option A — Shared `HTTPClient` with per-cluster configuration overlays (chosen)
-
-- **Pros** — single set of event loops, low resource ceiling,
-  fast warm-pool latency, watch streams cleanly separated.
-- **Cons** — overlay implementation is bespoke on top of
-  `async-http-client`; one buggy overlay could leak across
-  clusters if it mutates shared state.
-
-### Option B — One `HTTPClient` per cluster
-
-- **Pros** — perfect isolation; no shared state.
-- **Cons** — N clusters × event-loop groups; significant memory
-  overhead at idle; shutdown ordering complicates exit.
-
-### Option C — `URLSession` per cluster with custom delegate
-
-- **Pros** — Apple-supported transport; integrates with macOS
-  networking diagnostics.
-- **Cons** — HTTP/2 stream cancellation is awkward; watch-style
-  long-poll handling on `URLSession` is brittle; loses
-  SwiftkubeClient ergonomics.
 
 ## More information
 
