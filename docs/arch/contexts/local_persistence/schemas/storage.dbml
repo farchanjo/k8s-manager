@@ -176,6 +176,52 @@ Table cluster_mutation_audit {
   }
 }
 
+// Migration note: editor_drafts added to support resource_browser editor sessions per ADR-0030.
+// Rows hold point-in-time snapshots of dirty #EditorSession buffers written by
+// DraftAutoSaver every 5 seconds while isDirty == true. Rows are keyed by
+// editor_session_id; the application retains only the most-recent draft per
+// session. Rows older than 24 hours with no corresponding active session are
+// eligible for pruning by the local_persistence maintenance routine.
+Table editor_drafts {
+  id text [pk, note: "UUIDv7"]
+  editor_session_id text [not null]
+  api_version text [null]
+  kind text [null]
+  namespace text [null]
+  name text [null]
+  source_format text [not null, note: "'yaml'|'json'|'markdown'"]
+  content text [not null]
+  saved_at_rfc3339 text [not null]
+  auto_saved boolean [not null, default: true]
+
+  Indexes {
+    (editor_session_id) [name: "idx_drafts_session"]
+    (saved_at_rfc3339) [name: "idx_drafts_age"]
+  }
+}
+
+// Migration note: toasts history added per ADR-0032 — keeps last 100 entries for Settings > Activity Log.
+// Rows are written by ToastEmitter on every toast emission and updated with dismissed_at_rfc3339 on dismiss.
+// Retention: application-level DELETE after each INSERT targets rows where emitted_at_rfc3339 is older
+// than the 100th most-recent entry. No foreign keys — this table is append-only and self-contained.
+Table toast_history {
+  id text [pk, note: "UUIDv7"]
+  title text [not null]
+  message text [null]
+  severity text [not null, note: "'success'|'info'|'warning'|'error'|'neutral'"]
+  icon_symbol_name text [null]
+  emitted_at_rfc3339 text [not null]
+  action_id text [null]
+  action_payload_json text [null]
+  pinned boolean [not null, default: false]
+  dismissed_at_rfc3339 text [null]
+
+  Indexes {
+    (emitted_at_rfc3339) [name: "idx_toasts_time"]
+    (severity, emitted_at_rfc3339) [name: "idx_toasts_severity_time"]
+  }
+}
+
 Ref: provider_capabilities.provider_profile_id > provider_profiles.id [delete: cascade]
 Ref: chat_sessions.provider_profile_id > provider_profiles.id [delete: restrict]
 Ref: chat_messages.session_id > chat_sessions.id [delete: cascade]

@@ -606,6 +606,189 @@ availability of custom symbols; accessibility label presence at every
 call site; `symbolEffect(.pulse)` for pending state with reduce-motion
 suppression.
 
+## Internationalisation (i18n) and multi-language support
+
+Governed by ADR-0033. The app shell owns the locale resolution lifecycle,
+the operator-facing locale picker in Settings → Language, and the
+persistence of `#LocalePreference` to `local_persistence` under the key
+`app_shell/locale_preference`.
+
+All user-visible UI strings originate in en-US and are localised via Xcode
+String Catalog (`.xcstrings`, macOS 14+ native format). The MVP+ baseline
+ships three locales: `en` (en-US + en-GB), `pt-BR`, and `es-ES`. Additional
+locales may be contributed by community via PR; the governance contract is
+`i18n_manifest.cue`.
+
+### Tactical roles
+
+- **`#LocalePreference`** (ValueObject) — the operator's persisted locale
+  settings: `localeIdentifier`, `followSystem`, `dateStyle`, `timeStyle`,
+  `timezone`, `numberFormat`, `layoutDirection`, and optional
+  `pluralizationRule`. Defined in `contexts/app_shell/schemas/locale_preference.cue`.
+
+- **`#LocaleManifest`** (ValueObject) — shape of the locale registry;
+  canonical instance is `i18nManifest` in
+  `contexts/app_shell/schemas/i18n_manifest.cue`. Carries `sourceLocale`,
+  `baselineLocales`, and `extensionLocales`.
+
+- **`#TranslatableKey`** (ValueObject) — documentation and lint schema for
+  individual `.xcstrings` keys; records `keyPath`, `englishSource`,
+  `contextHint`, and plural variant map. Defined in `i18n_manifest.cue`.
+
+- **`LocaleResolverService`** (DomainService) — resolves the active `Locale`
+  at launch and on operator override. Reads `#LocalePreference` from the
+  persistence port; falls back to `Locale.preferredLanguages[0]`; ultimate
+  fallback is `en-US`. Sets the SwiftUI `\.locale` and `\.layoutDirection`
+  environment values reactively. Locale changes take effect within 200 ms
+  without application restart.
+
+- **`TranslationCatalogPort`** (Port) — an abstraction over the `.xcstrings`
+  bundle look-up. Allows injection of a test double with pre-seeded key
+  translations in unit and integration tests without requiring the full Xcode
+  bundle pipeline.
+
+### i18n data flow
+
+```mermaid
+graph LR
+    LP["LocalePreferencePort\n(local_persistence)"]
+    SYS["Locale.preferredLanguages\n(macOS system)"]
+    LRS["LocaleResolverService\n(DomainService)"]
+    ENV["SwiftUI Environment\n\\.locale\n\\.layoutDirection"]
+    XCS[".xcstrings bundle\n(all locale variants)"]
+    TCP["TranslationCatalogPort\n(Port)"]
+    VIEW["SwiftUI Views\nText(key)\n/ String(localized:)"]
+    FB["en-US fallback\n(missing key)"]
+
+    LP --> LRS
+    SYS --> LRS
+    LRS --> ENV
+    ENV --> VIEW
+    XCS --> TCP
+    TCP --> VIEW
+    VIEW --> FB
+```
+
+### Community extension model
+
+Any Apple-recognised locale may be added by a community contributor via a PR
+that satisfies the lint contract in `i18n_manifest.cue`: at minimum 75%
+`translationCoverage`, a `displayName` in the target locale's own script, a
+GitHub `maintainer` handle, and an accurate `status` (`"beta"` or
+`"incomplete"`). The core team reviews only structural correctness; linguistic
+quality is the community maintainer's responsibility.
+
+Extension locales with `translationCoverage < 0.80` display a warning badge in
+the Settings → Language picker. Locales with `status: "incomplete"` show a
+banner when active. Missing keys always fall back to the en-US source string —
+never blank, never the raw key identifier.
+
+Fifteen extension locales are pre-registered in `i18n_manifest.cue` with
+`status: "incomplete"` and `translationCoverage: 0.0` to reserve identifiers
+and signal intent: pt-PT, es-MX, es-AR, fr-FR, de-DE, it-IT, nl-NL, pl-PL,
+ru-RU, ja-JP, ko-KR, zh-Hans, zh-Hant, ar, and he. The `ar` and `he` locales
+additionally serve as RTL layout test targets during development.
+
+### RTL invariant
+
+YAML, JSON, log, and terminal views override `\.layoutDirection` to
+`leftToRight` unconditionally. RTL layout mirroring applies to all navigational
+chrome (sidebar, content list, detail pane, toolbar) and to directional SF
+Symbols but never to code-display surfaces.
+
+## Async resource states and loading UX
+
+Governed by ADR-0031 — Loading states and async resource UX.
+
+Every async operation that affects UI state is represented as an
+`AsyncResource<T>` Swift enum with four cases: `idle`, `loading`,
+`success`, and `failure`. All views that load data follow this contract
+and render the appropriate presentation mode:
+
+- `skeleton` — structural placeholder using `.redacted(reason: .placeholder)`
+  for operations whose layout is known and expected duration >100 ms.
+- `shimmer` — skeleton with a diagonal gradient animation for
+  content-heavy or layout-unknown surfaces.
+- `spinner` — indeterminate `ProgressView` for quick operations <500 ms.
+- `progressBar` — determinate `ProgressView` when total units are known.
+
+A 200 ms throttle prevents idle → loading transitions from flashing for
+operations that resolve quickly (e.g., warm SQLite reads). Empty states
+with action hints and error states with Retry buttons complete the UX
+surface.
+
+CUE schema: `contexts/app_shell/schemas/loading_state.cue`
+BDD coverage: `contexts/app_shell/features/loading-states.feature`
+
+## Toast notifications
+
+Governed by ADR-0032 — Toast notification system.
+
+A global `ToastStack` aggregate (floating `bottom_right` overlay) is
+the single surface for all operation feedback. Every domain event that
+the operator needs to be aware of — mutation success, connection failure,
+kubeconfig reload, port-forward open — emits a `#Toast` via the
+`ToastEmitter` domain service.
+
+### Tactical roles
+
+- **`#ToastStack`** (AggregateRoot) — owns active toasts (max 5) and
+  the overflow queue. Position operator-configurable. Persisted to
+  `local_persistence` under `app_shell/toast_stack`.
+- **`#Toast`** (ValueObject) — immutable card with id (UUIDv7), title,
+  message, severity, icon, `autoDismissMs`, `pinned`, and optional
+  `#ToastAction`.
+- **`ToastEmitter`** (DomainService) — assigns UUIDv7, computes
+  `autoDismissMs` from severity, enqueues to `#ToastStack`, and writes
+  to the `toast_history` SQLite table.
+- **`ToastDismissScheduler`** (DomainService) — runs the per-toast
+  auto-dismiss timer on `@MainActor`, honours the `pinned` flag, and
+  pauses timers while the pointer hovers over the stack.
+
+### Toast emit flow
+
+```mermaid
+sequenceDiagram
+    participant DL as Domain Layer
+    participant TE as ToastEmitter
+    participant TS as ToastStack
+    participant DB as PersistenceActor
+    participant UI as SwiftUI overlay
+
+    DL->>TE: emitToast(title, severity, action?)
+    TE->>TS: enqueue(#Toast)
+    TS-->>UI: @Observable change → re-render
+    TE->>DB: insert toast_history row
+    UI-->>TS: auto-dismiss after autoDismissMs
+    TS->>DB: update dismissed_at_rfc3339
+```
+
+CUE schema: `contexts/app_shell/schemas/toast_notification.cue`
+BDD coverage: `contexts/app_shell/features/toast-notifications.feature`
+
+## State-driven realtime UI
+
+Governed by ADR-0034 — State-driven realtime UI architecture.
+
+All SwiftUI views are pure functions of `@Observable` view model
+properties. The Observation framework (Swift 5.9+ `@Observable` macro)
+is the exclusive reactivity mechanism — no Combine, no `ObservableObject`,
+no `@Published` in new code.
+
+Domain ports expose live data as `AsyncThrowingStream<Event, Error>`.
+View models consume the stream with a `for try await` loop inside a
+`Task { @MainActor in … }` and mutate `AsyncResource<T>` state on each
+received event. SwiftUI's `withObservationTracking` granular change
+tracking re-renders only the views that read the changed property.
+
+No polling. No manual refresh button in primary resource views.
+Cancellation propagates via Swift structured concurrency: `task.cancel()`
+reaches the `AsyncThrowingStream` `onTermination` handler, which closes
+the Kubernetes HTTP/2 watch channel.
+
+CUE schema: `contexts/app_shell/schemas/observable_state.cue`
+BDD coverage: `contexts/app_shell/features/state-driven-realtime.feature`
+
 ## Out of scope
 
 - Resource browsing, Helm, dashboards, telemetry, auto-update

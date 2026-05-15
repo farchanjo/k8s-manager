@@ -330,6 +330,41 @@ Tier B.
   client assertions) and JWT verification (ID token signature validation
   against JWKS in `OIDCExecCredentialAdapter`).
 
+### Group: Editor and content rendering
+
+`mchakravarty/CodeEditorView` version 0.16.x, MIT, Tier B.
+
+- Role: SwiftUI-native code editor widget with TreeSitter-based syntax
+  highlighting used by the integrated MD / YAML / JSON editor surface
+  (ADR-0030). Provides line-number gutter, bracket matching, and theme
+  support. Wrapped behind a `CodeEditorPort` adapter to isolate the
+  `@preconcurrency` import required by its delegate callbacks.
+- Swift 6 status: not in language mode `.v6` as of May 2026. The
+  adapter target uses `@preconcurrency import CodeEditorView` and exposes
+  only `Sendable` closures and actor-isolated callbacks at its boundary.
+- Risk: smaller community than mainstream editor libraries. Mitigated by
+  MIT licence and the `CodeEditorPort` abstraction — a replacement
+  (e.g. a future Apple-provided editor component) can be swapped in
+  without touching domain core targets.
+
+`apple/swift-markdown` version 0.6+, Apache 2.0, Tier A, Apple-maintained.
+
+- Role: CommonMark parser for Markdown preview rendering in the integrated
+  editor (ADR-0030). Provides a document AST that the preview renderer
+  walks to produce attributed strings or HTML for `WKWebView`. No external
+  renderer library is required; the adapter owns the AST-to-display
+  conversion.
+- Swift 6 status: Apple-maintained; language mode 6 compliant.
+
+Xcode String Catalog (`.xcstrings`), built-in (macOS 14+ / Xcode 15+),
+Tier A, toolchain feature.
+
+- Role: localisation source-of-truth for all user-visible strings
+  (ADR-0033). Listed here for completeness; it is not a SwiftPM
+  dependency. String keys are compiled into `.strings` files at build
+  time by Xcode; runtime access is via `String(localized:)` and
+  `LocalizedStringKey` in SwiftUI.
+
 ### Group: Local persistence and general utilities
 
 `groue/GRDB.swift` version 7.10.0, MIT, Tier A.

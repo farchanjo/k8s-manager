@@ -41,6 +41,14 @@ Electron. K8sManager is built for operators who live on macOS and want:
   exports).
 - SF Symbols iconography across the entire UI; custom symbol set
   for Kubernetes kinds without stock equivalents.
+- Integrated editor for Markdown, YAML, and JSON with realtime
+  dry-run apply, diff preview, and Kubernetes schema validation.
+- Skeleton loaders, shimmer placeholders, and toast notifications
+  for every meaningful operation — async UX done properly.
+- State-driven realtime UI end-to-end — kqueue at the bottom,
+  Observation framework at the top, SwiftUI in between, no polling.
+- English / Portuguese / Spanish baseline; the Xcode String
+  Catalog framework lets community add any Apple-supported locale.
 
 ## Scope (MVP++)
 
@@ -254,6 +262,35 @@ latency distributions that single percentile lines hide. Full
 specification in
 [ADR-0024](docs/arch/decisions/adr-0024-analytics-dashboard-bounded-context.md).
 
+## Reactive stack
+
+Every K8sManager bit moves through a single reactive pipeline
+(ADR-0035):
+
+- **Kernel** — `kqueue` file descriptor per cluster session with
+  six active filters: `EVFILT_READ`, `EVFILT_WRITE`, `EVFILT_VNODE`
+  (file watch), `EVFILT_TIMER` (debounce, retry, idle reap),
+  `EVFILT_SIGNAL` (graceful shutdown), `EVFILT_PROC` (exec
+  credential plugin lifecycle).
+- **Transport** — SwiftNIO `MultiThreadedEventLoopGroup` for
+  sockets, `DispatchSource.makeFileSystemObjectSource` for files,
+  `DispatchSourceTimer` / `DispatchSourceSignal` for timing and
+  process control, GRDB async API for SQLite, `FileHandle.AsyncBytes`
+  for streaming reads.
+- **Domain ports** — `AsyncStream<Event>` / `AsyncThrowingStream`
+  exposed by every port; backpressure-aware buffering.
+- **Domain core** — actor-isolated aggregates (`ClusterSessionActor`,
+  `PersistenceActor`, `AssistantSessionActor`, `MCPServerActor`,
+  `EditorOrchestratorService`) consume the streams and mutate state.
+- **Read models** — `@Observable` projections live on
+  `MainActor`; SwiftUI tracks them via `withObservationTracking`.
+- **SwiftUI** — `body` is a pure function of the read-model state;
+  no `ObservableObject`, no Combine, no polling.
+
+Toast notifications, loading skeletons, editor diagnostics, and
+dashboard widgets are all state-driven projections of the same
+pipeline (ADR-0031, ADR-0032, ADR-0034).
+
 ## Async architecture and isolation
 
 K8sManager is async end-to-end. Every I/O operation is driven by
@@ -320,6 +357,9 @@ Highlights:
 | Prometheus query | custom client (~340 LoC); no public Swift library exists | — |
 | Compression | Foundation `Compression` framework (built-in) | A |
 | Logging / Collections / DI | `swift-log`, `swift-collections`, `swift-dependencies`, `swift-concurrency-extras` | A |
+| Editor | `mchakravarty/CodeEditorView` 0.16 + `apple/swift-markdown` 0.6 | B / A |
+| i18n | Xcode String Catalog (.xcstrings) + Foundation Locale | A built-in |
+| Reactive UI | Observation framework (Swift 6) + AsyncSequence | A built-in |
 | Distribution | Direct download, Developer ID signed, notarized via `notarytool`; optional Homebrew Cask | — |
 
 Native cloud credential resolution (AWS, GCP, Azure, OIDC) is captured

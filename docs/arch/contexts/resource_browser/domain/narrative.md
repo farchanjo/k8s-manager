@@ -256,6 +256,74 @@ The `?` key in the resource browser opens a hotkey help overlay listing
 all active bindings for the currently selected resource kind. The overlay
 is navigable via VoiceOver.
 
+## Integrated editor (MD / YAML / JSON)
+
+The `resource_browser` context owns the integrated multi-format editor
+introduced in ADR-0030. The editor is the Layer 3 editing surface for all
+Kubernetes resource manifests opened from the resource browser. It supports
+three formats: YAML (with real-time Kubernetes schema validation and dry-run
+server-side apply), JSON (with JSON Schema validation when a schema is
+resolvable), and Markdown (with side-by-side rendered preview).
+
+### New tactical roles
+
+- **`EditorOrchestratorService`** — DomainService. Coordinates the full
+  editing lifecycle: opens the `#EditorSession`, drives state transitions,
+  routes the operator's Apply intent through `MutationCommandFactory` →
+  `MutationGuardPort` → `MutationDispatchService`. Holds the single active
+  `#EditorSession` for the current editor pane.
+- **`RealtimeValidatorService`** — DomainService (background actor). Receives
+  content-change events, debounces 100 ms, parses YAML/JSON via `Yams` /
+  `JSONSerialization`, validates against `K8sSchemaValidator`, and emits an
+  updated `[#Diagnostic]` array.
+- **`DryRunApplyService`** — DomainService. Debounces 500 ms, sends a
+  `PATCH dryRun=All` to the Kubernetes API via `KubernetesApiPort`, parses the
+  response into a `diffPreview` string and `[#FieldConflict]` array, then
+  transitions `#EditorState`.
+- **`DraftAutoSaver`** — DomainService. Observes `isDirty` on the active
+  `#EditorSession`. While `isDirty == true`, persists a `#Draft` entity to the
+  `editor_drafts` SQLite table every 5 seconds via `AuditLogPort`-equivalent
+  draft port backed by `local_persistence`.
+- **`K8sSchemaValidator`** — DomainService. Loads OpenAPI v3 schemas from
+  `/openapi/v3` on the active cluster, caches them per GVK for the session
+  lifetime, and exposes a validate(document, gvk) → `[#Diagnostic]` interface
+  backed by `mattt/JSONSchema`.
+
+### New value objects and entities
+
+| Type | DDD role | Description |
+|:---|:---|:---|
+| `#EditorSession` | AggregateRoot | One per editor invocation. Holds format, content buffers, `#EditorState`, and `#ResourceRef`. |
+| `#EditorState` | Value Object (sum) | Nine-state discriminated union driving SwiftUI `@Observable` reactive bindings. |
+| `#Diagnostic` | Value Object | Single validation finding: severity, line, column, message, source. |
+| `#FieldConflict` | Value Object | SSA field ownership conflict: fieldPath, currentManager, attemptingManager. |
+| `#Draft` | Entity | Persisted snapshot of a dirty `#EditorSession` for crash recovery and cross-session draft resumption. |
+
+### EditorState transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> idle : editor opens (read-only)
+    idle --> loading : operator clicks Edit / presses e
+    loading --> editing : content loaded
+    loading --> error : load failed
+    editing --> validating : content change (debounce 100 ms)
+    validating --> editing : diagnostics updated
+    editing --> dryRunning : zero errors, debounce 500 ms
+    dryRunning --> dryRunComplete : dry-run response
+    dryRunning --> error : API error
+    dryRunComplete --> editing : operator continues editing
+    dryRunComplete --> applying : operator confirms Apply
+    editing --> applying : operator confirms Apply
+    applying --> applied_succeeded : SSA success
+    applying --> applied_failed : SSA failure
+    applying --> error : transport error
+    applied_succeeded --> idle : editor resets to read-only
+    applied_failed --> editing : operator retries or discards
+    error --> idle : operator dismisses
+    error --> editing : operator dismisses and resumes
+```
+
 ## Out of scope
 
 - `exec` into a container (deferred; requires pty-level UX and

@@ -63,6 +63,21 @@ and validation policies.
 - **Iconography** — SF Symbols 6+ catalogue with custom
   `.symbolset` glyphs for Kubernetes kinds where stock symbols
   do not exist (ADR-0028).
+- **Integrated editor** — MD / YAML / JSON in a single editor with
+  realtime dry-run apply, diff preview, schema validation, draft
+  auto-save (ADR-0030).
+- **Async UX everywhere** — skeleton loaders, shimmer placeholders,
+  toast notifications for every operation outcome (ADR-0031,
+  ADR-0032).
+- **State-driven realtime** — Observation framework + AsyncSequence
+  end-to-end; SwiftUI body is a pure function of @Observable read
+  models (ADR-0034).
+- **Reactive stack integration** — kqueue at the bottom (sockets,
+  files, timers, signals, subprocess) wired through SwiftNIO /
+  libdispatch → AsyncSequence → actors → @Observable → SwiftUI
+  (ADR-0035).
+- **Internationalisation** — en, pt-BR, es-ES baseline with a
+  community-extensible Xcode String Catalog framework (ADR-0033).
 
 ## Layout
 
@@ -271,6 +286,17 @@ graph TB
   Refines ADR-0021.
 - **ADR-0029** — kqueue I/O event selector strategy. Proposed.
   Refines ADR-0007, ADR-0011, ADR-0025.
+- **ADR-0030** — Integrated multi-format editor (MD, YAML, JSON).
+  Proposed.
+- **ADR-0031** — Loading states and async resource UX. Proposed.
+- **ADR-0032** — Toast notification system. Proposed.
+- **ADR-0033** — Internationalisation and multi-language support.
+  Proposed.
+- **ADR-0034** — State-driven realtime UI architecture. Proposed.
+  Refines ADR-0011.
+- **ADR-0035** — Reactive stack integration (kqueue + AsyncSequence
+  + Observation + SwiftUI). Proposed. Refines ADR-0007, ADR-0011,
+  ADR-0025, ADR-0029, ADR-0034.
 
 ## Validation
 

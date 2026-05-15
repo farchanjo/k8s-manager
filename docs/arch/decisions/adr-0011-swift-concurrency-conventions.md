@@ -1,11 +1,19 @@
 # ADR-0011 — Swift concurrency conventions for a fluid async UI
 
-- Status — Proposed; extended by ADR-0025 (ClusterSessionActor per cluster); extended by ADR-0029 (kqueue I/O event selector via SwiftNIO)
+- Status — Proposed; extended by ADR-0025 (ClusterSessionActor per cluster); extended by ADR-0029 (kqueue I/O event selector via SwiftNIO); extended by ADR-0034 (Observation framework + AsyncSequence state-driven UI)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Tags — concurrency, swift, async-await, actors, performance
+
+> **Extension note (2026-05-15).** ADR-0034 extends this ADR with three
+> explicit additions: (1) the Observation framework (`@Observable` macro) is
+> the exclusive UI reactivity mechanism — Combine is prohibited for new
+> SwiftUI bindings; (2) `AsyncThrowingStream` is the canonical domain port
+> output type for live data streams; (3) complex view-level state beyond
+> `AsyncResource` uses explicit sum types following the `#EditorState`
+> pattern from ADR-0030.
 
 > **Extension note — kqueue I/O selector (2026-05-15).** ADR-0029 names
 > the kernel I/O event notification mechanism that underlies the async I/O
