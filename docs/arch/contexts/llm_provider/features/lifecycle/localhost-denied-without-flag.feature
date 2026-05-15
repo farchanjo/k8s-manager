@@ -1,6 +1,13 @@
 # DDD role: BehaviouralSpecification
 # Bounded context: llm_provider
 # References: ADR-0008
+#
+# NOTE 2026-05-15: all scenarios from this file have been consolidated into
+# localhost-allowed-for-ollama.feature as a Scenario Outline with an Examples
+# table parameterising host, port, localOnly, and expected policy decision.
+# This file is retained to preserve any external cross-references.
+# The normative scenarios live at:
+#   docs/arch/contexts/llm_provider/features/lifecycle/localhost-allowed-for-ollama.feature
 
 Feature: Localhost provider URL denied when localOnly flag is absent
   As a security-conscious operator
@@ -12,28 +19,10 @@ Feature: Localhost provider URL denied when localOnly flag is absent
     And the "Local provider" toggle is OFF (localOnly=false by default)
 
   @security @lifecycle
-  Scenario: http://localhost:8080 without localOnly flag is rejected by the provider policy
+  Scenario: http://localhost:8080 without localOnly flag is rejected — see Outline in localhost-allowed-for-ollama.feature
     When the operator sets providerURL to "http://localhost:8080" and does not enable the localOnly toggle
     Then the ProviderProfile Rego policy evaluates the URL against the allowed-endpoint rules
     And the policy finds localOnly=false for a localhost HTTP URL
     And the policy returns a deny decision
     And the Settings panel shows "Enable 'Local provider' to use a localhost endpoint"
     And the ProviderProfile is NOT saved to "storage.sqlite3"
-
-  @security @lifecycle
-  Scenario: http://127.0.0.1:8080 without localOnly flag is also denied
-    When the operator sets providerURL to "http://127.0.0.1:8080" without the localOnly toggle
-    Then the policy also rejects this URL (127.0.0.1 is treated the same as localhost)
-    And the denial reason is "localhost URLs require the localOnly flag"
-
-  @security @lifecycle
-  Scenario: https://localhost:443 without localOnly flag is denied
-    When the operator sets providerURL to "https://localhost:443" without the localOnly toggle
-    Then the policy denies HTTPS localhost URLs as well (even with TLS, localhost requires the flag)
-    And the denial message guides the operator to enable "Local provider"
-
-  @happy @lifecycle
-  Scenario: Public HTTPS provider URL without localOnly flag is allowed
-    When the operator sets providerURL to "https://api.anthropic.com" with no localOnly toggle
-    Then the policy allows the configuration (public HTTPS with no localhost component)
-    And the ProviderProfile is saved successfully with an API key required
