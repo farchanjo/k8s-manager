@@ -335,7 +335,7 @@ let package = Package(
         .target(
             name: "YamsKubeconfigAdapter",
             dependencies: [
-                "ContextNavigation",
+                "SharedKernel",
                 "ClusterConnectivity",
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Logging", package: "swift-log"),
@@ -686,6 +686,17 @@ let package = Package(
                 .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
             ],
             path: "Tests/TerminalSessionTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "YamsKubeconfigAdapterTests",
+            dependencies: [
+                "YamsKubeconfigAdapter",
+                "ClusterConnectivity",
+                "SharedKernel",
+            ],
+            path: "Tests/YamsKubeconfigAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
     ],
