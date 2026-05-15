@@ -130,8 +130,14 @@ sequenceDiagram
 ### flow-helm-rollback
 
 `helm_management` emits `HelmRollbackInitiated`, delegates the actual apply operations to
-`cluster_connectivity` via the `ServerSideApplyPort`, and emits `HelmRollbackCompleted` once the API
-server confirms all resources.
+`cluster_connectivity` via the `ServerSideApplyPort`, emits one `HelmManifestApplied` per applied
+resource, and finishes with `HelmRollbackCompleted` once the API server confirms the full set.
+
+The per-resource event is `helm_management.HelmManifestApplied`, **not**
+`resource_browser.MutationApplied`: `event_bus_policy.rego` rejects publishes whose `sourceContext`
+does not match the `eventType` prefix, and the rollback flow does not produce the
+`confirmationToken` that `MutationApplied` requires (rollback uses the lease mutex from ADR-0046,
+not the editor confirmation dialog from ADR-0012).
 
 ```mermaid
 sequenceDiagram
@@ -151,9 +157,9 @@ sequenceDiagram
         HM->>CC: ServerSideApplyPort.apply(manifest)
         CC-->>CC: PATCH /apply on Kubernetes API
         CC-->>HM: MutationResult (success | conflict)
-        HM->>BUS: publish(MutationApplied{clusterId, verb="apply", gvk, name})
-        BUS->>AD: AsyncStream.yield(MutationApplied envelope)
-        BUS->>LP: AsyncStream.yield(MutationApplied envelope)
+        HM->>BUS: publish(HelmManifestApplied{clusterId, releaseName, toRevision, gvk, namespace, name, manifestDigest})
+        BUS->>AD: AsyncStream.yield(HelmManifestApplied envelope)
+        BUS->>LP: AsyncStream.yield(HelmManifestApplied envelope)
         LP-->>LP: INSERT INTO mutation_audit
         LP->>BUS: publish(AuditEntryAppended{auditEntryId, previousEntryDigest})
     end
