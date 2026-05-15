@@ -91,10 +91,11 @@ let package = Package(
             url: "https://github.com/swift-server/async-http-client",
             from: "1.33.0"
         ),
-        // Yams 6.2.1
+        // Yams — swiftkube/client 0.26.0 constrains to 5.4.0..<6.0.0.
+        // ADR-0019 names 6.2.1 as preferred; downgraded until swiftkube bumps its pin.
         .package(
             url: "https://github.com/jpsim/Yams",
-            exact: "6.2.1"
+            from: "5.4.0"
         ),
         // GRDB 7.10.0
         .package(
@@ -141,10 +142,11 @@ let package = Package(
             url: "https://github.com/openid/AppAuth-iOS",
             exact: "2.0.0"
         ),
-        // mchakravarty/CodeEditorView 0.16.x
+        // mchakravarty/CodeEditorView — latest tag is 0.15.4 (no 0.16.x release yet).
+        // ADR-0019 names 0.16.x as the target pin; tracking upstream until tag exists.
         .package(
             url: "https://github.com/mchakravarty/CodeEditorView",
-            from: "0.16.0"
+            from: "0.15.4"
         ),
     ],
 
@@ -414,7 +416,7 @@ let package = Package(
             name: "AWSExecCredentialAdapter",
             dependencies: [
                 "ClusterConnectivity",
-                .product(name: "SotoCore", package: "soto"),
+                // SotoCore is brought in transitively by SotoSTS (soto monorepo).
                 .product(name: "SotoSTS", package: "soto"),
                 .product(name: "Logging", package: "swift-log"),
             ],
