@@ -89,20 +89,45 @@ symlink_is_safe {
 
 # ---------------------------------------------------------------------------
 # Happy-path allow rule
-# All conditions must hold:
+#
+# All conditions must hold simultaneously:
 #   1. Resolved path is in an approved directory (or operator-approved).
 #   2. The binary is a safe file (regular and not world-writable) or is a
 #      safe symlink (target regular and not world-writable).
+#   3. The binary has been seen before in the audit trail OR the operator
+#      has explicitly approved it — a first-seen binary without approval
+#      must never be silently executed (ADR-0018 HIGH-03).
+#
+# Rationale: the previous structure allowed `allow == true` while
+# `deny_missing_operator_approval_for_new_command` fired simultaneously,
+# because OPA evaluates allow and deny sets independently. Merging the
+# first-seen/operatorApproved gate into `allow` makes the single decision
+# the adapter reads authoritative: allow == true is sufficient and already
+# incorporates the approval invariant.
 # ---------------------------------------------------------------------------
 
 allow {
     approved_prefix(input.resolvedPath)
     file_is_safe
+    input.previouslySeen == true
+}
+
+allow {
+    approved_prefix(input.resolvedPath)
+    file_is_safe
+    input.operatorApproved == true
 }
 
 allow {
     approved_prefix(input.resolvedPath)
     symlink_is_safe
+    input.previouslySeen == true
+}
+
+allow {
+    approved_prefix(input.resolvedPath)
+    symlink_is_safe
+    input.operatorApproved == true
 }
 
 # ---------------------------------------------------------------------------
@@ -135,6 +160,11 @@ deny_world_writable_symlink_target[msg] {
     )
 }
 
+# deny_missing_operator_approval_for_new_command is intentionally kept as an
+# explicit deny rule for audit-trail message clarity. The allow rule above
+# already requires previouslySeen OR operatorApproved, so this deny fires
+# only when allow == false due to the approval invariant. The adapter reads
+# the deny set to surface the UX prompt obligation to the operator.
 deny_missing_operator_approval_for_new_command[msg] {
     not input.previouslySeen
     not input.operatorApproved
