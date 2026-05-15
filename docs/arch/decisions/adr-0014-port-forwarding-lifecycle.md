@@ -1,6 +1,6 @@
 # ADR-0014 — Port-forwarding lifecycle: WebSocket subprotocol and local TCP listener
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

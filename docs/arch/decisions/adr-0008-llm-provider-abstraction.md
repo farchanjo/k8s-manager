@@ -1,6 +1,7 @@
 # ADR-0008 — LLM provider abstraction over Anthropic, OpenAI, and OpenAI-compatible endpoints
 
-- Status — Proposed; library set pinned by ADR-0019
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0038
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

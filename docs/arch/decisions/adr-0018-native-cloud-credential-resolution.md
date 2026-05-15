@@ -1,6 +1,6 @@
 # ADR-0018 — Native cloud credential resolution (AWS/GCP/Azure/OIDC)
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

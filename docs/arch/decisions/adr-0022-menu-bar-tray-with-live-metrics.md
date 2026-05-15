@@ -1,6 +1,6 @@
 # ADR-0022 — Menu Bar Tray with Live Cluster Metrics
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

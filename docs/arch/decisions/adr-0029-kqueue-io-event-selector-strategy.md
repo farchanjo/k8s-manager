@@ -1,6 +1,6 @@
 # ADR-0029 — kqueue I/O event selector strategy for macOS async I/O
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

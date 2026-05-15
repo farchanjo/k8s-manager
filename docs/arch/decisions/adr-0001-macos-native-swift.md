@@ -1,6 +1,7 @@
 # ADR-0001 — macOS-native distribution via Swift and SwiftUI
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0033
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

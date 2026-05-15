@@ -1,6 +1,6 @@
 # ADR-0026 — State persistence and filesystem layout under `~/.config/k8smanager/`
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

@@ -1,6 +1,7 @@
 # ADR-0012 — Mutating operations policy for cluster resources
 
-- Status — Proposed; supersedes the "no cluster write" restriction in ADR-0003
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0030
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

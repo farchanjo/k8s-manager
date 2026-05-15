@@ -1,6 +1,6 @@
 # ADR-0034 — State-driven realtime UI architecture
 
-- Status — Proposed; refines ADR-0011 (Swift concurrency conventions)
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

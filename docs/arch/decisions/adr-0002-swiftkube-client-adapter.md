@@ -1,6 +1,7 @@
 # ADR-0002 — SwiftkubeClient as primary Kubernetes API adapter
 
-- Status — Proposed; library set pinned by ADR-0019; exec plugin strategy refined by ADR-0018
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0018
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

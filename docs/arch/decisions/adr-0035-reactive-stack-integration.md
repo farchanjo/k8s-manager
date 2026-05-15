@@ -1,6 +1,6 @@
 # ADR-0035 — Reactive stack integration (kqueue + AsyncSequence + Observable + SwiftUI)
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

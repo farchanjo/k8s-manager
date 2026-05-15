@@ -1,6 +1,7 @@
 # ADR-0033 — Internationalisation (i18n) and multi-language support
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0039
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

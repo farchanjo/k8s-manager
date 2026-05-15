@@ -1,7 +1,7 @@
 # ADR-0010 — Local persistence — SQLite for non-secret state, macOS Keychain for LLM API keys
 
-- Status — Proposed; driver library pinned by ADR-0019; refined by ADR-0026 (filesystem layout under
-  `~/.config/k8smanager/`)
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0042
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

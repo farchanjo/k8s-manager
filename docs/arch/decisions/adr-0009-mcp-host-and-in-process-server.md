@@ -1,6 +1,6 @@
 # ADR-0009 — MCP host plus an in-process MCP server exposing read-only Kubernetes tools
 
-- Status — Proposed; transport library pinned by ADR-0019
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

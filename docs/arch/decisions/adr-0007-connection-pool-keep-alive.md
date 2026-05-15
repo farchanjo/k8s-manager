@@ -1,8 +1,7 @@
 # ADR-0007 — Connection pool and persistent keep-alive for the Kubernetes API client
 
-- Status — Proposed; refined by ADR-0025 (per-cluster isolated HTTPClient pools); refined by
-  ADR-0029 (kqueue I/O event selector); refined by ADR-0035 (reactive stack — kqueue pools are the
-  bottom of the reactive chain)
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0029, ADR-0035
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

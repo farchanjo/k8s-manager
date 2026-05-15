@@ -1,6 +1,6 @@
 # ADR-0003 — Kubeconfig is read-only; no credential persistence
 
-- Status — Proposed; scope clarified by ADR-0010
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

@@ -1,6 +1,6 @@
 # ADR-0025 — Per-cluster isolation strategy for HTTPClient pools and session state
 
-- Status — Proposed; I/O selector strategy pinned by ADR-0029 (kqueue)
+- Status — Accepted (ratified 2026-05-15)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

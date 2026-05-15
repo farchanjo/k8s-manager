@@ -1,6 +1,7 @@
 # ADR-0036 — Watch stream lifecycle: LIST/WATCH, bookmarks, 410-Gone recovery, and fan-out budget
 
-- Status — Proposed
+- Status — Accepted (ratified 2026-05-15)
+- Refined by — ADR-0041
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)

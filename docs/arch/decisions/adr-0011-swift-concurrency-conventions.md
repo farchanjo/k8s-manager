@@ -1,8 +1,8 @@
 # ADR-0011 — Swift concurrency conventions for a fluid async UI
 
-- Status — Proposed; extended by ADR-0025 (ClusterSessionActor per cluster); extended by ADR-0029
-  (kqueue I/O event selector via SwiftNIO); extended by ADR-0034 (Observation framework +
-  AsyncSequence state-driven UI); refined by ADR-0035 (reactive stack integration)
+- Status — Accepted (ratified 2026-05-15)
+- Extended by — ADR-0025, ADR-0029
+- Refined by — ADR-0035, ADR-0037
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
