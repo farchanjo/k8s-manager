@@ -233,8 +233,13 @@ sequenceDiagram
 ### flow-draft-save
 
 `resource_browser` debounces editor keystrokes. After a 5-second idle period, `DraftAutoSaver` calls
-`local_persistence` to persist the draft, which emits `DraftSaved`. `analytics_dashboard` updates
-its recent-activity widget on receipt.
+`local_persistence` to persist the draft and publishes `DraftSaved` once the insert returns.
+`analytics_dashboard` updates its recent-activity widget on receipt.
+
+`DraftAutoSaver` lives inside `resource_browser`, so the publish carries `sourceContext:
+"resource_browser"` and matches the `event_bus_policy.rego` sourceContext rule. Calling `publish`
+from `local_persistence` would be denied because the event type is `resource_browser.DraftSaved`
+and `local_persistence`'s own envelopes must use the `local_persistence.*` prefix.
 
 ```mermaid
 sequenceDiagram
@@ -250,7 +255,8 @@ sequenceDiagram
     Note over DAS: timer fires after 5 s idle
     DAS->>LP: insertDraft(draftId, editorSessionId, content)
     LP-->>LP: INSERT INTO editor_drafts (WAL commit)
-    LP->>BUS: publish(DraftSaved{draftId, editorSessionId, sensitiveContentRedacted})
+    LP-->>DAS: insert acknowledged
+    DAS->>BUS: publish(DraftSaved{draftId, editorSessionId, sensitiveContentRedacted})
     BUS->>AD: AsyncStream.yield(envelope)
     BUS->>ED: AsyncStream.yield(envelope)
 
