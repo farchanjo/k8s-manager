@@ -13,26 +13,13 @@ public enum AppShell: Sendable {
     public static let moduleVersion = "0.0.1-skeleton"
 }
 
-/// Root SwiftUI scene placeholder. Wired by K8sManagerApp composition root.
+/// Root SwiftUI scene. Wired by K8sManagerApp composition root.
 public struct K8sManagerRootScene: Scene {
     public init() {}
     public var body: some Scene {
         WindowGroup {
-            ContentPlaceholderView()
+            ClusterListView()
+                .frame(minWidth: 600, minHeight: 400)
         }
-    }
-}
-
-struct ContentPlaceholderView: View {
-    var body: some View {
-        VStack {
-            Text("K8sManager — skeleton")
-                .font(.title)
-            Text("Spec lock 2026-05-15 baseline")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(minWidth: 600, minHeight: 400)
-        .padding()
     }
 }
