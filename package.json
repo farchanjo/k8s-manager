@@ -1,0 +1,29 @@
+{
+  "name": "k8smanager-spec",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Specification repository for K8sManager — CUE schemas, MADR ADRs, Structurizr C4, Rego policies, Gherkin features.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "format": "prettier --write \"**/*.{md,json,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{md,json,yaml,yml}\"",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
+    "lint:prose": "vale docs/",
+    "lint": "pnpm lint:md && pnpm lint:prose",
+    "cue:fmt": "cue fmt ./docs/arch/contexts/...",
+    "cue:vet": "cue vet ./docs/arch/contexts/...",
+    "conftest:test": "conftest verify --policy docs/arch/contexts || true",
+    "features:lint": "node scripts/validate-features.mjs",
+    "spec:fast": "bash scripts/validate-spec-fast.sh",
+    "spec:full": "bash scripts/validate-spec.sh",
+    "validate": "pnpm spec:fast && pnpm cue:vet && pnpm features:lint && pnpm format:check",
+    "render": "bash scripts/render-diagrams.sh",
+    "prepare": "lefthook install || true"
+  },
+  "devDependencies": {
+    "@dbml/cli": "^8.0.0",
+    "markdownlint-cli2": "0.14.0",
+    "prettier": "3.8.3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}

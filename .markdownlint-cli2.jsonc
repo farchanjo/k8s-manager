@@ -1,0 +1,29 @@
+// markdownlint-cli2 config — structural correctness for Markdown.
+//
+// Run locally:  pnpm dlx markdownlint-cli2 "**/*.md"
+// CI / pre-commit: invoked from lefthook.yml.
+{
+  "config": {
+    "default": true,
+    "MD013": {
+      "line_length": 100,
+      "code_blocks": false,
+      "tables": false,
+      "headings": false
+    },
+    "MD033": false,
+    "MD024": { "siblings_only": true },
+    "MD041": false,
+    "MD034": false,
+    "MD026": { "punctuation": ".,;:!" },
+    "MD040": false
+  },
+  "globs": [
+    "**/*.md"
+  ],
+  "ignores": [
+    "node_modules/**",
+    "generated/**",
+    "docs/arch/_rendered/**"
+  ]
+}

@@ -1,0 +1,30 @@
+# Git hooks for K8sManager spec repository.
+# Install: `pnpm dlx lefthook install` (auto via `pnpm prepare`).
+
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: "*.{md,json,yaml,yml}"
+      run: pnpm prettier --check {staged_files}
+
+    markdownlint:
+      glob: "*.md"
+      run: pnpm dlx markdownlint-cli2 {staged_files}
+
+    cue-fmt:
+      glob: "*.cue"
+      run: cue fmt {staged_files}
+
+    cue-vet:
+      glob: "docs/arch/contexts/**/schemas/*.cue"
+      run: cue vet ./docs/arch/contexts/...
+
+    spec-fast:
+      glob: "docs/arch/**"
+      run: bash scripts/validate-spec-fast.sh
+
+pre-push:
+  commands:
+    validate:
+      run: bash scripts/validate-spec.sh

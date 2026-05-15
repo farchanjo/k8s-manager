@@ -1,0 +1,153 @@
+name: Spec Validate
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "docs/arch/**"
+      - "scripts/validate-spec*.sh"
+      - ".github/workflows/spec-validate.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "docs/arch/**"
+      - "scripts/validate-spec*.sh"
+      - ".github/workflows/spec-validate.yml"
+  schedule:
+    # Nightly at 02:00 UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: spec-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fast lane — runs on every push and PR (≤2s, no external tools required)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  spec-validate-fast:
+    name: Spec — fast lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run fast-lane validation
+        run: bash scripts/validate-spec-fast.sh
+
+      - name: Upload fast-lane log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-fast-failure-${{ github.run_id }}
+          path: |
+            /tmp/k8s-spec-*.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Full lane — runs on merge to main and nightly
+  # ─────────────────────────────────────────────────────────────────────────────
+  spec-validate-full:
+    name: Spec — full lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only trigger on push to main or on a scheduled run (not every PR)
+    if: >
+      github.event_name == 'schedule' || (github.event_name == 'push' && github.ref ==
+      'refs/heads/main') || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── Tool cache ──────────────────────────────────────────────────────────
+
+      - name: Cache Go binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: go-tools-${{ runner.os }}-cue-latest
+          restore-keys: go-tools-${{ runner.os }}-
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      # ── Tool installation ───────────────────────────────────────────────────
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache: false
+
+      - name: Install cue
+        run: |
+          if ! command -v cue >/dev/null 2>&1; then
+            go install cuelang.org/go/cmd/cue@latest
+          fi
+          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Install conftest
+        run: |
+          _version=$(curl -s https://api.github.com/repos/open-policy-agent/conftest/releases/latest \
+            | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+          curl -sSL \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${_version}/conftest_${_version}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin conftest
+          chmod +x /usr/local/bin/conftest
+
+      - name: Install gherkin-lint
+        run: pnpm dlx gherkin-lint --version || pnpm add -g gherkin-lint
+
+      - name: Install @dbml/cli (dbml2sql)
+        run: pnpm add -g @dbml/cli
+
+      # ── Validation ──────────────────────────────────────────────────────────
+
+      - name: Run full spec validation
+        run: bash scripts/validate-spec.sh
+        env:
+          # Structurizr CLI is not installed in CI; the script will skip that step
+          PATH: ${{ env.PATH }}
+
+      # ── Artefacts on failure ────────────────────────────────────────────────
+
+      - name: Collect GFM-table diff on failure
+        if: failure()
+        run: |
+          echo "=== GFM table violations ===" > /tmp/k8s-gfm-diff.txt
+          grep -rnE '^\|[^|]+\|' docs/arch/ \
+            --include="*.md" \
+            --exclude-dir=_rendered >> /tmp/k8s-gfm-diff.txt 2>/dev/null || true
+
+      - name: Upload full validation log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-full-failure-${{ github.run_id }}
+          path: |
+            /tmp/k8s-spec-*.txt
+            /tmp/k8s-gfm-diff.txt
+          if-no-files-found: ignore
+          retention-days: 14

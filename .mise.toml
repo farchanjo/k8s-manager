@@ -1,0 +1,14 @@
+# Pinned tool versions for the K8sManager spec repository.
+# Run `mise install` after cloning.
+#
+# Local development: mise resolves and installs each tool.
+# CI: pin matching versions or use official Docker images per tool.
+
+[tools]
+node = "20"
+pnpm = "9"
+cue = "0.10.0"
+conftest = "0.56.0"
+java = "21"
+lefthook = "1.7.15"
+vale = "3.7.1"

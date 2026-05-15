@@ -1,0 +1,11 @@
+node_modules/
+generated/
+
+# Languages with their own formatters
+*.cue
+*.dsl
+*.rego
+*.feature
+
+# Machine-generated
+pnpm-lock.yaml
