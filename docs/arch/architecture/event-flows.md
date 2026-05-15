@@ -104,7 +104,7 @@ sequenceDiagram
     participant LP as local_persistence
 
     CN->>CC: openSession(clusterId)
-    CC-->>CC: health probe succeeds; session active
+    CC-->>CC: health probe succeeds, session active
     CC->>BUS: publish(ClusterSessionOpened{clusterId, contextId, openedAt})
     BUS->>AD: AsyncStream.yield(envelope)
     BUS->>AS: AsyncStream.yield(envelope)
@@ -114,16 +114,16 @@ sequenceDiagram
     AS-->>AS: tray: set health badge to green
     CI-->>CI: register available MCP tools for clusterId
 
-    Note over CN,LP: ... time passes; operator switches context or quits ...
+    Note over CN,LP: ... time passes, operator switches context or quits ...
 
     CC->>BUS: publish(ClusterSessionClosed{clusterId, closedAt, reason})
     BUS->>AD: AsyncStream.yield(envelope)
     BUS->>AS: AsyncStream.yield(envelope)
     BUS->>CI: AsyncStream.yield(envelope)
 
-    AD-->>AD: remove cluster scope; archive timeline snapshot
+    AD-->>AD: remove cluster scope, archive timeline snapshot
     AS-->>AS: tray: remove cluster badge
-    CI-->>CI: cancel watch subscriptions; deregister MCP tools
+    CI-->>CI: cancel watch subscriptions, deregister MCP tools
     LP-->>LP: (no direct subscription — cleanup is operator-commanded)
 ```
 
@@ -168,7 +168,7 @@ sequenceDiagram
     BUS->>AD: AsyncStream.yield(envelope)
     BUS->>LP: AsyncStream.yield(envelope)
 
-    AD-->>AD: update Helm release read model; clear in-progress indicator
+    AD-->>AD: update Helm release read model, clear in-progress indicator
 ```
 
 ### flow-assistant-tool-call
@@ -362,9 +362,9 @@ may observe the event for security telemetry; `app_shell` may surface a low-prio
 sequenceDiagram
     participant OP as Operator
     participant AC as assistant_chat
-    participant PS as PromptSanitizerService (L1)
-    participant CF as ContentFilterGateway (L3 — Rego)
-    participant PCB as PromptContextBuilder (L2 tagging)
+    participant PS as "PromptSanitizerService (L1)"
+    participant CF as "ContentFilterGateway (L3 - Rego)"
+    participant PCB as "PromptContextBuilder (L2 tagging)"
     participant LLM as LLM provider
     participant BUS as DomainEventBusActor
     participant AD as analytics_dashboard
@@ -374,17 +374,17 @@ sequenceDiagram
     PS-->>AC: sanitized value (control chars stripped, NFC, 4096-char clip)
     AC->>CF: evaluate(sanitizedValue, source="ConfigMap/exploit-config")
     CF-->>CF: prompt_injection_filter.rego: PI-001 matched
-    CF-->>AC: deny — pattern PI-001; replace with blocked placeholder
+    CF-->>AC: deny - pattern PI-001, replace with blocked placeholder
     AC->>BUS: publish(PromptInjectionSuspected{sessionId, patternId="PI-001", source, excerpt})
     BUS->>AD: AsyncStream.yield(envelope)
     AD-->>AD: increment security-events counter on telemetry widget
 
-    Note over AC: blocked placeholder used; original payload NOT forwarded
+    Note over AC: blocked placeholder used, original payload NOT forwarded
     AC->>PCB: buildContext(blockedPlaceholder, source="ConfigMap/exploit-config")
-    PCB-->>PCB: wrap in <UNTRUSTED_DATA source="ConfigMap/exploit-config"> tags
+    PCB-->>PCB: wrap in [UNTRUSTED_DATA source="ConfigMap/exploit-config"] tags
     PCB-->>AC: tagged context (placeholder, not adversarial value)
     AC->>LLM: chat_turn(systemPrompt, taggedContext)
-    LLM-->>AC: assistant response (describes blocked content; does not follow injection)
+    LLM-->>AC: assistant response (describes blocked content, does not follow injection)
 ```
 
 ---

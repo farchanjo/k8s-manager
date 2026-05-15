@@ -225,19 +225,19 @@ sequenceDiagram
     participant App as Application bootstrap
     participant FS as Filesystem
     participant DB as storage.sqlite3
-    participant Actor as ClusterSessionActor
+    participant CSA as ClusterSessionActor
     participant UI as MainActor (SwiftUI)
 
-    App->>FS: Read RestorationManifest\n(clusters/<id>/view_state.json per pinned cluster)
+    App->>FS: Read RestorationManifest\n(clusters/id/view_state.json per pinned cluster)
     App->>DB: Open SQLite, run pending migrations
     App->>DB: Load ContextNavigationState (active context)
     App->>UI: Render initial shell with loading state
 
-    loop For each pinned/recent cluster (parallel TaskGroup)
-        App->>Actor: Spawn ClusterSessionActor
-        Actor->>FS: Load view_state.json
-        Actor-->>UI: Publish .connecting event
-        Actor-->>UI: Publish .connected event (on success)
+    loop For each pinned/recent cluster - parallel TaskGroup
+        App->>CSA: Spawn ClusterSessionActor
+        CSA->>FS: Load view_state.json
+        CSA-->>UI: Publish .connecting event
+        CSA-->>UI: Publish .connected event (on success)
     end
 
     App->>DB: Load dashboard custom layouts
@@ -247,13 +247,13 @@ sequenceDiagram
     alt openTerminalSessions count > 0
         App->>UI: Prompt "Reopen N terminals from last session?"
         UI-->>App: operator accepts
-        App->>Actor: Reopen terminal sessions
+        App->>CSA: Reopen terminal sessions
     end
 
     alt openPortForwards count > 0
         App->>UI: Prompt "Reopen M port-forwards from last session?"
         UI-->>App: operator accepts
-        App->>Actor: Reopen port-forward listeners
+        App->>CSA: Reopen port-forward listeners
     end
 ```
 

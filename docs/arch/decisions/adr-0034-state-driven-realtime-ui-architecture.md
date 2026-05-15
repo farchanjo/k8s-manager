@@ -173,8 +173,8 @@ graph LR
     Port -->|for try await event in| VM
     VM -->|state mutation @MainActor| AR
     AR -->|withObservationTracking| View
-    VM -->|ToastEmitter.emit(...)| Toast
-    Toast -->|@Observable change| View
+    VM -- "ToastEmitter.emit(...)" --> Toast
+    Toast -->|"@Observable change"| View
 ```
 
 ### Actor ownership and layer assignments

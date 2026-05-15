@@ -49,7 +49,7 @@ stateDiagram-v2
 
     DoubleConfirmDeclined --> Discarded : destructive op declined at\nsecond confirmation step
 
-    Confirming --> DoubleConfirmDeclined : destructive op:\noperator declines second confirm
+    Confirming --> DoubleConfirmDeclined : destructive op -\noperator declines second confirm
 
     Completed --> [*]
     Discarded --> [*]

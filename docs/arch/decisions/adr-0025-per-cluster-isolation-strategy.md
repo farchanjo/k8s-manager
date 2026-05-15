@@ -263,12 +263,12 @@ their scroll position, tab selection, and search query exactly as they left them
 sequenceDiagram
     participant UI as MainActor (SwiftUI)
     participant Nav as ContextNavigationState
-    participant SA as ClusterSessionActor (A)
-    participant SB as ClusterSessionActor (B)
+    participant SA as "ClusterSessionActor (A)"
+    participant SB as "ClusterSessionActor (B)"
 
     UI->>Nav: selectCluster(B)
     Nav-->>UI: activeClusterId = B
-    Note over SA: Session A remains running;\npool, registries, view state untouched
+    Note over SA: Session A remains running,\npool, registries, view state untouched
     UI->>SB: activate (if not already open)
     SB-->>UI: .connected event
     Note over SB: Session B view state\nrestored from view_state.json

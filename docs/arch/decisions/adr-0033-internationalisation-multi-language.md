@@ -223,7 +223,7 @@ graph LR
     TM["Translation memory\n(Xcode automatic\nsuggestions)"]
     XCS["Xcode String Catalog\n(.xcstrings variants:\npt-BR, es-ES, ...extension locales)"]
     LP["Locale.preferredLanguages[0]\nor operator override"]
-    RES["SwiftUI String(localized:)\n/ .localizedStringKey\n/ Text(\"key\")"]
+    RES["SwiftUI String(localized:)\n/ .localizedStringKey\n/ Text(key)"]
     FB["en-US fallback\n(missing key)"]
 
     EN --> TM

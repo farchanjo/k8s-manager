@@ -45,25 +45,25 @@ declared tools to the LLM. This context is the **MCP host** in the sense of ADR-
 ```mermaid
 sequenceDiagram
     participant ui as UI
-    participant actor as AssistantSessionActor
+    participant sess as AssistantSessionActor
     participant llm as LLMProviderPort
     participant dispatcher as ToolDispatcher
     participant mcp as MCPServer
 
-    ui->>actor: send(userMessage)
-    actor->>llm: reply(AssistantRequest)
+    ui->>sess: send(userMessage)
+    sess->>llm: reply(AssistantRequest)
     loop tool-use loop
-        llm-->>actor: AssistantStreamEvent(tool_use_start)
-        llm-->>actor: AssistantStreamEvent(tool_use_delta)
-        llm-->>actor: AssistantStreamEvent(tool_use_finish)
-        actor->>dispatcher: dispatch(toolUseEvent)
+        llm-->>sess: AssistantStreamEvent(tool_use_start)
+        llm-->>sess: AssistantStreamEvent(tool_use_delta)
+        llm-->>sess: AssistantStreamEvent(tool_use_finish)
+        sess->>dispatcher: dispatch(toolUseEvent)
         dispatcher->>mcp: call(toolName, args, pinnedContextId)
         mcp-->>dispatcher: ToolResult
-        dispatcher-->>actor: tool_result part
-        actor->>llm: reply(AssistantRequest + tool_result)
+        dispatcher-->>sess: tool_result part
+        sess->>llm: reply(AssistantRequest + tool_result)
     end
-    llm-->>actor: AssistantStreamEvent(finish)
-    actor-->>ui: LiveTurnReadModel(complete)
+    llm-->>sess: AssistantStreamEvent(finish)
+    sess-->>ui: LiveTurnReadModel(complete)
 ```
 
 ## Read models exposed to other contexts
