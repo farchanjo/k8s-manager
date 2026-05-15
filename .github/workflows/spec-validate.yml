@@ -1,5 +1,9 @@
 name: Spec Validate
 
+# Default to least-privilege; jobs that need write access must opt-in explicitly.
+permissions:
+  contents: read
+
 on:
   push:
     branches: ["**"]
