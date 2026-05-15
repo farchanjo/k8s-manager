@@ -432,6 +432,34 @@ import "strings"
 }
 
 // ---------------------------------------------------------------------------
+// assistant_chat events
+// ---------------------------------------------------------------------------
+
+// #PromptInjectionSuspected is emitted by assistant_chat when the
+// ContentFilterGateway content-filter layer (Layer 3 — ADR-0048) matches a
+// denial pattern in a cluster-origin string before it is injected into the
+// LLM context. The full payload is never included in the event; only the
+// pattern ID, source identity, and a short sanitized excerpt are carried to
+// avoid storing adversarial content in the event stream.
+#PromptInjectionSuspected: {
+	envelope: #EventEnvelope & {
+		sourceContext: "assistant_chat"
+		eventType:     "assistant_chat.PromptInjectionSuspected"
+	}
+	payload: {
+		sessionId: #UUIDv7
+		// patternId is the first denial pattern that matched, e.g. "PI-001".
+		patternId:        string & strings.MinRunes(1)
+		// source is "<kind>/<name>" of the originating Kubernetes resource.
+		source:           string
+		// sanitizedExcerpt is the first 64 chars of the sanitized payload.
+		sanitizedExcerpt: string & =~"^.{0,64}$"
+		// matchedPatterns is the full set of pattern IDs that fired.
+		matchedPatterns: [...string]
+	}
+}
+
+// ---------------------------------------------------------------------------
 // DomainEventBusActor meta-events
 // ---------------------------------------------------------------------------
 

@@ -351,6 +351,42 @@ sequenceDiagram
     end
 ```
 
+### flow-prompt-injection-suspected
+
+`assistant_chat` runs cluster-origin data through three defence layers (ADR-0048) before LLM
+dispatch. When the content-filter layer (Layer 3) matches a denial pattern, the payload is replaced
+with a blocked placeholder and a `PromptInjectionSuspected` event is emitted. `analytics_dashboard`
+may observe the event for security telemetry; `app_shell` may surface a low-priority toast.
+
+```mermaid
+sequenceDiagram
+    participant OP as Operator
+    participant AC as assistant_chat
+    participant PS as PromptSanitizerService (L1)
+    participant CF as ContentFilterGateway (L3 — Rego)
+    participant PCB as PromptContextBuilder (L2 tagging)
+    participant LLM as LLM provider
+    participant BUS as DomainEventBusActor
+    participant AD as analytics_dashboard
+
+    OP->>AC: "What is in ConfigMap exploit-config?"
+    AC->>PS: sanitize(configMapValue)
+    PS-->>AC: sanitized value (control chars stripped, NFC, 4096-char clip)
+    AC->>CF: evaluate(sanitizedValue, source="ConfigMap/exploit-config")
+    CF-->>CF: prompt_injection_filter.rego: PI-001 matched
+    CF-->>AC: deny — pattern PI-001; replace with blocked placeholder
+    AC->>BUS: publish(PromptInjectionSuspected{sessionId, patternId="PI-001", source, excerpt})
+    BUS->>AD: AsyncStream.yield(envelope)
+    AD-->>AD: increment security-events counter on telemetry widget
+
+    Note over AC: blocked placeholder used; original payload NOT forwarded
+    AC->>PCB: buildContext(blockedPlaceholder, source="ConfigMap/exploit-config")
+    PCB-->>PCB: wrap in <UNTRUSTED_DATA source="ConfigMap/exploit-config"> tags
+    PCB-->>AC: tagged context (placeholder, not adversarial value)
+    AC->>LLM: chat_turn(systemPrompt, taggedContext)
+    LLM-->>AC: assistant response (describes blocked content; does not follow injection)
+```
+
 ---
 
 ## Ordering and delivery guarantees
