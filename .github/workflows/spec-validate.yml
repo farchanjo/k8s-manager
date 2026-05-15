@@ -139,6 +139,9 @@ jobs:
         # via a `_cmd_exists structurizr-cli` guard.
         run: bash scripts/validate-spec.sh
 
+      - name: Lint Gherkin feature files
+        run: pnpm run features:lint
+
       # ── Artefacts on failure ────────────────────────────────────────────────
 
       - name: Collect GFM-table diff on failure
