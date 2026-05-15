@@ -294,6 +294,36 @@ import "strings"
 	}
 }
 
+// #HelmManifestApplied is emitted by helm_management for each Kubernetes
+// resource that the rollback orchestrator applies via Server-Side Apply
+// while restoring a target revision. One event per (gvk, namespace, name)
+// triple in the rendered manifest set. Consumed by analytics_dashboard,
+// local_persistence (audit trail), and app_shell (toast feedback).
+//
+// Distinct from `resource_browser.MutationApplied` — that event carries an
+// operator-supplied confirmationToken from the editor confirmation dialog,
+// which does not exist in the helm rollback flow. Modelling helm applies as
+// a separate event preserves the `event_bus_policy.rego` sourceContext rule
+// (sourceContext must match the eventType prefix).
+#HelmManifestApplied: {
+	envelope: #EventEnvelope & {
+		sourceContext: "helm_management"
+		eventType:     "helm_management.HelmManifestApplied"
+	}
+	payload: {
+		clusterId:      #ClusterId
+		releaseName:    string & strings.MinRunes(1)
+		toRevision:     int & >=1
+		gvk:            string & strings.MinRunes(1)
+		namespace:      string
+		name:           string & strings.MinRunes(1)
+		// manifestDigest is the SHA-256 hex digest of the rendered resource
+		// manifest at the time it was applied — supports audit-trail tamper
+		// detection without storing the manifest itself on the bus.
+		manifestDigest: string & =~"^[0-9a-f]{64}$"
+	}
+}
+
 // #HelmRollbackCompleted is emitted by helm_management when the API server
 // confirms (or rejects) a rollback operation.
 #HelmRollbackCompleted: {

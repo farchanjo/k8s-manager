@@ -43,6 +43,7 @@ known_event_types := [
     "terminal_session.TerminalSessionClosed",
     # helm_management
     "helm_management.HelmRollbackInitiated",
+    "helm_management.HelmManifestApplied",
     "helm_management.HelmRollbackCompleted",
     # cluster_intelligence
     "cluster_intelligence.ToolInvoked",
