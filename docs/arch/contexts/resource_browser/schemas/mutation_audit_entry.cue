@@ -79,16 +79,26 @@ package resource_browser
 	// at most 5 minutes old at dispatch time.
 	confirmationToken!: =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 
-	// previousEntryDigest is the SHA-256 hex digest of the
-	// immediately preceding audit row's canonical JSON serialisation
-	// (all fields in schema-defined order, excluding this field).
-	// The first row stores the sentinel value of 64 zero hex
-	// characters. Together the chain of digests forms a tamper-evident
-	// linked list: any retroactive modification of a row invalidates
-	// every digest that follows it.
+	// previousEntryDigest is the HMAC-SHA256 hex digest produced as:
+	//   HMAC-SHA256(key, prevDigestHex || canonicalEntryJSON_utf8)
+	// where `key` is the 256-bit secret stored in the macOS Keychain
+	// under service "com.archanjo.K8sManager.audit", account
+	// "chain-mac-key-v1" (per ADR-0047). The first (genesis) row
+	// stores the sentinel value of 64 zero hex characters. Together
+	// the chain forms a key-gated tamper-evident linked list: an
+	// adversary with only filesystem write access cannot silently
+	// recompute the chain because they lack the Keychain key.
 	//
 	// The chain is verified by the `spec validate --lane audit`
 	// command, which walks all rows in requestedAt order.
-	// (See ADR-0012 MEDIUM-01 finding.)
+	// (See ADR-0047 — supersedes the plain SHA-256 design noted in
+	// ADR-0012 MEDIUM-01.)
 	previousEntryDigest!: =~"^[0-9a-f]{64}$"
+
+	// keyVersion identifies the Keychain key generation used to
+	// produce this entry's previousEntryDigest HMAC tag. Allows the
+	// ChainVerifier to select the correct Keychain item in the event
+	// that a future key rotation is implemented. Default is "v1",
+	// corresponding to the Keychain account "chain-mac-key-v1".
+	keyVersion: string & =~"^v[0-9]+$" | *"v1"
 }

@@ -45,18 +45,22 @@ BEGIN
 END;
 
 -- Trigger 3: Chain-integrity guard for cluster_mutation_audit.
--- Rationale: the previous_entry_digest column forms a hash chain over
--- the audit log. The application computes the digest in Swift before
--- issuing the INSERT. This trigger enforces that new rows declare a
--- non-empty previous_entry_digest when a prior row exists, catching
--- programming errors where the chain computation was skipped.
---
--- Implementation note: SQLite does not provide a native SHA-256 function.
--- Full cryptographic chain verification is performed by the application
--- layer (ChainVerifier service). This trigger enforces only the structural
+-- Rationale: the previous_entry_digest column forms an HMAC-SHA256 chain
+-- over the audit log (ADR-0047). The application computes the HMAC digest
+-- in Swift using a 256-bit key stored in the macOS Keychain
+-- (service "com.archanjo.K8sManager.audit", account "chain-mac-key-v1")
+-- before issuing the INSERT. This trigger enforces only the structural
 -- invariant: if the table is non-empty the new row MUST NOT declare an
 -- empty previous_entry_digest, and if the table is empty the new row
--- MUST declare an empty previous_entry_digest (genesis row).
+-- MUST declare an empty previous_entry_digest (genesis row sentinel
+-- "0" * 64).
+--
+-- IMPORTANT: SQLite does not have a native HMAC-SHA256 function. This
+-- trigger cannot cryptographically verify the HMAC tag — it only enforces
+-- the presence/absence structural rule. Full cryptographic chain
+-- verification (HMAC key lookup from Keychain, entry-by-entry recompute)
+-- is performed exclusively by the application-layer ChainVerifier actor
+-- on launch, on each mutation write, and via `spec validate --lane audit`.
 CREATE TRIGGER IF NOT EXISTS cluster_mutation_audit_chain_check
 BEFORE INSERT ON cluster_mutation_audit
 WHEN (
