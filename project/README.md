@@ -1,7 +1,7 @@
 # K8S-Manager — Swift Package
 
-This directory contains the Apple platform source root for K8S-Manager.
-It is a pure Swift Package (no `.xcodeproj`); Xcode opens it via `Package.swift`.
+This directory contains the Apple platform source root for K8S-Manager. It is a pure Swift Package
+(no `.xcodeproj`); Xcode opens it via `Package.swift`.
 
 ## Module topology
 
@@ -36,9 +36,8 @@ Foundation / Swift stdlib
   K8sManagerApp (executable — composition root; imports everything)
 ```
 
-The invariants above (domain cores never import infra; AppShell never imports
-adapters) are enforced by `scripts/check-dependency-invariants.py` in CI
-(see ADR-0020).
+The invariants above (domain cores never import infra; AppShell never imports adapters) are enforced
+by `scripts/check-dependency-invariants.py` in CI (see ADR-0020).
 
 ## Architecture references
 
@@ -129,8 +128,8 @@ project/
 
 ## Swift language mode
 
-The package mandates Swift 6 (`swiftLanguageModes: [.v6]`).
-All targets enable `StrictConcurrency` via:
+The package mandates Swift 6 (`swiftLanguageModes: [.v6]`). All targets enable `StrictConcurrency`
+via:
 
 ```swift
 swiftSettings: [
