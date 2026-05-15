@@ -39,6 +39,41 @@ exercises this case but no ADR defines the policy or the regex.
    preferred path where the template permits it. Whitelist regex remains the substitution-time
    guard.
 
+## Pros and cons of the options
+
+### Option 1 — No validation
+
+- Bad, because Kubernetes label values permit characters (`}`, `|`, `~`, `+`) that are meaningful
+  in PromQL, creating a trivial injection surface where a crafted resource name can escape the
+  intended label matcher and issue arbitrary queries.
+
+### Option 2 — Escape special characters
+
+- Bad, because PromQL has no canonical escape syntax; escaping rules differ between double-quoted
+  string literals and regex matchers, making a universal escaping function error-prone and
+  context-dependent.
+
+### Option 3 — Whitelist regex applied to substitution values (chosen)
+
+- Good, because the allowed character set `^[a-zA-Z0-9._-]{1,63}$` is the intersection of
+  Kubernetes RFC 1123 label values, DNS subdomain components, and characters safe inside PromQL
+  string literals and regex matchers; it is enforced at the substitution boundary before any
+  query construction.
+- Good, because the Rego policy at the enforcement point is auditable, testable, and produces an
+  explicit `PromQLInjectionAttemptBlocked` audit entry for every rejection.
+- Bad, because resource names with characters outside the whitelist (valid in CRD names) cannot be
+  queried via the templated dashboards; operators must use a free-form query view with an explicit
+  guard for those names.
+
+### Option 4 — Parameterised query (preferred complement)
+
+- Good, because passing values via `?param=` form-encoded parameters to the Prometheus HTTP API
+  prevents injection by construction — the URL encoding layer isolates the value from the query
+  string.
+- Bad, because not all PromQL templates can be parameterised at the Prometheus HTTP API level;
+  the whitelist regex is still required for templates that cannot be rewritten to use parameter
+  binding.
+
 ## Decision outcome
 
 - **Allowed character set** for substitution values: `^[a-zA-Z0-9._-]{1,63}$`. This is the

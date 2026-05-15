@@ -51,6 +51,35 @@ keyword extensions) reach `Foundation.Locale`, regardless of what is stored in S
 - **Option C** — Accept any string; rely on `Foundation.Locale`'s own validation to reject bad
   inputs.
 
+## Pros and cons of the options
+
+### Option A — Regex-validate at resolution time; reject with fallback to en-US (chosen)
+
+- Good, because the rejection is explicit and logged; the operator sees a predictable fallback to
+  `en-US` rather than a silently wrong locale or a crash.
+- Good, because the BCP 47 subset regex is encoded in the CUE schema, making the constraint
+  machine-checkable at spec-lint time rather than only at runtime.
+- Bad, because any valid BCP 47 locale not covered by the regex subset (e.g., locales with script
+  subtags beyond the two captured groups) will be incorrectly rejected; the subset must be updated
+  if broader BCP 47 coverage is needed.
+
+### Option B — Strip ICU keyword extensions silently before passing to `Foundation.Locale`
+
+- Good, because it avoids storing the rejected identifier; the sanitized value is immediately
+  usable without requiring the caller to handle a rejection path.
+- Bad, because silent stripping can produce a semantically different locale than the one the
+  operator intended — for example, stripping `@calendar=buddhist` from `th-TH@calendar=buddhist`
+  yields `th-TH`, which uses a different calendar system.
+
+### Option C — Accept any string; rely on `Foundation.Locale`'s own validation
+
+- Good, because it requires zero custom validation code; `Foundation.Locale` handles invalid inputs
+  internally.
+- Bad, because `Foundation.Locale` does not guarantee rejection of all invalid identifiers; some
+  malformed strings are accepted silently and produce undefined locale behavior.
+- Bad, because it provides no security guarantee against injection of unexpected ICU keyword
+  extensions or locale tags that exploit locale-sensitive string comparison.
+
 ## Decision outcome
 
 Chosen option — **Option A**, because silent stripping (Option B) can produce a different locale

@@ -126,6 +126,43 @@ material is stripped by the log redactor before the zip is sealed.
 
 ---
 
+## Pros and cons of the options
+
+### Option A — No in-app monitoring (status quo)
+
+- Good, because it has zero implementation cost and adds no additional maintenance surface.
+- Bad, because Activity Monitor cannot correlate CPU spikes with specific Kubernetes cluster sessions
+  or watch stream counts; operator diagnostics remain manual and disconnected from application
+  context.
+- Bad, because invisible resource leaks accumulate silently, degrading user experience without any
+  in-app signal.
+
+### Option B — External profiler integration (Instruments / Xcode Organizer)
+
+- Good, because it provides industry-standard tooling with rich flame graphs and allocation tracks
+  at no implementation cost inside K8sManager.
+- Bad, because Instruments requires Xcode installed; this is not a reasonable assumption for the
+  target persona (platform engineer, not developer).
+- Bad, because Instruments sessions cannot be bundled and shared as a file without manual export
+  steps and careful sanitization of credential material from signpost payloads.
+- Bad, because no live in-app display is provided; the operator must switch to a separate application
+  to observe resource health.
+
+### Option C — In-app diagnostics panel with sampler and bundle export (chosen)
+
+- Good, because operators gain immediate visibility into K8sManager's health without leaving the
+  application or installing external tooling.
+- Good, because the support workflow is one-click export with guaranteed redaction; support engineers
+  receive reproducible, redacted bundles from field reports.
+- Good, because Darwin APIs (`mach_task_info`, `TASK_VM_INFO`, `proc_pidinfo`) are stable with
+  negligible overhead at 5 s intervals (< 0.02 % CPU).
+- Good, because the design integrates naturally with the existing ADR-0022 tray widget model and
+  ADR-0024 analytics scope plugin model.
+- Bad, because additional implementation surface (new `DomainService` types, CUE schema, Gherkin
+  spec) must be created and maintained.
+- Bad, because `actorCount` and `kqueueEventsPerSecond` are instrumented counters that require
+  discipline from all bounded context authors to register and deregister correctly.
+
 ## Decision outcome
 
 **Chosen option: Option C — in-app diagnostics panel with sampler and bundle export.**

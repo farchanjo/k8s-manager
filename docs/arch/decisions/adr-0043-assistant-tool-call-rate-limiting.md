@@ -37,6 +37,32 @@ contract.
 4. **Per-tool quota** — rejected for MVP++. Adds complexity without clear benefit; can be layered
    later.
 
+## Pros and cons of the options
+
+### Option 1 — No limit
+
+- Bad, because a runaway model loop or adversarial prompt can issue dozens of `kube_*` tool calls
+  per second, exhausting the cluster API budget and inflating audit log volume without bound.
+
+### Option 2 — Global app-wide limit
+
+- Bad, because multi-cluster operators legitimately drive higher throughput in parallel sessions;
+  a global cap unfairly throttles independent conversation contexts.
+
+### Option 3 — Per-session sliding window with explicit error envelope (chosen)
+
+- Good, because the limit is scoped to a single `AssistantChatSession`, preserving fairness across
+  parallel sessions while bounding per-session cluster API load.
+- Good, because an explicit `mcp.tool_rate_limited` error envelope ensures the model and operator
+  always see a clear rejection reason rather than a hang or silent failure.
+- Bad, because the 20/minute heuristic may need adjustment after telemetry; long analytical
+  conversations can legitimately reach the limit during complex cluster investigations.
+
+### Option 4 — Per-tool quota
+
+- Bad, because adding per-tool quotas without telemetry to justify differentiated limits adds
+  schema complexity with no clear benefit; this can be layered on later.
+
 ## Decision outcome
 
 - **Limit**: 20 tool invocations per rolling 60-second window per `AssistantChatSession`. The window

@@ -110,6 +110,45 @@ Disadvantages:
 - Scope guards for single-key bindings (active only when resource list has key focus) require
   careful SwiftUI focus state management.
 
+## Pros and cons of the options
+
+### Option A — k9s-only keyboard model, no palette
+
+- Good, because it provides zero learning curve for k9s veterans and requires no modal overlay
+  implementation.
+- Bad, because single-key bindings conflict with native macOS text input (search fields, YAML
+  editors, terminal panes), causing silent input corruption.
+- Bad, because commands are undiscoverable with no visual affordance, no fuzzy search, and no way
+  to surface cross-context actions.
+- Bad, because VoiceOver users cannot enumerate available actions; accessibility compliance is
+  impossible with this model.
+
+### Option B — Menu-bar only, no custom shortcuts
+
+- Good, because it requires zero custom shortcut infrastructure and is fully VoiceOver and
+  accessibility-audited by Apple.
+- Bad, because menu traversal is slow for power operators; deeply nested menus for resource-specific
+  actions (exec shell on a specific Pod) are impractical.
+- Bad, because there is no command discovery across all resources simultaneously, no recent-items
+  ranking, and no fuzzy matching.
+- Bad, because heavy mouse reliance contradicts the core operator persona of an experienced
+  Kubernetes engineer who lives in the terminal.
+
+### Option C — Hybrid: Command Palette + k9s-style in-list shortcuts + macOS-native Cmd bindings (chosen)
+
+- Good, because a single discoverable entry point (`⌘P` / `⌘K`) covers the full command catalog for
+  any operator regardless of current screen state.
+- Good, because k9s ergonomics are preserved in list context without conflicting with text input or
+  terminal panes; scope guards limit single-key bindings to the resource browser list row focus.
+- Good, because type-ahead preview and recent-first ranking reduce time-to-action for repeated
+  operations.
+- Good, because the palette is an accessibility-annotated overlay with a full focus trap, making
+  VoiceOver and keyboard-only navigation first-class.
+- Bad, because implementation complexity is higher — palette overlay, fuzzy ranker,
+  recent-invocations ring, and context-aware filtering all require non-trivial implementation.
+- Bad, because SwiftUI `FocusState` management for single-key binding scope guards adds complexity
+  and must be regression-tested whenever new panels are introduced.
+
 ## Decision outcome
 
 **Chosen option: Option C — Hybrid Command Palette + k9s-style list shortcuts + macOS-native Cmd

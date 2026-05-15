@@ -150,6 +150,43 @@ callbacks to Swift continuations.
 **Decision: rejected.** Adds complexity with no benefit on a macOS-only target where SwiftNIO
 already provides idiomatic kqueue integration.
 
+## Pros and cons of the options
+
+### Option A — kqueue-only via SwiftNIO `MultiThreadedEventLoopGroup` (chosen)
+
+- Good, because `kqueue` is the single kernel mechanism for all I/O, giving coherent observability
+  with no selector mixing between NIO sockets and URLSession sockets.
+- Good, because `kevent(2)` filter types (`EVFILT_READ`, `EVFILT_WRITE`, `EVFILT_TIMER`,
+  `EVFILT_USER`) cover sockets, timers, process-lifecycle events, and user-defined wakeups in one
+  system call with no additional polling infrastructure.
+- Good, because `kqueue` scales to tens of thousands of FDs at O(1) per event delivery with no
+  FD-set copy overhead as in `select`.
+- Bad, because each `EventLoopGroup` creates OS threads; the threading model must be explicitly
+  sized per session (addressed by ADR-0025).
+- Bad, because the decision is macOS/BSD-only; a hypothetical Linux port would require substituting
+  the selector backend.
+
+### Option B — `select(2)` and `poll(2)` as portable fallback
+
+- Good, because both are POSIX standard and portable to Linux and Windows POSIX layers.
+- Bad, because `select` FD_SETSIZE (typically 1 024) rules it out for applications holding more
+  than ~1 000 concurrent FDs, a ceiling that K8sManager reaches with 8 concurrent cluster sessions
+  and active watch streams.
+- Bad, because `poll` linear scan means O(N) cost per wakeup; unacceptable at the expected FD
+  counts.
+- Bad, because neither `select` nor `poll` provides `EVFILT_TIMER` or `EVFILT_PROC`; timer and
+  process-lifecycle events require separate plumbing, and SwiftNIO has no `select`/`poll` backend.
+
+### Option C — libuv shim over kqueue
+
+- Good, because libuv provides a cross-platform async I/O loop (kqueue on Darwin, epoll on Linux,
+  IOCP on Windows) behind a single API, which would have value in a cross-platform application.
+- Bad, because SwiftNIO has no libuv backend; bridging libuv's C callback API to Swift
+  continuations requires non-trivial `withCheckedContinuation` boilerplate at every call site.
+- Bad, because this application is macOS-only (ADR-0001); the cross-platform value proposition of
+  libuv does not apply, and it would be a large C library added as a SwiftPM dependency (failing
+  ADR-0019 criteria).
+
 ## Decision outcome
 
 ### I/O selector: kqueue everywhere

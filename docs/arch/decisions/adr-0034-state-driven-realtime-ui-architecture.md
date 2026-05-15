@@ -51,6 +51,43 @@ views, defines the data flow contract from Kubernetes watch streams through doma
 - **Testability** — `@Observable` models are plain `class`es; injecting mock `AsyncStream` sources
   requires no Combine scheduler gymnastics.
 
+## Pros and cons of the options
+
+### Option A — Combine + `ObservableObject`
+
+- Good, because Combine is Apple-supported with extensive community documentation and has been
+  battle-tested in production SwiftUI apps since 2019.
+- Bad, because `@Published` properties wrapped in `Publisher` require `receive(on:)` and `sink`
+  with `AnyCancellable` storage when accessed from `@MainActor` async contexts; both pre-date Swift
+  strict concurrency and produce `Sendable` warnings for `ObservableObject` types shared across
+  actors.
+- Bad, because Apple's own SwiftUI tutorials for Swift 6 migrate away from `ObservableObject`;
+  starting a new Swift 6 project with Combine creates technical debt from day one.
+
+### Option B — `@Observable` (Observation framework, chosen)
+
+- Good, because `@Observable` is Swift 6 native with automatic `Sendable` compliance for
+  `@MainActor`-isolated classes and granular per-property change tracking that reduces unnecessary
+  view re-renders.
+- Good, because domain ports expose `AsyncThrowingStream` consumed via `for try await` in
+  `@MainActor` tasks — no `AnyCancellable` lifecycle management is required.
+- Good, because `Task.cancel()` reaches every operator in the chain without `AnyCancellable`
+  storage, and `@Observable` models are plain `class`es that accept mock `AsyncStream` sources in
+  tests without Combine scheduler gymnastics.
+- Bad, because `@Observable` requires macOS 14+ and classes must be `final` for it to work
+  correctly; both constraints are already satisfied by the project's minimum deployment target.
+
+### Option C — TCA (The Composable Architecture)
+
+- Good, because TCA enforces unidirectional data flow, has excellent ergonomics for complex state
+  machines, and is highly testable with its `Store`/`Effect` model.
+- Bad, because TCA is a heavyweight third-party dependency (pulling in `swift-composable-architecture`,
+  `swift-case-paths`, `swift-dependencies`, etc.) that competes with Observation tracking through its
+  own `Store` reference type.
+- Bad, because for a greenfield project whose primary state model is a stream of Kubernetes events,
+  TCA's action/reducer ceremony adds complexity without proportional benefit over the simpler
+  `@Observable` + `AsyncSequence` model.
+
 ## Decision outcome
 
 ### Core contract

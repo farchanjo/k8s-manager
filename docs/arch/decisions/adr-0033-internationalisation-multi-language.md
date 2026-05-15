@@ -61,6 +61,40 @@ model best serves K8sManager operators while keeping the development team's over
 - Key stability invariant: renaming a key must follow a two-release deprecation cycle; the
   governance model must encode this without bespoke ADR overhead per locale addition.
 
+## Pros and cons of the options
+
+### Option A — English only (single language, no i18n plumbing)
+
+- Good, because it has zero additional implementation cost and no risk of stale translations
+  shipping with English fallbacks.
+- Bad, because it permanently excludes non-English-dominant operators; Spanish and Portuguese
+  together represent the majority of Latin American and Iberian developer populations.
+- Bad, because there is no migration path to localisation later without a complete string extraction
+  refactor across all Swift view files — the "zero cost" framing shifts cost to a more expensive
+  future window.
+
+### Option B — Built-in team-maintained locales (en + pt-BR + es-ES only, closed set)
+
+- Good, because predictable translation quality is guaranteed with the core team owning all three
+  locales end-to-end; no community PR coordination overhead for locale additions.
+- Bad, because it excludes French, German, Japanese, Chinese, Korean, Arabic, and other large
+  developer communities with no upgrade path short of a new ADR.
+- Bad, because every subsequent locale addition requires a new ADR or amendment, creating
+  governance overhead disproportionate to what is a purely additive change to a `.xcstrings` file.
+
+### Option C — Extensible community framework (chosen)
+
+- Good, because three baseline locales (en, pt-BR, es-ES) are maintained by the core team with
+  guaranteed quality, while the community extension model provides a clear, low-friction path for
+  additional locales via the `i18n_manifest.cue` governance contract.
+- Good, because missing keys in extension locales fall back to en-US at runtime (never blank) and
+  the `translationCoverage` field gives operators visibility into incomplete locales before
+  selecting them.
+- Bad, because community locale quality is not core-team controlled; mitigated by the PR review
+  checklist requiring a minimum `translationCoverage` of 0.75 for `status: "beta"`.
+- Bad, because the `.xcstrings` file grows linearly with every locale addition; manageable because
+  `.xcstrings` is a JSON dialect and Xcode handles merge conflicts cleanly.
+
 ## Decision outcome
 
 **Adopt Xcode String Catalogs (`.xcstrings`, macOS 14+ native format) as the single source of truth

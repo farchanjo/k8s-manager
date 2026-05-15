@@ -42,6 +42,40 @@ The system needs a feedback mechanism that:
   pinned toasts remain until dismissed.
 - **History** — the last 100 toast entries are persisted to SQLite for audit and debugging.
 
+## Pros and cons of the options
+
+### Option A — Global banner (persistent top strip)
+
+- Good, because it is easy to implement, impossible to miss, and works well for system-level status
+  notifications (offline, degraded cluster).
+- Bad, because it occupies valuable vertical space for every notification including ephemeral success
+  states, and visually dominates the content the operator is actively working with.
+- Bad, because it cannot show multiple simultaneous notifications and provides no natural home for
+  action buttons (Undo, Retry, View audit log).
+
+### Option B — Per-view inline notification (inside each panel)
+
+- Good, because notifications are contextually located near the panel that generated them, reducing
+  cognitive distance between action and feedback.
+- Bad, because cross-context operations (kubeconfig reload, LLM key update) have no natural host
+  panel; an operator may not be looking at the source panel when the notification fires.
+- Bad, because every view must implement its own notification surface independently, and no shared
+  history exists unless each panel persists state separately.
+
+### Option C — Global toast stack (chosen)
+
+- Good, because any bounded context can emit a toast without coupling to a view; a single
+  `ToastEmitter` domain service is the sole producer and the history is a single, queryable source
+  of truth.
+- Good, because the uniform severity vocabulary (`success`, `info`, `warning`, `error`, `neutral`),
+  action buttons, and VoiceOver announcements are implemented once and consistent across all 30+
+  views.
+- Good, because the stack position is operator-configurable and auto-dismiss timers respect the
+  hover and reduce-motion contracts.
+- Bad, because the default `bottom_right` position may overlap with other overlays (e.g., a future
+  guided-tour overlay); this is mitigated by reserving the bottom 80 pt above the status bar as
+  the exclusive toast zone.
+
 ## Decision outcome
 
 ### Toast stack position and layout

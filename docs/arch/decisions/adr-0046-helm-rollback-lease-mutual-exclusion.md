@@ -39,6 +39,37 @@ exercises this case but no ADR defines the mutual exclusion mechanism.
    `resourceVersion`-based optimistic concurrency for the lease spec.
 4. **`coordination.k8s.io/v1/Lease` per release** — chosen.
 
+## Pros and cons of the options
+
+### Option 1 — No mutex
+
+- Bad, because two concurrent rollbacks for the same release can each write a "current" revision
+  Secret, leaving the release history chain with two active revisions or incorrect manifests applied.
+
+### Option 2 — Client-side mutex (in-memory)
+
+- Bad, because an in-memory lock within one application instance cannot coordinate with a second
+  app instance or a second operator on the same cluster; the race surface remains fully open for
+  concurrent operators.
+
+### Option 3 — Annotation-based mutex on the release Secret
+
+- Bad, because Kubernetes does not provide a compare-and-swap primitive for annotations; two
+  concurrent writers using the same annotation key cannot safely detect each other without a
+  server-side atomic gate.
+
+### Option 4 — `coordination.k8s.io/v1/Lease` per release (chosen)
+
+- Good, because the Lease object provides `resourceVersion`-based optimistic concurrency natively;
+  only one writer can successfully update a Lease with a given `resourceVersion`, preventing
+  concurrent acquisition by construction.
+- Good, because `leaseDurationSeconds: 60` auto-expires the lock if the acquiring process crashes,
+  eliminating indefinite blocking without requiring a separate cleanup process.
+- Good, because the Lease is visible to cluster administrators for the duration of rollback and
+  auditable from outside the application.
+- Bad, because operators without `create/get/patch/delete` on `leases` in the release namespace
+  cannot perform rollback; clusters with restrictive RBAC must grant this access explicitly.
+
 ## Decision outcome
 
 - **Lease object**:

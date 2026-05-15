@@ -60,6 +60,40 @@ This ADR captures the conventions.
 - **Streams over polling** — UI listens to `AsyncSequence` of domain events; the assistant streams
   via `AsyncThrowingStream`; the diagnostics panel observes counters via `AsyncStream`.
 
+## Pros and cons of the options
+
+### Option A — Swift Concurrency end to end (chosen)
+
+- Good, because a single mental model for all async work eliminates context-switching between
+  Combine and async/await across the codebase.
+- Good, because SwiftUI's native integration with `async`/`await` and `@Observable` removes the
+  need for Combine publisher chains for UI state propagation.
+- Good, because Swift 6 strict concurrency mode (`-strict-concurrency=complete`) catches actor
+  isolation violations and missing `Sendable` conformances at compile time, before they become
+  runtime bugs.
+- Good, because structured concurrency (task groups, cancellation propagation, `onTermination`
+  handlers) gives predictable lifetime and resource cleanup without manual lifecycle management.
+- Bad, because Swift 6 discipline (actor isolation, `Sendable`, avoiding `Task.detached`) requires
+  discipline and careful integration with third-party libraries that predate strict concurrency.
+
+### Option B — Combine
+
+- Good, because Combine is battle-tested across the Apple ecosystem and has well-understood
+  patterns for publisher composition and subscriber lifetime.
+- Bad, because Apple's recommended migration path away from Combine toward Swift Concurrency means
+  adopting Combine now is choosing the deprecated path in a greenfield project.
+- Bad, because introducing both Combine and async/await creates a double mental model that
+  complicates code review and onboarding.
+
+### Option C — Hybrid (Concurrency for new code, Combine for existing third-party adapters)
+
+- Good, because it allows pragmatic adoption of Combine where third-party adapters offer no
+  async/await surface.
+- Bad, because there is no Combine-only third-party adapter that the project must adopt;
+  introducing Combine voluntarily creates a second reactive surface to maintain.
+- Bad, because bridging Combine publishers into async sequences adds boilerplate (`.values`,
+  `AsyncPublisher`) that obscures intent without providing correctness benefits.
+
 ## Decision outcome
 
 ### Actor ownership map (MVP+)

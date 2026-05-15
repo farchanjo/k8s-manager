@@ -43,6 +43,41 @@ ourselves so we can enforce a strict read-only policy and have direct access to 
 - **Future-proofing** — when external MCP servers become useful, the host should be able to consume
   them without changes to the assistant.
 
+## Pros and cons of the options
+
+### Option A — MCP host plus in-process MCP server (chosen)
+
+- Good, because the tool registry is explicit and auditable; a security reviewer can enumerate every
+  Kubernetes operation the assistant can invoke from a single policy file.
+- Good, because no external binary is required at install time, keeping the trust boundary inside
+  the application bundle.
+- Good, because the same MCP host can consume external stdio-based servers in a future milestone
+  without any changes to the assistant.
+- Bad, because implementing the MCP server-side wire protocol and keeping it current with upstream
+  spec evolution adds ongoing maintenance cost.
+
+### Option B — Inline tool functions, no MCP protocol
+
+- Good, because it requires the least code and is fastest to ship for an MVP.
+- Bad, because there is no upgrade path to external MCP servers without a full rewrite of the tool
+  dispatch layer.
+- Bad, because the inline router does not produce a structured wire log; auditing which tool calls
+  occurred requires additional instrumentation effort.
+
+### Option C — Spawn an external MCP server (`mcp-k8s-go`)
+
+- Good, because it requires zero implementation effort to obtain a broad Kubernetes tool surface.
+- Bad, because the operator must install, update, and trust a separate binary outside the
+  application bundle.
+- Bad, because existing external servers include write verbs that must be filtered reactively rather
+  than prevented by design.
+
+### Option D — Inline today, MCP later
+
+- Good, because complexity is deferred until the need is validated by usage.
+- Bad, because migration cost equals the same implementation work, but incurred later against a
+  larger inline registry that has grown organically and resists clean protocolisation.
+
 ## Decision outcome
 
 - K8sManager is an **MCP host**. The host implementation lives in `assistant_chat` and is

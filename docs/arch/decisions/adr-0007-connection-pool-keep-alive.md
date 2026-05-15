@@ -71,6 +71,34 @@ rules that keep the pool healthy across cluster switches and kubeconfig reloads.
 - **Cons** — HTTP/2 stream cancellation is awkward; watch-style long-poll handling on `URLSession`
   is brittle; loses SwiftkubeClient ergonomics.
 
+## Pros and cons of the options
+
+### Option A — Shared `HTTPClient` with per-cluster configuration overlays (chosen)
+
+- Good, because a single event-loop group minimises idle thread count on a desktop app.
+- Good, because warm-pool latency stays well below 80 ms for interactive Kubernetes API requests.
+- Good, because watch streams are cleanly separated via a dedicated short-lived client, keeping
+  general-purpose pool slots uncontaminated.
+- Good, because pool parameters (`idleTimeout`, connection limits, timeouts) are centralised in one
+  place and carry forward into per-session actors (ADR-0025 refinement).
+- Bad, because per-cluster CA/cert overlays require a bespoke extension on top of `async-http-client`
+  that must be maintained as the library evolves.
+
+### Option B — One `HTTPClient` per cluster
+
+- Good, because each cluster has perfect isolation with no risk of cross-cluster state leakage.
+- Bad, because N connected clusters each spin up a full `MultiThreadedEventLoopGroup`, multiplying
+  resident memory and FD usage proportionally.
+- Bad, because shutdown ordering becomes complex when clusters are disconnected in arbitrary order.
+
+### Option C — `URLSession` per cluster with custom delegate
+
+- Good, because it uses Apple's supported transport, enabling macOS networking diagnostics (Network
+  Framework Instrument, Charles Proxy).
+- Bad, because HTTP/2 stream cancellation semantics on `URLSession` are brittle for long-running
+  watch streams.
+- Bad, because it loses SwiftkubeClient ergonomics and requires a parallel adapter implementation.
+
 ## Decision outcome
 
 - Use one **shared `HTTPClient` instance per process**, owned by the `cluster_connectivity`

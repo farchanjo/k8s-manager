@@ -124,6 +124,42 @@ Cons:
 - No accessibility tree relationship between the status button and the floating window; VoiceOver
   cannot announce the popover as related to the button.
 
+## Pros and cons of the options
+
+### Option A — NSStatusItem + NSPopover with SwiftUI content (chosen)
+
+- Good, because `NSStatusItem` is the stable API since macOS 10.0 with no deprecation risk; popover
+  dimensions and content layout are fully controllable to host Chart framework sparklines and
+  multi-line rows.
+- Good, because `NSPopover` delegates (`popoverWillShow`, `popoverDidClose`) provide precise
+  subscription start and stop lifecycle control, independent of the main window.
+- Good, because template images honour macOS appearance and tint colour automatically.
+- Bad, because bridging SwiftUI into `NSHostingController` adds minor boilerplate.
+- Bad, because popover arrow positioning must be managed manually when the status item is near the
+  screen edge.
+
+### Option B — MenuBarExtra SwiftUI Scene
+
+- Good, because it provides a pure SwiftUI declarative approach with no `NSHostingController`
+  bridging requirement.
+- Bad, because `.menuBarExtraStyle(.window)` renders a borderless floating window, not a true
+  `NSPopover`, which does not match macOS HIG conventions for status item popover UX.
+- Bad, because simultaneously supporting right-click `NSMenu` and left-click window requires
+  dropping back to AppKit, defeating the benefit of the pure SwiftUI path.
+- Bad, because scene lifecycle is tied to the SwiftUI app scene graph; pausing subscriptions on
+  popover close requires observing `scenePhase`, which is coarser than `NSPopover` delegate callbacks.
+
+### Option C — Separate floating NSWindow
+
+- Good, because it provides maximum flexibility for size and positioning without `NSPopover` arrow
+  management.
+- Bad, because it loses the popover visual language that macOS operators expect, breaking HIG
+  convention.
+- Bad, because window focus management is complex — the panel must not steal focus from the
+  foreground application, requiring careful `NSWindowDelegate` handling.
+- Bad, because there is no accessibility tree relationship between the status button and the
+  floating window; VoiceOver cannot announce the popover as related to the button.
+
 ## Decision outcome
 
 Adopt **Option A**: `NSStatusItem` with `variableLength`, template image for the Kubernetes helm

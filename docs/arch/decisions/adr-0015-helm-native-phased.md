@@ -115,6 +115,44 @@ engine, install, upgrade, OCI pull) as a subsequent milestone after Phase 1 ship
 
 This option is chosen.
 
+## Pros and cons of the options
+
+### Option A — Full native big-bang
+
+- Good, because a single milestone delivers the complete Helm capability surface (template engine,
+  install, upgrade, rollback, OCI pull, HTTP repo) without shipping an intentionally limited product.
+- Bad, because the template engine alone is estimated at 19,000 to 29,000 lines of Swift (13 to 20
+  months); delivering all capabilities together delays any operator-visible value by over a year.
+- Bad, because there is no existing Swift port of Go's `text/template` or Sprig; the engineering
+  risk of an incomplete port producing incorrect rendered manifests is high.
+- Bad, because strategic merge patch (`strategicpatch`) must also be ported or substituted, adding
+  further scope with no viable Swift equivalent.
+
+### Option B — Subprocess helm delegation
+
+- Good, because it delivers the complete Helm CLI surface (install, upgrade, rollback, template,
+  lint, OCI pull) with zero implementation cost for feature logic.
+- Bad, because spawning `helm` subprocesses directly contradicts the product direction of
+  interacting with clusters exclusively through the Kubernetes REST API.
+- Bad, because application behavior becomes tightly coupled to the operator's locally installed
+  `helm` version, creating semantic drift and fragile output parsing.
+- Bad, because macOS Hardened Runtime and App Sandbox restrictions complicate subprocess PATH
+  resolution and may block execution in a notarised build.
+
+### Option C — Hybrid phased (chosen)
+
+- Good, because Phase 1 delivers the complete read surface plus rollback immediately using only the
+  Kubernetes API — no subprocess, no template engine, no new binary dependencies beyond Foundation
+  and Compression framework.
+- Good, because rollback via Server-Side Apply is cleaner than strategic merge patch and delegates
+  field ownership and merge semantics to the Kubernetes API server.
+- Good, because the phased split creates a natural milestone boundary that can be shipped and
+  user-tested before the large Phase 2 engineering investment begins.
+- Bad, because Phase 1 cannot install or upgrade releases; operators must continue to use the `helm`
+  CLI for those operations during the Phase 1 window.
+- Bad, because the Phase 2 template engine port remains a large, high-risk engineering effort where
+  any incompleteness could produce incorrect manifests and unexpected cluster mutations.
+
 ## Decision outcome
 
 ### Phase 1 — MVP+ (implemented now)

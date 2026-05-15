@@ -90,6 +90,38 @@ linking to kube-prometheus-stack installation documentation.
 This option covers the common case transparently, handles non-standard deployments, and degrades
 gracefully.
 
+## Pros and cons of the options
+
+### Option A — Auto-discovery only (no manual override)
+
+- Good, because it requires no operator configuration; discovery is entirely transparent for the
+  common case.
+- Bad, because real-world clusters frequently expose Prometheus behind ingress controllers, service
+  meshes, or external load balancers that service-scan cannot locate.
+- Bad, because operators with non-standard deployments would be permanently blocked from accessing
+  the metrics panel with no escape hatch.
+
+### Option B — Manual URL only
+
+- Good, because it is simple to implement; no discovery logic is required.
+- Good, because the operator has full control over which endpoint is used.
+- Bad, because the most common case — kube-prometheus-stack with default chart values — has a
+  deterministic, discoverable endpoint; requiring manual entry adds unnecessary onboarding friction.
+- Bad, because every operator must look up and enter the URL even when auto-detection would succeed.
+
+### Option C — Auto-discovery with manual override and well-known fallback (chosen)
+
+- Good, because a three-tier pipeline transparently handles the most common case (kube-prometheus-stack
+  default install) without any operator configuration.
+- Good, because the manual override escape hatch covers non-standard deployments (external ingress,
+  service mesh, external load balancer) without blocking them.
+- Good, because the kube-apiserver proxy approach for the well-known tier reuses the existing
+  authenticated cluster connection, requiring no separate network reachability to in-cluster addresses.
+- Bad, because the three-tier discovery logic adds implementation complexity and must be maintained
+  as Prometheus deployment conventions evolve.
+- Bad, because discovery cannot locate endpoints not represented as Kubernetes Services (e.g., an
+  external Prometheus reachable only by DNS alias); these still require manual override.
+
 ## Decision outcome
 
 K8sManager implements Option C.

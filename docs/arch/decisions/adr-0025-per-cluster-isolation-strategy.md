@@ -142,6 +142,43 @@ isolated `MultiThreadedEventLoopGroup`, and dedicated registries for all runtime
 - Idle `EventLoopGroup`s continue to hold OS threads; aggressive shutdown (configurable, default
   off) is required if the operator runs many dormant clusters.
 
+## Pros and cons of the options
+
+### Option A — Shared `HTTPClient` with per-cluster configuration overlays (ADR-0007 baseline)
+
+- Good, because a single `EventLoopGroup` keeps the resource footprint minimal; warm pool latency
+  is minimal even when switching rapidly between clusters.
+- Bad, because overlay selection is a runtime dispatch — a bug there causes cross-cluster credential
+  use that is invisible at compile time and undetectable without a full integration test.
+- Bad, because every registry (watch, exec, port-forward, terminal) must carry a `clusterId`
+  discriminator and filter at every access point; bookkeeping is ad hoc and error-prone.
+- Bad, because teardown on cluster removal requires manual aggregation across shared data structures,
+  making it easy to leak resources or leave dangling watch streams.
+
+### Option B — Isolated `HTTPClient` per cluster with shared `EventLoopGroup` (partial isolation)
+
+- Good, because per-cluster `HTTPClient` construction eliminates cross-cluster overlay bugs; each
+  client's certificate configuration is fixed at construction time.
+- Good, because `EventLoopGroup` overhead is reduced compared to full per-cluster isolation.
+- Bad, because a shared event-loop group means one cluster's misbehaving I/O can starve another
+  cluster's event-loop threads under load.
+- Bad, because registries, credential cache, and view state remain unscoped; only the HTTP
+  transport is isolated, making the isolation model harder to reason about and audit.
+
+### Option C — Isolated `#ClusterSession` aggregate per cluster (chosen)
+
+- Good, because zero-leakage isolation is guaranteed by the Swift type system, not by runtime
+  dispatch — it is impossible for a request destined for cluster B to carry a credential or
+  connection from cluster A.
+- Good, because teardown is a single actor cancellation; no manual aggregation across shared data
+  structures is required.
+- Good, because per-cluster view state, credential cache, and all registries have a natural
+  enclosing scope and are trivially serialisable per cluster.
+- Bad, because N active clusters cost N `EventLoopGroup` instances and N `HTTPClient` instances;
+  measured RAM overhead is approximately 5–10 MB per cluster at idle.
+- Bad, because `EventLoopGroup` creation on session open adds a brief latency spike (typically
+  20–100 ms) that is absent in the shared-group models.
+
 ## Decision outcome
 
 Each cluster that the operator activates or pins materialises exactly one `ClusterSessionActor`

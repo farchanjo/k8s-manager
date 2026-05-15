@@ -127,6 +127,42 @@ BCs through read-only ports and exposes a `DashboardCatalogReadModel` to `app_sh
 - Additional BC directory, CUE schemas, Gherkin features, and domain narrative to maintain.
 - Four upstream ports introduce coordination overhead when upstream read models change.
 
+## Pros and cons of the options
+
+### Option A — Extend `metrics_observability` to become the universal dashboard host
+
+- Good, because no new package or bounded context directory is required; metrics and dashboard code
+  are co-located.
+- Bad, because `metrics_observability` would import from three other bounded contexts, violating the
+  acyclic-dependency rule for intentionally isolated contexts and making it a god context.
+- Bad, because widget types unrelated to Prometheus (ConditionsList, TopologyGraph, DiffViewer,
+  EventTimeline) would live inside a "metrics" package, corrupting the ubiquitous language.
+- Bad, because swapping Prometheus for a different backend (Victoria Metrics, Thanos) would require
+  simultaneous changes to the dashboard schema, coupling two distinct concerns.
+
+### Option B — Build a dependency-free aggregator as a Swift module (no BC schema ownership)
+
+- Good, because implementation is faster with no schema artifacts to maintain.
+- Bad, because without a CUE schema, invariants (UUID format, refresh interval enum, widget kind
+  enum, color enum, drill-down action structure) cannot be validated by the spec pipeline.
+- Bad, because Gherkin scenarios for always-visible dashboard behavior and topology graph drill-down
+  cannot be traced to a bounded context, breaking the spec-as-source-of-truth posture.
+- Bad, because the lack of a typed schema causes drift between UI implementation and operator-facing
+  documentation as the widget catalog grows.
+
+### Option C — Create a new `analytics_dashboard` bounded context (chosen)
+
+- Good, because clean separation keeps `metrics_observability` as a pure Prometheus adapter while
+  `analytics_dashboard` owns the assembly and presentation layer.
+- Good, because all eleven widget types, nine scope variants, and drill-down event types are
+  specified in CUE and validated by the spec pipeline; UX invariants are machine-checkable.
+- Good, because the bounded context can evolve independently — adding a new scope or widget type
+  does not touch any upstream BC schema.
+- Bad, because an additional BC directory, CUE schemas, Gherkin features, and domain narrative must
+  be created and maintained.
+- Bad, because four upstream ports introduce coordination overhead whenever upstream read models
+  change.
+
 ## Decision outcome
 
 Create the `analytics_dashboard` bounded context as the thirteenth BC in the K8sManager spec.

@@ -76,6 +76,26 @@ Cons:
 - Requires upfront documentation effort.
 - Tests must be kept in sync with the codebase as actors are added.
 
+## Pros and cons of the options
+
+### Option A — Ad-hoc per-module conventions (current implicit state)
+
+- Good, because it has no upfront documentation cost; module authors apply their own judgment
+  without coordination overhead.
+- Bad, because inconsistent conventions lead to subtle concurrency bugs that are expensive to debug,
+  particularly actor reentrancy, lock ordering, and `AsyncStream` backpressure violations.
+- Bad, because new contributors have no authoritative reference for cancellation propagation or
+  frame budget compliance; the only "documentation" is precedent in existing code.
+
+### Option B — Explicit invariants documented in this ADR with confirmation tests (chosen)
+
+- Good, because a single authoritative source gives contributors and reviewers a canonical
+  reference; mechanical tests catch regressions in CI before they reach production.
+- Good, because invariants stated as code contracts (cancellation propagation, reentrancy safety,
+  lock ordering, frame budget) are enforceable during code review and verifiable by automated test.
+- Bad, because it requires upfront documentation effort; confirmation tests must be kept in sync
+  with the codebase as actors are added or renamed.
+
 ## Decision outcome
 
 Adopt Option B. The invariants below are binding for all Swift code in K8sManager. Violations are

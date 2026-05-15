@@ -57,6 +57,39 @@ concurrency?
 - Active maintenance and an open-source licence compatible with the Developer ID distribution model
   (ADR-0004).
 
+## Pros and cons of the options
+
+### Option A — `CodeEditor` (mchakravarty/CodeEditorView, chosen)
+
+- Good, because it is a SwiftUI-native component with a tree-sitter grammar pipeline, providing
+  structured syntax highlighting for YAML, JSON, and Markdown without requiring AppKit wrapping.
+- Good, because the line-gutter API accepts custom `#DiagnosticMarker` overlays mapping cleanly to
+  the `#Diagnostic` value objects in the CUE schema.
+- Good, because the library targets Swift 6 strict concurrency with gutter and content mutations on
+  the main actor and background parse tasks using structured concurrency.
+- Bad, because autocomplete support is limited; schema-aware field autocomplete requires a custom
+  `CompletionProvider` implementation on top of the library's hook point.
+- Bad, because multi-cursor edit requires `CodeEditor` 2.x+ (must be verified at integration time).
+
+### Option B — Sourceful / Sourceful Lite
+
+- Good, because it is simpler to integrate for basic syntax highlighting with a straightforward
+  `CodeEditor` view API.
+- Bad, because it does not expose a tree-sitter pipeline or a structured gutter API for diagnostic
+  overlays, effectively requiring a significant custom overlay layer to satisfy this ADR's diagnostic
+  marker requirement.
+- Bad, because its highlight.js grammar pipeline is incompatible with the tree-sitter extension
+  pattern; fewer than 200 stars on GitHub indicates lighter community activity.
+
+### Option C — `TextEditor` (SwiftUI built-in) with custom syntax layer
+
+- Good, because it has no third-party dependency and is fully Apple-supported as part of SwiftUI.
+- Bad, because syntax highlighting, gutter, and multi-cursor support require either
+  `NSLayoutManager` subclassing or a custom `NSTextStorage` pipeline — a substantial AppKit-level
+  implementation estimated at 3–5× the cost of Option A for an equivalent feature surface.
+- Bad, because the result would be bespoke code tightly coupled to AppKit internals, creating
+  long-term maintenance debt with each macOS release.
+
 ## Decision outcome
 
 **Adopt `CodeEditor` (mchakravarty/CodeEditorView) as the base SwiftUI code editing component.**

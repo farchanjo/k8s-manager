@@ -39,6 +39,35 @@ this boundary but no ADR defines the policy.
 4. **Per-profile network allowlist** — rejected for MVP++. Adds schema complexity without a concrete
    use case beyond local vs remote.
 
+## Pros and cons of the options
+
+### Option 1 — No localhost handling
+
+- Bad, because operators cannot safely use local models (Ollama, LM Studio) without either
+  permanently allowing all addresses or having no guarantee about where their chat content is sent.
+
+### Option 2 — Implicit localhost detection
+
+- Bad, because allowing any `127/8` address by default lets remote-typed profiles silently work
+  locally; a remote misconfiguration that routes to localhost is invisible to both the operator and
+  the audit log.
+
+### Option 3 — Explicit `localOnly: true` flag with policy enforcement (chosen)
+
+- Good, because explicit intent at profile-creation time prevents silent misconfiguration in both
+  directions: a public profile cannot silently resolve to localhost, and a local-only profile cannot
+  accidentally target a public endpoint.
+- Good, because the Rego policy at both profile-save and per-request validation is auditable and
+  every violation writes a `ProviderEndpointPolicyViolation` audit entry.
+- Bad, because operators behind transparent proxies may need to temporarily disable the policy; no
+  escape hatch is provided in MVP++.
+
+### Option 4 — Per-profile network allowlist
+
+- Bad, because it adds schema complexity (allowlist entries per profile, CIDR validation, merge
+  semantics) without a concrete use case beyond the local-vs-remote distinction already covered by
+  the `localOnly` flag.
+
 ## Decision outcome
 
 - **Schema**: every `#ProviderProfile` carries a `localOnly: bool` field (default `false`).

@@ -39,6 +39,41 @@ The questions this ADR must settle are:
 - **Minimal external footprint** — binding to loopback by default confines the tunnel to the local
   machine and avoids accidental LAN exposure.
 
+## Pros and cons of the options
+
+### Option A — URLSessionWebSocketTask + portforward.k8s.io (chosen)
+
+- Good, because Foundation's `URLSessionWebSocketTask` is already the designated WebSocket transport
+  per ADR-0011 — no new dependency is introduced.
+- Good, because the `portforward.k8s.io` subprotocol is GA from Kubernetes 1.31 onward and is the
+  designated replacement for the deprecated SPDY-based path.
+- Good, because a single WebSocket connection per session, regardless of port count, minimises
+  connection overhead and simplifies cancellation semantics.
+- Good, because loopback-default binding confines the tunnel to the local machine without operator
+  configuration.
+- Bad, because dynamic port assignment requires the operator to read the assigned port from the UI;
+  port numbers are not stable across sessions.
+- Bad, because no auto-reconnect means a transient network blip forces manual re-open.
+
+### Option B — websocket-kit (vapor/websocket-kit)
+
+- Good, because it provides lower-level control over framing, ping/pong, and close-handshake timing
+  compared to Foundation's opaque `URLSessionWebSocketTask`.
+- Bad, because it introduces a new package dependency and a NIO event-loop threading model that
+  diverges from the Swift structured concurrency model mandated by ADR-0011.
+- Bad, because there is no functional gap in Foundation that justifies the extra dependency; the
+  `portforward.k8s.io` subprotocol is fully expressible via the custom subprotocol string parameter
+  on `URLSessionWebSocketTask`.
+
+### Option C — SPDY legacy port-forward
+
+- Good, because it provides compatibility with Kubernetes clusters running 1.30 or earlier that do
+  not offer the WebSocket path.
+- Bad, because Apple's Foundation network stack does not implement SPDY; supporting this path would
+  require a third-party SPDY library or raw TCP socket management with no maintained Swift options.
+- Bad, because the SPDY port-forward path is deprecated and disabled by default in Kubernetes 1.31,
+  making investment in it a poor fit for K8sManager's Kubernetes 1.31+ target.
+
 ## Decision outcome
 
 Adopt the `portforward.k8s.io` WebSocket subprotocol over `URLSessionWebSocketTask` for all

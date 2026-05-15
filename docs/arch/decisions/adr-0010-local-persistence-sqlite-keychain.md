@@ -55,6 +55,40 @@ conventions for secrets.
 - **Backup-friendly** — operators should be able to copy the database file out and back without
   contortions.
 
+## Pros and cons of the options
+
+### Option A — SQLite + Keychain (chosen)
+
+- Good, because secrets remain in the platform-curated Keychain, meeting macOS user expectations.
+- Good, because non-secret state benefits from relational queries and schema migrations via GRDB.
+- Good, because a single SQLite WAL file is straightforward to back up and restore.
+- Good, because GRDB's `PersistenceActor` sole-writer model eliminates write-write contention without
+  application-level locking code.
+- Bad, because two separate storage surfaces (SQLite file and Keychain) must both be addressed in the
+  "delete local data" and backup-restore workflows.
+
+### Option B — SQLite + SQLCipher for secrets and metadata
+
+- Good, because all state lives in a single encrypted file.
+- Bad, because SQLCipher requires master-key management that conflicts with macOS Keychain platform
+  norms for secrets.
+- Bad, because key rotation and recovery paths are entirely application-managed with no platform
+  trust infrastructure.
+
+### Option C — JSON or property-list files plus Keychain
+
+- Good, because it introduces no third-party dependencies beyond the platform SDK.
+- Bad, because JSON/plist files lack transactions; a partial write on crash can leave state corrupt.
+- Bad, because chat history and cluster analysis caches require query capability that flat files
+  cannot provide efficiently.
+
+### Option D — Realm or Core Data
+
+- Good, because Core Data is Apple-native and ships zero additional dependencies.
+- Bad, because Core Data's migration ergonomics are heavy relative to the application's schema size.
+- Bad, because Realm uses a non-standard binary file format with licensing considerations that
+  complicate distribution.
+
 ## Decision outcome
 
 - The non-secret persistent state lives in a single SQLite file at

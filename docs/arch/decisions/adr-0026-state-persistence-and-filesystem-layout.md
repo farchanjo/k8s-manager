@@ -118,6 +118,39 @@ such as `gh`, `starship`, `lazygit`, `k9s`, `kubectx`, and `helm`.
   (`com.apple.security.temporary-exception.files.home-relative-path.read-write` or a
   hardened-runtime equivalent).
 
+## Pros and cons of the options
+
+### Option A — `~/Library/Application Support/com.archanjo.K8sManager/` (ADR-0010 baseline)
+
+- Good, because it aligns with Apple platform conventions and is automatically excluded from iCloud
+  Desktop and Documents sync.
+- Good, because it is sandbox-compatible if the app were ever submitted to the App Store.
+- Bad, because it is opaque to CLI operators and not discoverable without navigating Finder.
+- Bad, because `tar` backup requires knowing the bundle identifier; incompatible with `chezmoi`,
+  `stow`, or the operator's existing dotfile management workflows.
+
+### Option B — Dot-folder in `$HOME` (e.g., `~/.k8smanager/`)
+
+- Good, because the single path component is easy to remember and compatible with dotfile workflows.
+- Bad, because `$HOME` dot-folder proliferation is a known usability anti-pattern; the XDG Base
+  Directory specification was introduced precisely to reduce this.
+- Bad, because there is no separation between application data, cache, and logs, making per-category
+  cache clearing and selective backup impossible.
+
+### Option C — XDG `~/.config/k8smanager/` (chosen)
+
+- Good, because `~/.config` is immediately discoverable by the operator profile (DevOps / platform
+  engineers) who universally encounter it through `gh`, `starship`, `lazygit`, `k9s`, `kubectx`,
+  and `helm`.
+- Good, because clean separation into `cache/`, `clusters/`, `logs/`, and `exports/` subdirectories
+  supports per-category operations (wipe cache, inspect logs) without touching other data.
+- Good, because `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures the complete
+  application state in a single command without knowing the bundle identifier.
+- Bad, because it deviates from Apple's `~/Library/Application Support` convention; the app must
+  declare a hardened-runtime entitlement for `~/.config` access.
+- Bad, because Keychain backup remains a separate workflow; operators must understand that the `tar`
+  backup does not include their LLM API keys.
+
 ## Decision outcome
 
 The storage root for K8sManager is `~/.config/k8smanager/`. The directory is created on first launch

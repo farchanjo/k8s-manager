@@ -69,6 +69,29 @@ Cons:
 - Upfront documentation and infrastructure cost.
 - Conformance suites must be updated when a port interface changes.
 
+## Pros and cons of the options
+
+### Option A — No formal taxonomy; each module decides independently
+
+- Good, because it has zero coordination overhead; module authors write tests in whatever style they
+  prefer without enforced conformance.
+- Bad, because adapter correctness is not verified against port contracts; a conforming port adapter
+  can silently diverge from the port semantics without any test catching it.
+- Bad, because coverage is uneven, unknown at the project level, and unenforceable in the PR
+  pipeline; flaky tests from inconsistent isolation patterns become common.
+
+### Option B — Unified testing strategy documented in this ADR (chosen)
+
+- Good, because a taxonomy of five test categories (unit, conformance, integration, snapshot, K8s)
+  with explicit isolation patterns, coverage targets, and CI scripts gives the project a consistent,
+  reviewable test baseline.
+- Good, because port conformance suites mechanically verify every adapter against its port contract;
+  coverage gates enforced by `scripts/test.sh` prevent regression.
+- Bad, because it requires upfront documentation and infrastructure cost (conformance suite
+  scaffolding, `kind` K8s cluster setup in CI, snapshot test baseline management).
+- Bad, because conformance suites must be updated whenever a port interface changes; this adds a
+  maintenance step to any port evolution.
+
 ## Decision outcome
 
 Adopt Option B.

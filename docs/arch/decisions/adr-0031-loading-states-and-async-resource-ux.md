@@ -45,6 +45,37 @@ application.
 - **Swift 6 compile-time safety** — the sum type must be defined as a Swift `enum` with associated
   values; pattern matching at every call site must be exhaustive.
 
+## Pros and cons of the options
+
+### Option A — No formal pattern (ad-hoc `isLoading: Bool + error: Error?`)
+
+- Good, because it is the simplest approach to add field-by-field with no upfront design cost.
+- Bad, because inconsistency across 30+ views makes it impossible to enforce the 200 ms throttle
+  uniformly; loading and error states are easily forgotten in individual view models.
+- Bad, because there is no single exhaustive switch to force coverage of all states; empty states
+  must be handled separately in each view with no shared vocabulary.
+
+### Option B — `Result<T, Error>` with separate `isLoading` flag
+
+- Good, because `Result` is a standard Swift type familiar to all Swift developers, requiring no
+  custom vocabulary.
+- Bad, because the `isLoading` flag creates an invalid combined state (`isLoading == true` while
+  `result == .success` is representable) and the `idle` state has no clean representation.
+- Bad, because the `progress` field for the loading case has no natural home in this model; two-
+  variable exhaustive matching is more error-prone than a single sum type.
+
+### Option C — `#AsyncResource<T>` sum type (chosen)
+
+- Good, because a single `enum` with four cases (`idle`, `loading`, `success`, `failure`)
+  eliminates all invalid state combinations; Swift's exhaustive `switch` enforces handling at every
+  call site.
+- Good, because the uniform 200 ms throttle implementation applies once at the sum type level
+  rather than being reimplemented in every view model.
+- Good, because the single vocabulary across all 30+ views is encoded in the CUE schema for
+  machine-checked spec validation and maps to a stable operator mental model.
+- Bad, because it introduces a bespoke type that developers must learn; the four-case vocabulary is
+  new and not inherited from the standard library.
+
 ## Decision outcome
 
 ### `#AsyncResource<T>` — the canonical sum type
