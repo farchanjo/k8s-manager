@@ -1,3 +1,4 @@
+# DDD role: PolicyTest
 package local_persistence.secret_redaction
 
 import future.keywords.in

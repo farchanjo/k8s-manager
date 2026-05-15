@@ -1,3 +1,4 @@
+# DDD role: PolicyTest
 package cluster_connectivity.subprocess_exec_allowlist
 
 import future.keywords.in
