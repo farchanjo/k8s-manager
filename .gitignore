@@ -97,6 +97,9 @@ logs/
 *.zip
 notarization-*.json
 
+# Audit reports — generated locally, not part of the canonical spec
+audit-report-*.md
+
 # Spec framework workspace caches (if rendered locally)
 docs/arch/.spec-cache/
 docs/arch/.render-output/
