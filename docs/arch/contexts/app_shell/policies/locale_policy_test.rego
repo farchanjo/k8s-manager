@@ -1,6 +1,8 @@
 # DDD role: PolicyTest
 package k8smanager.app_shell.locale_test
 
+import future.keywords.if
+import future.keywords.in
 import data.k8smanager.app_shell.locale
 
 # ---------------------------------------------------------------------------
