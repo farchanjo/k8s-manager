@@ -1,0 +1,102 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Spotlight / Trash
+.Spotlight-V100
+.Trashes
+
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved.bak
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# Swift compiler artefacts
+*.o
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+*.swiftinterface
+*.swift-version
+
+# Build outputs
+build/
+*.app
+*.app.dSYM/
+*.dSYM/
+*.ipa
+*.xcarchive
+
+# Code signing / notarization scratch
+*.p12
+*.cer
+*.mobileprovision
+notarytool-output.json
+notarization-history.json
+
+# Coverage
+*.profdata
+*.profraw
+coverage/
+
+# IDE caches and temp
+.idea/
+.vscode/
+*.iml
+.cursor/
+.history/
+
+# Python (spec framework auxiliary if vendored locally)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Node (forbidden by CLAUDE.md but ignored defensively)
+node_modules/
+
+# Editor swap / backup
+*~
+*.bak
+*.swp
+*.swo
+
+# Local environment
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+logs/
+
+# Apple notarization / spec tooling output
+*.tar.gz
+*.zip
+notarization-*.json
+
+# Spec framework workspace caches (if rendered locally)
+docs/arch/.spec-cache/
+docs/arch/.render-output/

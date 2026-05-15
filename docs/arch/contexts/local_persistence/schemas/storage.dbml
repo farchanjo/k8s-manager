@@ -1,0 +1,151 @@
+// DDD role: AggregateRoot
+// SQLite physical schema for the K8sManager local store.
+// Rendered with the DBML (https://dbml.dbdiagram.io/) dialect.
+//
+// Path: ~/Library/Application Support/com.archanjo.K8sManager/storage.sqlite3
+// PRAGMAs:
+//   journal_mode=WAL
+//   synchronous=NORMAL
+//   foreign_keys=ON
+//   busy_timeout=5000
+//   cache_size=-65536
+//
+// Schema evolution: append-only numbered migrations; the version is
+// pinned in the `schema_migrations` table. Migration code lives in
+// the `local_persistence` Swift target.
+
+Project k8s_manager_storage {
+  database_type: "SQLite"
+  note: "Single-file local store for chat history, provider profiles, cluster-analysis cache, MCP invocation log, and preferences."
+}
+
+Table schema_migrations {
+  version int [pk, note: "Strictly monotonic. Latest applied migration."]
+  applied_at_rfc3339 text [not null]
+  description text [not null]
+}
+
+Table provider_profiles {
+  id text [pk, note: "UUIDv7"]
+  display_name text [not null]
+  kind text [not null, note: "'anthropic' | 'openai' | 'openai_compatible'"]
+  base_url text [null, note: "Required when kind='openai_compatible'"]
+  model_id text [not null]
+  key_alias text [not null, unique, note: "References Keychain account; not the key value"]
+  sampling_defaults_json text [not null, note: "Serialised SamplingConfig"]
+  created_at_rfc3339 text [not null]
+  updated_at_rfc3339 text [not null]
+
+  Indexes {
+    (kind, model_id)
+  }
+}
+
+Table provider_capabilities {
+  provider_profile_id text [pk, ref: > provider_profiles.id]
+  supports_streaming boolean [not null, default: true]
+  supports_tool_use boolean [not null, default: true]
+  supports_usage_events boolean [not null, default: false]
+  detected_at_rfc3339 text [not null]
+}
+
+Table chat_sessions {
+  id text [pk, note: "UUIDv7"]
+  title text [not null]
+  provider_profile_id text [not null, ref: > provider_profiles.id]
+  pinned_kubernetes_context_id text [null]
+  system_prompt text [not null]
+  status text [not null, note: "'active' | 'archived' | 'trash'"]
+  turn_count int [not null, default: 0]
+  created_at_rfc3339 text [not null]
+  updated_at_rfc3339 text [not null]
+
+  Indexes {
+    (status, updated_at_rfc3339) [name: "idx_sessions_status_updated"]
+  }
+}
+
+Table chat_messages {
+  id text [pk, note: "UUIDv7"]
+  session_id text [not null, ref: > chat_sessions.id]
+  turn int [not null]
+  created_at_rfc3339 text [not null]
+  role text [not null, note: "'system' | 'user' | 'assistant'"]
+  content text [not null]
+  streaming boolean [not null, default: false]
+  finish_reason text [null]
+  prompt_tokens int [null]
+  completion_tokens int [null]
+  cached_prompt_tokens int [null]
+
+  Indexes {
+    (session_id, turn) [unique, name: "idx_messages_session_turn"]
+  }
+}
+
+Table tool_call_records {
+  call_id text [pk]
+  session_id text [not null, ref: > chat_sessions.id]
+  parent_message_id text [not null, ref: > chat_messages.id]
+  tool_name text [not null]
+  requested_at_rfc3339 text [not null]
+  completed_at_rfc3339 text [null]
+  arguments_json text [not null]
+  result_json text [null]
+  status text [not null, note: "'requested'|'running'|'succeeded'|'denied_by_policy'|'failed'|'cancelled'"]
+  detail text [null]
+
+  Indexes {
+    (session_id, requested_at_rfc3339) [name: "idx_tool_calls_session_time"]
+  }
+}
+
+Table mcp_invocations {
+  id text [pk, note: "UUIDv7"]
+  tool_name text [not null]
+  requested_at_rfc3339 text [not null]
+  completed_at_rfc3339 text [null]
+  kubernetes_context_id text [not null]
+  arguments_json text [not null]
+  outcome_kind text [not null, note: "'succeeded'|'denied_by_policy'|'failed'|'cancelled'"]
+  kubernetes_status_code int [null]
+  truncated boolean [not null, default: false]
+  result_bytes int [null]
+  result_json text [null]
+  detail text [null]
+
+  Indexes {
+    (tool_name, requested_at_rfc3339) [name: "idx_invocations_tool_time"]
+    (kubernetes_context_id, requested_at_rfc3339) [name: "idx_invocations_context_time"]
+  }
+}
+
+Table cluster_analysis_cache {
+  id text [pk, note: "UUIDv7"]
+  kubernetes_context_id text [not null]
+  // analysis_kind is an extensible enumeration. Initial values:
+  //   'cluster_summary', 'node_pressure', 'rollout_history',
+  //   'workload_topology', 'recent_events_digest'.
+  analysis_kind text [not null]
+  summary_text text [not null]
+  payload_json text [not null]
+  generated_at_rfc3339 text [not null]
+  expires_at_rfc3339 text [not null]
+
+  Indexes {
+    (kubernetes_context_id, analysis_kind) [name: "idx_analysis_context_kind"]
+    (expires_at_rfc3339) [name: "idx_analysis_expiry"]
+  }
+}
+
+Table operator_preferences {
+  key text [pk]
+  value_json text [not null]
+  updated_at_rfc3339 text [not null]
+}
+
+Ref: provider_capabilities.provider_profile_id > provider_profiles.id [delete: cascade]
+Ref: chat_sessions.provider_profile_id > provider_profiles.id [delete: restrict]
+Ref: chat_messages.session_id > chat_sessions.id [delete: cascade]
+Ref: tool_call_records.session_id > chat_sessions.id [delete: cascade]
+Ref: tool_call_records.parent_message_id > chat_messages.id [delete: cascade]
