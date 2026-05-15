@@ -23,7 +23,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: spec-validate-${{ github.ref }}
+  # Scope by event so a nightly schedule and a push-to-main do not cancel each
+  # other (both resolve to refs/heads/main and would share the same group).
+  group: spec-validate-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
