@@ -12,11 +12,11 @@
     "lint": "pnpm lint:md && pnpm lint:prose",
     "cue:fmt": "cue fmt ./docs/arch/contexts/...",
     "cue:vet": "cue vet ./docs/arch/contexts/...",
-    "conftest:test": "conftest verify --policy docs/arch/contexts || true",
+    "conftest:test": "conftest verify --policy docs/arch/contexts",
     "features:lint": "node scripts/validate-features.mjs",
     "spec:fast": "bash scripts/validate-spec-fast.sh",
     "spec:full": "bash scripts/validate-spec.sh",
-    "validate": "pnpm spec:fast && pnpm cue:vet && pnpm features:lint && pnpm format:check",
+    "validate": "pnpm spec:fast && pnpm cue:vet && pnpm features:lint && pnpm conftest:test && pnpm format:check",
     "render": "bash scripts/render-diagrams.sh",
     "prepare": "lefthook install || true"
   },
