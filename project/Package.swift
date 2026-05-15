@@ -690,6 +690,19 @@ let package = Package(
         ),
 
         .testTarget(
+            name: "AppShellTests",
+            dependencies: [
+                "AppShell",
+                "ClusterConnectivity",
+                "SharedKernel",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/AppShellTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
             name: "YamsKubeconfigAdapterTests",
             dependencies: [
                 "YamsKubeconfigAdapter",
@@ -708,6 +721,18 @@ let package = Package(
                 "SharedKernel",
             ],
             path: "Tests/SwiftkubeClientAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "ClusterConnectivityIntegrationTests",
+            dependencies: [
+                "YamsKubeconfigAdapter",
+                "SwiftkubeClientAdapter",
+                "ClusterConnectivity",
+                "SharedKernel",
+            ],
+            path: "Tests/ClusterConnectivityIntegrationTests",
             swiftSettings: strictConcurrencySettings
         ),
     ],
