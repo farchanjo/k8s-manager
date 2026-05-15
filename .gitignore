@@ -103,3 +103,6 @@ audit-report-*.md
 # Spec framework workspace caches (if rendered locally)
 docs/arch/.spec-cache/
 docs/arch/.render-output/
+
+# Vale — downloaded style packages (vale sync; not committed)
+.vale/styles/
