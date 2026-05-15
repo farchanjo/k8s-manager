@@ -699,6 +699,17 @@ let package = Package(
             path: "Tests/YamsKubeconfigAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
+
+        .testTarget(
+            name: "SwiftkubeClientAdapterTests",
+            dependencies: [
+                "SwiftkubeClientAdapter",
+                "ClusterConnectivity",
+                "SharedKernel",
+            ],
+            path: "Tests/SwiftkubeClientAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
