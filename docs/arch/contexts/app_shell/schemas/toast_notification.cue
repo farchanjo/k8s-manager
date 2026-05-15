@@ -13,7 +13,6 @@ package app_shell
 import (
 	"time"
 	"strings"
-	"regexp"
 )
 
 // _uuidv7Pattern is the canonical UUIDv7 validation regex.
@@ -47,9 +46,8 @@ _rfcTimestamp: string & =~time.RFC3339
 	maxConcurrent: *5 | _
 
 	// activeToasts holds the currently visible toasts, newest-first.
-	// len(activeToasts) <= maxConcurrent at all times.
+	// Invariant (enforced in Swift): len(activeToasts) <= maxConcurrent.
 	activeToasts: [...#Toast]
-	len(activeToasts) <= maxConcurrent
 
 	// queue holds toasts that are waiting to be shown because the stack
 	// is at capacity and all active toasts are pinned.
@@ -103,11 +101,11 @@ _rfcTimestamp: string & =~time.RFC3339
 	autoDismissMs: int & >0
 
 	// Enforce severity-to-autoDismissMs mapping.
-	if severity == "success" { autoDismissMs: 3000 }
-	if severity == "info"    { autoDismissMs: 3000 }
-	if severity == "warning" { autoDismissMs: 5000 }
-	if severity == "error"   { autoDismissMs: 8000 }
-	if severity == "neutral" { autoDismissMs: 4000 }
+	if severity == "success" {autoDismissMs: 3000}
+	if severity == "info" {autoDismissMs: 3000}
+	if severity == "warning" {autoDismissMs: 5000}
+	if severity == "error" {autoDismissMs: 8000}
+	if severity == "neutral" {autoDismissMs: 4000}
 
 	// pinned prevents auto-dismiss. The operator must manually dismiss.
 	// The ToastEmitter may set this to true for operator-initiated pin,
@@ -165,7 +163,7 @@ _rfcTimestamp: string & =~time.RFC3339
 
 	// actionId and actionPayloadJson record the action if one was present.
 	// actionPayloadJson is JSON-encoded {[string]: string}.
-	actionId?:         string
+	actionId?:          string
 	actionPayloadJson?: string
 
 	// pinned records whether the toast was pinned when dismissed.

@@ -81,15 +81,15 @@ package metrics_observability
 
 // Result of a scalar query (resultType == "scalar").
 #ScalarResult: {
-	result_type: "scalar"
+	result_type:    "scalar"
 	timestamp_unix: float64
-	value: float64
+	value:          float64
 }
 
 // Result of a string query (resultType == "string").
 #StringResult: {
 	result_type: "string"
-	value: string
+	value:       string
 }
 
 // Discriminated union of all possible Prometheus query result shapes.

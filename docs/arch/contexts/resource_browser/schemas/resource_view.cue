@@ -25,7 +25,7 @@ package resource_browser
 
 	// name is the Kubernetes resource name within its namespace (or
 	// cluster scope). Non-empty.
-	name!: =~"^[a-z0-9][a-z0-9\-\.]*[a-z0-9]$|^[a-z0-9]$"
+	name!: =~"^[a-z0-9][-a-z0-9.]*[a-z0-9]$|^[a-z0-9]$"
 
 	// uid is the Kubernetes object UID as assigned by the API server.
 	// Used to detect resource re-creation (same name, new UID).

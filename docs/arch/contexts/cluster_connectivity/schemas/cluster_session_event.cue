@@ -1,3 +1,4 @@
+// DDD role: DomainEvent
 // DDD Role: ValueObject
 // Bounded context: cluster_connectivity
 // Described by: ADR-0025 (per-cluster isolation strategy)

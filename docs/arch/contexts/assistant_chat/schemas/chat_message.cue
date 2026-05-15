@@ -10,14 +10,14 @@ import (
 // (#ToolCallRecord) rather than nested here so the message is a
 // stable log entry independent of tool execution outcomes.
 #ChatMessage: {
-	id!:        =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	sessionId!: =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	turn!:      int & >=0
+	id!:               =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	sessionId!:        =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	turn!:             int & >=0
 	createdAtRFC3339!: time.Format(time.RFC3339)
-	role!:      "system" | "user" | "assistant"
+	role!:             "system" | "user" | "assistant"
 	// content holds the textual content as a single string. Tool
 	// calls reference this message's id via #ToolCallRecord.parentMessageId.
-	content!:   string
+	content!: string
 	// streaming captures the streamed-vs-complete state — true
 	// while the assistant is still producing tokens, false on
 	// finish or cancellation.
@@ -39,10 +39,10 @@ import (
 // Linked to its triggering assistant message via parentMessageId
 // and to its result via the same callId.
 #ToolCallRecord: {
-	callId!:           =~"^[a-zA-Z0-9_\\-]{1,128}$"
-	sessionId!:        =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	parentMessageId!:  =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	toolName!:         =~"^[a-z][a-z0-9_]{0,63}$"
+	callId!:             =~"^[a-zA-Z0-9_\\-]{1,128}$"
+	sessionId!:          =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	parentMessageId!:    =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	toolName!:           =~"^[a-z][a-z0-9_]{0,63}$"
 	requestedAtRFC3339!: time.Format(time.RFC3339)
 	completedAtRFC3339?: time.Format(time.RFC3339)
 	// argumentsJSON is the verbatim assembled arguments string the

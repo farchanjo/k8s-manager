@@ -21,12 +21,14 @@ package analytics_dashboard
 
 // _#DrillBase carries the provenance fields shared by all DrillDownEvent variants.
 // CUE struct embedding is used; each variant declares these fields directly.
+// The `...` open marker allows variants to add discriminator and payload fields.
 _#DrillBase: {
 	// Dashboard aggregate root that owns the source widget.
 	sourceDashboardId: _#UUIDv7
 
 	// Widget identifier within the source dashboard layout.
 	sourceWidgetId: string & !=""
+	...
 }
 
 // ---- DrillToScope ----
@@ -86,6 +88,5 @@ _#DrillBase: {
 
 	// Look-back window in minutes from the click timestamp.
 	// Constraining to the same valid set as DebugTimelineScope.
-	timeRangeMinutes: int & (15 | 60 | 360 | 1440)
-	timeRangeMinutes: 60
+	timeRangeMinutes: 15 | 60 | 360 | 1440 | *60
 }

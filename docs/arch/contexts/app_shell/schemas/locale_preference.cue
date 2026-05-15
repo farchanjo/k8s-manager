@@ -27,7 +27,15 @@ package app_shell
 	// #I18nManifest.extensionLocales). When absent or unrecognised, the
 	// LocaleResolverService falls back to Locale.preferredLanguages[0]
 	// and ultimately to "en-US".
-	localeIdentifier: string
+	//
+	// SECURITY (ADR-0039 MEDIUM-04): the identifier is constrained to
+	// a strict BCP 47 subset. ICU keyword extensions (@key=value),
+	// numeric region codes, private-use extensions, and any non-ASCII
+	// or control characters are rejected. The LocaleResolverService
+	// validates this regex at resolution time and falls back to "en-US"
+	// on mismatch, ensuring that a compromised SQLite value cannot alter
+	// locale resolution behavior beyond the well-defined subset.
+	localeIdentifier: =~"^[a-zA-Z]{2,3}(-[A-Za-z]{2,4})?(-[A-Za-z]{4})?$" | *"en-US"
 
 	// followSystem controls whether the application tracks the macOS
 	// system locale preference automatically.

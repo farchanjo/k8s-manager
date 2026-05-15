@@ -9,8 +9,8 @@ import (
 // It is the audit-log entry for the MCP server and is persisted by
 // local_persistence for diagnostics.
 #MCPInvocation: {
-	id!:                =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	toolName!:          =~"^[a-z][a-z0-9_]{0,63}$"
+	id!:                 =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	toolName!:           =~"^[a-z][a-z0-9_]{0,63}$"
 	requestedAtRFC3339!: time.Format(time.RFC3339)
 	completedAtRFC3339?: time.Format(time.RFC3339)
 
@@ -34,33 +34,33 @@ import (
 	#OutcomeCancelled
 
 #OutcomeSucceeded: {
-	kind!:           "succeeded"
+	kind!: "succeeded"
 	// resultJSON is the UTF-8 JSON body returned to the host.
-	resultJSON!:     string
+	resultJSON!: string
 	// resultBytes is the size of resultJSON before any truncation.
-	resultBytes!:    int & >=0
+	resultBytes!: int & >=0
 	// truncated is true when resultJSON ends with the truncation
 	// marker because the upstream payload exceeded outputMaxBytes.
-	truncated!:      bool
+	truncated!: bool
 	// kubernetesStatusCode is the HTTP status code reported by the
 	// API server, captured for observability.
 	kubernetesStatusCode!: int & >=200 & <300
 }
 
 #OutcomeDeniedByPolicy: {
-	kind!:    "denied_by_policy"
+	kind!: "denied_by_policy"
 	// rule references the deny-rule identifier in the policy file
 	// (e.g., "mutating_verb_forbidden", "tool_not_registered",
 	// "resource_not_allowed").
-	rule!:    =~"^[a-z][a-z0-9_]{0,63}$"
-	detail!:  string
+	rule!:   =~"^[a-z][a-z0-9_]{0,63}$"
+	detail!: string
 }
 
 #OutcomeFailed: {
-	kind!:                  "failed"
+	kind!: "failed"
 	// kubernetesStatusCode is present only when the API server
 	// responded with a non-2xx status.
-	kubernetesStatusCode?:  int & >=400 & <600
+	kubernetesStatusCode?: int & >=400 & <600
 	// reason is operator-facing and MUST NOT contain credential
 	// material or token fingerprints.
 	reason!: string

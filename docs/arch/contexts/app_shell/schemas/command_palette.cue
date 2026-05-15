@@ -38,9 +38,8 @@ package app_shell
 	// records. New entries are prepended; oldest are evicted when the ring
 	// overflows. Used to seed the unfiltered palette view and to boost
 	// ranking for commands the operator uses frequently.
-	recentInvocations: [...#CommandInvocation] & {
-		_maxLen: 50
-	}
+	// Invariant (enforced in Swift): len(recentInvocations) <= 50.
+	recentInvocations: [...#CommandInvocation]
 }
 
 // #CommandEntry describes a single item that can appear in the command
@@ -131,10 +130,10 @@ package app_shell
 // ---------------------------------------------------------------------------
 
 _catalogApplyYaml: #CommandEntry & {
-	id:             "apply-yaml"
-	kind:           "action"
-	title:          "Apply YAML from file"
-	subtitle:       "kubectl apply -f <file>"
+	id:       "apply-yaml"
+	kind:     "action"
+	title:    "Apply YAML from file"
+	subtitle: "kubectl apply -f <file>"
 	keywords: ["apply", "deploy", "kubectl", "yaml", "manifest"]
 	keyboardShortcut: {modifiers: ["command", "option"], key: "a"}
 	iconSFSymbol:    "square.and.arrow.down.on.square"
@@ -142,20 +141,20 @@ _catalogApplyYaml: #CommandEntry & {
 }
 
 _catalogScaleDeployment: #CommandEntry & {
-	id:             "scale-deployment"
-	kind:           "action"
-	title:          "Scale deployment replicas"
-	subtitle:       "Set replica count on selected deployment"
+	id:       "scale-deployment"
+	kind:     "action"
+	title:    "Scale deployment replicas"
+	subtitle: "Set replica count on selected deployment"
 	keywords: ["scale", "replicas", "deployment", "resize"]
 	iconSFSymbol:    "scalemass"
 	requiresContext: true
 }
 
 _catalogRestartDeployment: #CommandEntry & {
-	id:             "restart-deployment"
-	kind:           "action"
-	title:          "Restart deployment"
-	subtitle:       "kubectl rollout restart"
+	id:       "restart-deployment"
+	kind:     "action"
+	title:    "Restart deployment"
+	subtitle: "kubectl rollout restart"
 	keywords: ["restart", "rollout", "bounce", "redeploy"]
 	keyboardShortcut: {modifiers: ["command", "option"], key: "r"}
 	iconSFSymbol:    "arrow.circlepath"
@@ -163,10 +162,10 @@ _catalogRestartDeployment: #CommandEntry & {
 }
 
 _catalogViewLogs: #CommandEntry & {
-	id:             "view-logs"
-	kind:           "action"
-	title:          "Stream logs"
-	subtitle:       "Open live log stream for selected pod"
+	id:       "view-logs"
+	kind:     "action"
+	title:    "Stream logs"
+	subtitle: "Open live log stream for selected pod"
 	keywords: ["logs", "stream", "stdout", "stderr", "tail", "l"]
 	keyboardShortcut: {modifiers: [], key: "l"}
 	iconSFSymbol:    "text.alignleft"
@@ -174,10 +173,10 @@ _catalogViewLogs: #CommandEntry & {
 }
 
 _catalogExecShell: #CommandEntry & {
-	id:             "exec-shell"
-	kind:           "action"
-	title:          "Open exec shell"
-	subtitle:       "kubectl exec -it — /bin/sh"
+	id:       "exec-shell"
+	kind:     "action"
+	title:    "Open exec shell"
+	subtitle: "kubectl exec -it — /bin/sh"
 	keywords: ["exec", "shell", "terminal", "sh", "bash", "s"]
 	keyboardShortcut: {modifiers: [], key: "s"}
 	iconSFSymbol:    "terminal"
@@ -185,10 +184,10 @@ _catalogExecShell: #CommandEntry & {
 }
 
 _catalogDescribeResource: #CommandEntry & {
-	id:             "describe-resource"
-	kind:           "action"
-	title:          "Describe resource"
-	subtitle:       "kubectl describe — shows events and conditions"
+	id:       "describe-resource"
+	kind:     "action"
+	title:    "Describe resource"
+	subtitle: "kubectl describe — shows events and conditions"
 	keywords: ["describe", "detail", "events", "conditions", "d"]
 	keyboardShortcut: {modifiers: [], key: "d"}
 	iconSFSymbol:    "doc.text.magnifyingglass"
@@ -196,10 +195,10 @@ _catalogDescribeResource: #CommandEntry & {
 }
 
 _catalogEditYaml: #CommandEntry & {
-	id:             "edit-yaml"
-	kind:           "action"
-	title:          "Edit YAML in-place"
-	subtitle:       "Open YAML editor for selected resource"
+	id:       "edit-yaml"
+	kind:     "action"
+	title:    "Edit YAML in-place"
+	subtitle: "Open YAML editor for selected resource"
 	keywords: ["edit", "yaml", "patch", "e"]
 	keyboardShortcut: {modifiers: [], key: "e"}
 	iconSFSymbol:    "pencil"
@@ -207,10 +206,10 @@ _catalogEditYaml: #CommandEntry & {
 }
 
 _catalogPortForward: #CommandEntry & {
-	id:             "port-forward"
-	kind:           "action"
-	title:          "Start port-forward"
-	subtitle:       "Tunnel local port to pod/service port"
+	id:       "port-forward"
+	kind:     "action"
+	title:    "Start port-forward"
+	subtitle: "Tunnel local port to pod/service port"
 	keywords: ["port-forward", "tunnel", "forward", "pf", "localhost"]
 	keyboardShortcut: {modifiers: ["command", "option"], key: "p"}
 	iconSFSymbol:    "arrow.left.arrow.right.circle"
@@ -218,10 +217,10 @@ _catalogPortForward: #CommandEntry & {
 }
 
 _catalogDeleteResource: #CommandEntry & {
-	id:             "delete-resource"
-	kind:           "action"
-	title:          "Delete resource"
-	subtitle:       "kubectl delete — requires confirmation"
+	id:       "delete-resource"
+	kind:     "action"
+	title:    "Delete resource"
+	subtitle: "kubectl delete — requires confirmation"
 	keywords: ["delete", "remove", "destroy"]
 	keyboardShortcut: {modifiers: ["command"], key: "delete"}
 	iconSFSymbol:    "trash"
@@ -229,10 +228,10 @@ _catalogDeleteResource: #CommandEntry & {
 }
 
 _catalogCopyYaml: #CommandEntry & {
-	id:             "copy-yaml"
-	kind:           "action"
-	title:          "Copy resource YAML"
-	subtitle:       "Copy full YAML to clipboard"
+	id:       "copy-yaml"
+	kind:     "action"
+	title:    "Copy resource YAML"
+	subtitle: "Copy full YAML to clipboard"
 	keywords: ["copy", "yaml", "clipboard", "y"]
 	keyboardShortcut: {modifiers: [], key: "y"}
 	iconSFSymbol:    "doc.on.clipboard"
@@ -240,20 +239,20 @@ _catalogCopyYaml: #CommandEntry & {
 }
 
 _catalogSwitchContext: #CommandEntry & {
-	id:             "switch-context"
-	kind:           "navigation"
-	title:          "Switch kubeconfig context"
-	subtitle:       "Change active cluster context"
+	id:       "switch-context"
+	kind:     "navigation"
+	title:    "Switch kubeconfig context"
+	subtitle: "Change active cluster context"
 	keywords: ["context", "cluster", "kubeconfig", "switch", "ctx"]
 	iconSFSymbol:    "arrow.triangle.2.circlepath"
 	requiresContext: false
 }
 
 _catalogCycleNamespace: #CommandEntry & {
-	id:             "cycle-namespace"
-	kind:           "navigation"
-	title:          "Cycle to next namespace"
-	subtitle:       "Ctrl-N cycles through pinned namespaces"
+	id:       "cycle-namespace"
+	kind:     "navigation"
+	title:    "Cycle to next namespace"
+	subtitle: "Ctrl-N cycles through pinned namespaces"
 	keywords: ["namespace", "ns", "cycle", "ctrl-n"]
 	keyboardShortcut: {modifiers: ["control"], key: "n"}
 	iconSFSymbol:    "folder.badge.gearshape"
@@ -261,10 +260,10 @@ _catalogCycleNamespace: #CommandEntry & {
 }
 
 _catalogOpenSettings: #CommandEntry & {
-	id:             "open-settings"
-	kind:           "setting"
-	title:          "Open settings"
-	subtitle:       "General, clusters, shortcuts, appearance"
+	id:       "open-settings"
+	kind:     "setting"
+	title:    "Open settings"
+	subtitle: "General, clusters, shortcuts, appearance"
 	keywords: ["settings", "preferences", "prefs", "config"]
 	keyboardShortcut: {modifiers: ["command"], key: ","}
 	iconSFSymbol:    "gearshape"
@@ -272,20 +271,20 @@ _catalogOpenSettings: #CommandEntry & {
 }
 
 _catalogToggleVimKeys: #CommandEntry & {
-	id:             "toggle-vim-keys"
-	kind:           "setting"
-	title:          "Toggle vim-style j/k navigation"
-	subtitle:       "Enable or disable j/k row movement in resource lists"
+	id:       "toggle-vim-keys"
+	kind:     "setting"
+	title:    "Toggle vim-style j/k navigation"
+	subtitle: "Enable or disable j/k row movement in resource lists"
 	keywords: ["vim", "jk", "navigation", "hjkl"]
 	iconSFSymbol:    "v.square"
 	requiresContext: false
 }
 
 _catalogNewTerminal: #CommandEntry & {
-	id:             "new-terminal"
-	kind:           "action"
-	title:          "New terminal tab"
-	subtitle:       "Open a new embedded terminal"
+	id:       "new-terminal"
+	kind:     "action"
+	title:    "New terminal tab"
+	subtitle: "Open a new embedded terminal"
 	keywords: ["terminal", "tab", "new", "shell"]
 	keyboardShortcut: {modifiers: ["command"], key: "t"}
 	iconSFSymbol:    "plus.rectangle.on.rectangle"
@@ -293,10 +292,10 @@ _catalogNewTerminal: #CommandEntry & {
 }
 
 _catalogFilterList: #CommandEntry & {
-	id:             "filter-list"
-	kind:           "navigation"
-	title:          "Filter resource list"
-	subtitle:       "Narrow list by label selector or name prefix"
+	id:       "filter-list"
+	kind:     "navigation"
+	title:    "Filter resource list"
+	subtitle: "Narrow list by label selector or name prefix"
 	keywords: ["filter", "search", "label", "selector", "cmd-f"]
 	keyboardShortcut: {modifiers: ["command"], key: "f"}
 	iconSFSymbol:    "line.3.horizontal.decrease.circle"
@@ -304,10 +303,10 @@ _catalogFilterList: #CommandEntry & {
 }
 
 _catalogRefreshView: #CommandEntry & {
-	id:             "refresh-view"
-	kind:           "action"
-	title:          "Refresh current view"
-	subtitle:       "Re-fetch resources from the API server"
+	id:       "refresh-view"
+	kind:     "action"
+	title:    "Refresh current view"
+	subtitle: "Re-fetch resources from the API server"
 	keywords: ["refresh", "reload", "sync", "cmd-r"]
 	keyboardShortcut: {modifiers: ["command"], key: "r"}
 	iconSFSymbol:    "arrow.clockwise"
@@ -315,10 +314,10 @@ _catalogRefreshView: #CommandEntry & {
 }
 
 _catalogHotkeyHelp: #CommandEntry & {
-	id:             "hotkey-help"
-	kind:           "navigation"
-	title:          "Show keyboard shortcuts"
-	subtitle:       "Full shortcut reference overlay"
+	id:       "hotkey-help"
+	kind:     "navigation"
+	title:    "Show keyboard shortcuts"
+	subtitle: "Full shortcut reference overlay"
 	keywords: ["help", "shortcuts", "keys", "hotkeys", "?"]
 	keyboardShortcut: {modifiers: [], key: "?"}
 	iconSFSymbol:    "keyboard"
@@ -326,10 +325,10 @@ _catalogHotkeyHelp: #CommandEntry & {
 }
 
 _catalogUsedBy: #CommandEntry & {
-	id:             "used-by"
-	kind:           "navigation"
-	title:          "Show used-by references"
-	subtitle:       "Owner references and dependant resources"
+	id:       "used-by"
+	kind:     "navigation"
+	title:    "Show used-by references"
+	subtitle: "Owner references and dependant resources"
 	keywords: ["used-by", "owners", "dependants", "references", "u"]
 	keyboardShortcut: {modifiers: [], key: "u"}
 	iconSFSymbol:    "arrow.up.right.and.arrow.down.left.rectangle"
@@ -337,100 +336,100 @@ _catalogUsedBy: #CommandEntry & {
 }
 
 _catalogRollbackDeployment: #CommandEntry & {
-	id:             "rollback-deployment"
-	kind:           "action"
-	title:          "Rollback deployment"
-	subtitle:       "kubectl rollout undo to previous revision"
+	id:       "rollback-deployment"
+	kind:     "action"
+	title:    "Rollback deployment"
+	subtitle: "kubectl rollout undo to previous revision"
 	keywords: ["rollback", "undo", "rollout", "revert", "previous"]
 	iconSFSymbol:    "arrow.uturn.backward.circle"
 	requiresContext: true
 }
 
 _catalogViewEvents: #CommandEntry & {
-	id:             "view-events"
-	kind:           "navigation"
-	title:          "View namespace events"
-	subtitle:       "Live-updating event stream for current namespace"
+	id:       "view-events"
+	kind:     "navigation"
+	title:    "View namespace events"
+	subtitle: "Live-updating event stream for current namespace"
 	keywords: ["events", "warnings", "stream", "namespace"]
 	iconSFSymbol:    "bell.badge"
 	requiresContext: false
 }
 
 _catalogHelmUpgrade: #CommandEntry & {
-	id:             "helm-upgrade"
-	kind:           "action"
-	title:          "Helm upgrade release"
-	subtitle:       "Upgrade an installed Helm release"
+	id:       "helm-upgrade"
+	kind:     "action"
+	title:    "Helm upgrade release"
+	subtitle: "Upgrade an installed Helm release"
 	keywords: ["helm", "upgrade", "chart", "release"]
 	iconSFSymbol:    "helm"
 	requiresContext: false
 }
 
 _catalogHelmDiff: #CommandEntry & {
-	id:             "helm-diff"
-	kind:           "action"
-	title:          "Helm diff release"
-	subtitle:       "Preview changes before helm upgrade"
+	id:       "helm-diff"
+	kind:     "action"
+	title:    "Helm diff release"
+	subtitle: "Preview changes before helm upgrade"
 	keywords: ["helm", "diff", "preview", "changes", "chart"]
 	iconSFSymbol:    "arrow.left.and.right.text.vertical"
 	requiresContext: false
 }
 
 _catalogViewMetrics: #CommandEntry & {
-	id:             "view-metrics"
-	kind:           "navigation"
-	title:          "Open metrics dashboard"
-	subtitle:       "RED method panel for selected resource"
+	id:       "view-metrics"
+	kind:     "navigation"
+	title:    "Open metrics dashboard"
+	subtitle: "RED method panel for selected resource"
 	keywords: ["metrics", "grafana", "red", "latency", "errors", "requests"]
 	iconSFSymbol:    "chart.xyaxis.line"
 	requiresContext: true
 }
 
 _catalogLabelSelector: #CommandEntry & {
-	id:             "label-selector"
-	kind:           "navigation"
-	title:          "Navigate by label selector"
-	subtitle:       "Jump to resources matching a label expression"
+	id:       "label-selector"
+	kind:     "navigation"
+	title:    "Navigate by label selector"
+	subtitle: "Jump to resources matching a label expression"
 	keywords: ["label", "selector", "filter", "app=", "env="]
 	iconSFSymbol:    "tag"
 	requiresContext: false
 }
 
 _catalogPinNamespace: #CommandEntry & {
-	id:             "pin-namespace"
-	kind:           "setting"
-	title:          "Pin namespace"
-	subtitle:       "Add namespace to the pinned cycle list"
+	id:       "pin-namespace"
+	kind:     "setting"
+	title:    "Pin namespace"
+	subtitle: "Add namespace to the pinned cycle list"
 	keywords: ["pin", "namespace", "favourite", "favorite"]
 	iconSFSymbol:    "pin"
 	requiresContext: false
 }
 
 _catalogPinCluster: #CommandEntry & {
-	id:             "pin-cluster"
-	kind:           "setting"
-	title:          "Pin cluster to ⌘1–⌘9 slot"
-	subtitle:       "Assign cluster to a numbered shortcut slot"
+	id:       "pin-cluster"
+	kind:     "setting"
+	title:    "Pin cluster to ⌘1–⌘9 slot"
+	subtitle: "Assign cluster to a numbered shortcut slot"
 	keywords: ["pin", "cluster", "cmd1", "cmd2", "slot"]
 	iconSFSymbol:    "number.circle"
 	requiresContext: false
 }
 
 _catalogNodeDebug: #CommandEntry & {
-	id:             "node-debug"
-	kind:           "action"
-	title:          "Open node debug session"
-	subtitle:       "kubectl debug node — ephemeral privileged container"
+	id:       "node-debug"
+	kind:     "action"
+	title:    "Open node debug session"
+	subtitle: "kubectl debug node — ephemeral privileged container"
 	keywords: ["node", "debug", "ephemeral", "privileged", "s"]
 	iconSFSymbol:    "ant.circle"
 	requiresContext: true
 }
 
 _catalogHistoryBack: #CommandEntry & {
-	id:             "history-back"
-	kind:           "navigation"
-	title:          "Navigate history back"
-	subtitle:       "Go to previous resource view"
+	id:       "history-back"
+	kind:     "navigation"
+	title:    "Navigate history back"
+	subtitle: "Go to previous resource view"
 	keywords: ["back", "history", "previous", "cmd-["]
 	keyboardShortcut: {modifiers: ["command"], key: "["}
 	iconSFSymbol:    "chevron.backward"
@@ -438,10 +437,10 @@ _catalogHistoryBack: #CommandEntry & {
 }
 
 _catalogHistoryForward: #CommandEntry & {
-	id:             "history-forward"
-	kind:           "navigation"
-	title:          "Navigate history forward"
-	subtitle:       "Go to next resource view"
+	id:       "history-forward"
+	kind:     "navigation"
+	title:    "Navigate history forward"
+	subtitle: "Go to next resource view"
 	keywords: ["forward", "history", "next", "cmd-]"]
 	keyboardShortcut: {modifiers: ["command"], key: "]"}
 	iconSFSymbol:    "chevron.forward"
@@ -449,10 +448,10 @@ _catalogHistoryForward: #CommandEntry & {
 }
 
 _catalogTogglePowerUser: #CommandEntry & {
-	id:             "toggle-power-user"
-	kind:           "setting"
-	title:          "Toggle power-user mode"
-	subtitle:       "Collapse disclosure layers into dense list view"
+	id:       "toggle-power-user"
+	kind:     "setting"
+	title:    "Toggle power-user mode"
+	subtitle: "Collapse disclosure layers into dense list view"
 	keywords: ["power", "user", "dense", "compact", "disclosure"]
 	iconSFSymbol:    "bolt"
 	requiresContext: false

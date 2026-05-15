@@ -71,7 +71,7 @@ package resource_browser
 	targetGVK!: #GroupVersionKind
 
 	namespace!: string
-	name!: string
+	name!:      string
 
 	// desiredReplicas is the target replica count. Must be >= 0.
 	// Setting to 0 is permitted (scales the workload to zero).
@@ -89,7 +89,7 @@ package resource_browser
 	targetGVK!: #GroupVersionKind
 
 	namespace!: string
-	name!: string
+	name!:      string
 
 	// restartedAt is the RFC3339 timestamp injected as the annotation
 	// value. Constructed at command creation time.
@@ -131,7 +131,7 @@ package resource_browser
 
 	targetGVK!: #GroupVersionKind
 	namespace?: string | null
-	name!: string
+	name!:      string
 
 	// labelsToSet is the map of key→value pairs to add or update.
 	// At least one entry is required.
@@ -150,7 +150,7 @@ package resource_browser
 
 	targetGVK!: #GroupVersionKind
 	namespace?: string | null
-	name!: string
+	name!:      string
 
 	// annotationsToSet is the map of key→value pairs to add or update.
 	// At least one entry is required.

@@ -50,11 +50,11 @@ package app_shell
 	// These tokens communicate cluster and resource health. Each token
 	// must achieve 3:1 contrast against surfaceBackground.light and
 	// surfaceBackground.dark respectively.
-	statusHealthy:    #ColorPair
-	statusWarning:    #ColorPair
-	statusError:      #ColorPair
+	statusHealthy:     #ColorPair
+	statusWarning:     #ColorPair
+	statusError:       #ColorPair
 	statusTerminating: #ColorPair
-	statusUnknown:    #ColorPair
+	statusUnknown:     #ColorPair
 
 	// --- Kind accent tokens ---
 	// Used for resource-kind badges and row tints in the content list.
@@ -86,25 +86,25 @@ package app_shell
 // Views that need token values import this constraint unification.
 #DefaultColorTokens: #ColorTokens & {
 	surfaceBackground: {light: "#FFFFFF", dark: "#1E1E1E"}
-	surfaceElevated:   {light: "#F5F5F5", dark: "#2A2A2A"}
-	accentBrand:       {light: "#326CE5", dark: "#5E8FF0"}
+	surfaceElevated: {light: "#F5F5F5", dark: "#2A2A2A"}
+	accentBrand: {light: "#326CE5", dark: "#5E8FF0"}
 
-	textPrimary:   {light: "#111111", dark: "#F0F0F0"}
+	textPrimary: {light: "#111111", dark: "#F0F0F0"}
 	textSecondary: {light: "#555555", dark: "#AAAAAA"}
-	textTertiary:  {light: "#999999", dark: "#666666"}
+	textTertiary: {light: "#999999", dark: "#666666"}
 
-	statusHealthy:    {light: "#1A7F37", dark: "#3FB950"}
-	statusWarning:    {light: "#9A6700", dark: "#D29922"}
-	statusError:      {light: "#CF222E", dark: "#F85149"}
+	statusHealthy: {light: "#1A7F37", dark: "#3FB950"}
+	statusWarning: {light: "#9A6700", dark: "#D29922"}
+	statusError: {light: "#CF222E", dark: "#F85149"}
 	statusTerminating: {light: "#BF7B00", dark: "#E3B341"}
-	statusUnknown:    {light: "#656D76", dark: "#8B949E"}
+	statusUnknown: {light: "#656D76", dark: "#8B949E"}
 
-	kindAccentPod:     {light: "#0550AE", dark: "#2F81F7"}
-	kindAccentDeploy:  {light: "#3B36C3", dark: "#7C72EA"}
+	kindAccentPod: {light: "#0550AE", dark: "#2F81F7"}
+	kindAccentDeploy: {light: "#3B36C3", dark: "#7C72EA"}
 	kindAccentService: {light: "#0D7377", dark: "#2CB9BB"}
 	kindAccentStorage: {light: "#6B32B0", dark: "#B57AE7"}
-	kindAccentConfig:  {light: "#7D4617", dark: "#C67D3C"}
-	kindAccentRBAC:    {light: "#A41D5C", dark: "#E57BB2"}
+	kindAccentConfig: {light: "#7D4617", dark: "#C67D3C"}
+	kindAccentRBAC: {light: "#A41D5C", dark: "#E57BB2"}
 }
 
 // #MaterialTokens declares the SwiftUI material identifiers assigned
@@ -145,12 +145,12 @@ package app_shell
 	scale: [4, 8, 12, 16, 24, 32]
 
 	// Semantic aliases that map to scale entries:
-	xsmall:  4    // micro gaps between icon and label
-	small:   8    // intra-group padding
-	medium:  12   // standard list row padding
-	base:    16   // standard content area inset
-	large:   24   // section vertical spacing
-	xlarge:  32   // hero section top padding
+	xsmall: 4  // micro gaps between icon and label
+	small:  8  // intra-group padding
+	medium: 12 // standard list row padding
+	base:   16 // standard content area inset
+	large:  24 // section vertical spacing
+	xlarge: 32 // hero section top padding
 }
 
 // #RadiusTokens defines the corner-radius scale used for buttons,
@@ -160,7 +160,7 @@ package app_shell
 	scale: [4, 8, 12]
 
 	// Semantic aliases:
-	small:  4    // tight elements such as status badges and inline tags
-	medium: 8    // standard buttons, text fields, sidebar group headers
-	large:  12   // cards, sheet corners, inspector panel top corners
+	small:  4  // tight elements such as status badges and inline tags
+	medium: 8  // standard buttons, text fields, sidebar group headers
+	large:  12 // cards, sheet corners, inspector panel top corners
 }

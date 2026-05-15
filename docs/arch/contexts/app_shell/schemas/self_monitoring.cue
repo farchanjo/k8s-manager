@@ -1,10 +1,9 @@
+// DDD role: ValueObject
 // DDD Role: AggregateRoot
 // Context: app_shell / SelfMonitoring sub-domain
 // Schema for app-level self-monitoring state, metric samples, and diagnostics bundle export.
 
 package app_shell
-
-import "regexp"
 
 // ---------------------------------------------------------------------------
 // Shared constraints
@@ -27,23 +26,19 @@ import "regexp"
 
 	// How often the SelfMonitoringSampler collects a snapshot.
 	// Operator-configurable via Settings → Diagnostics.
-	sampleIntervalSeconds: 1 | 5 | 15 | 30 | 60
-	sampleIntervalSeconds: *5
+	sampleIntervalSeconds: 1 | 5 | 15 | 30 | 60 | *5
 
 	// When true, the "App self-monitoring" widget is shown in the menu bar tray.
 	// Off by default; operator enables via Settings → Diagnostics.
-	surfaceInTray: bool
-	surfaceInTray: *false
+	surfaceInTray: bool | *false
 
 	// Duration of the in-memory ring buffer (minutes).
 	// At 5 s interval and 60 min retention: 720 samples ≈ 100 KB.
-	retentionMinutes: int & >=1 & <=1440
-	retentionMinutes: *60
+	retentionMinutes: (int & >=1 & <=1440) | *60
 
 	// When true, the DiagnosticsBundleExporter is permitted to access
 	// the SQLite persistence layer for 24 h historical export.
-	exportEnabled: bool
-	exportEnabled: *true
+	exportEnabled: bool | *true
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +153,5 @@ import "regexp"
 
 	// True when the log redactor ran and confirmed no credential patterns remain.
 	// Always true in a successfully sealed bundle; the exporter aborts if false.
-	redactionApplied: bool
-	redactionApplied: *true
+	redactionApplied: bool | *true
 }

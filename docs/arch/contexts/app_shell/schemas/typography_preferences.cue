@@ -63,13 +63,13 @@ package app_shell
 // ResolvedTextStyle lookup table.
 #TextStyleRole:
 	"displayLarge" |
-	"display"      |
-	"headline"     |
-	"body"         |
-	"subheadline"  |
-	"callout"      |
-	"footnote"     |
-	"caption"      |
+	"display" |
+	"headline" |
+	"body" |
+	"subheadline" |
+	"callout" |
+	"footnote" |
+	"caption" |
 	"mono"
 
 // #ResolvedTextStyle is a read model computed by TypographyService.
@@ -114,14 +114,14 @@ package app_shell
 // uiScale multiplier before constructing ResolvedTextStyle records.
 #TextStyleTable: {
 	entries: [
-		{role: "displayLarge", family: "SF Pro Display", sizePoints: 34, weight: "bold",     lineSpacing: 0},
-		{role: "display",      family: "SF Pro Display", sizePoints: 28, weight: "semibold",  lineSpacing: 0},
-		{role: "headline",     family: "SF Pro Display", sizePoints: 20, weight: "semibold",  lineSpacing: 0},
-		{role: "body",         family: "SF Pro Text",    sizePoints: 15, weight: "regular",   lineSpacing: 2},
-		{role: "subheadline",  family: "SF Pro Text",    sizePoints: 13, weight: "semibold",  lineSpacing: 1},
-		{role: "callout",      family: "SF Pro Text",    sizePoints: 13, weight: "regular",   lineSpacing: 1},
-		{role: "footnote",     family: "SF Pro Text",    sizePoints: 11, weight: "regular",   lineSpacing: 1},
-		{role: "caption",      family: "SF Pro Text",    sizePoints: 10, weight: "regular",   lineSpacing: 0},
-		{role: "mono",         family: "SF Mono",        sizePoints: 12, weight: "regular",   lineSpacing: 2},
+		{role: "displayLarge", family: "SF Pro Display", sizePoints: 34, weight: "bold", lineSpacing: 0},
+		{role: "display", family: "SF Pro Display", sizePoints: 28, weight: "semibold", lineSpacing: 0},
+		{role: "headline", family: "SF Pro Display", sizePoints: 20, weight: "semibold", lineSpacing: 0},
+		{role: "body", family: "SF Pro Text", sizePoints: 15, weight: "regular", lineSpacing: 2},
+		{role: "subheadline", family: "SF Pro Text", sizePoints: 13, weight: "semibold", lineSpacing: 1},
+		{role: "callout", family: "SF Pro Text", sizePoints: 13, weight: "regular", lineSpacing: 1},
+		{role: "footnote", family: "SF Pro Text", sizePoints: 11, weight: "regular", lineSpacing: 1},
+		{role: "caption", family: "SF Pro Text", sizePoints: 10, weight: "regular", lineSpacing: 0},
+		{role: "mono", family: "SF Mono", sizePoints: 12, weight: "regular", lineSpacing: 2},
 	]
 }

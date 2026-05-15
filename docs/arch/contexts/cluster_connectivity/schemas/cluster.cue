@@ -37,7 +37,7 @@ package cluster_connectivity
 #CAStrategy: {
 	// system uses the macOS trust store. Common for managed
 	// clusters whose API server has a publicly-trusted certificate.
-	kind!:    "system"
+	kind!: "system"
 } | {
 	// embedded carries inline PEM bytes decoded from
 	// certificate-authority-data.

@@ -6,7 +6,7 @@ package llm_provider
 // Messages API content blocks, OpenAI Chat Completions messages,
 // or OpenAI-compatible variants.
 #AssistantMessage: {
-	role!:    "system" | "user" | "assistant" | "tool"
+	role!: "system" | "user" | "assistant" | "tool"
 	content!: [...#MessagePart]
 }
 
@@ -25,23 +25,23 @@ package llm_provider
 }
 
 #ToolUsePart: {
-	kind!:           "tool_use"
-	callId!:         =~"^[a-zA-Z0-9_\\-]{1,128}$"
-	name!:           string
+	kind!:   "tool_use"
+	callId!: =~"^[a-zA-Z0-9_\\-]{1,128}$"
+	name!:   string
 	// jsonArguments is a UTF-8 JSON object encoded as a string.
 	// Streaming providers may deliver this in chunks; the upstream
 	// adapter buffers chunks and emits the full string here.
-	jsonArguments!:  string
+	jsonArguments!: string
 }
 
 #ToolResultPart: {
-	kind!:           "tool_result"
-	callId!:         =~"^[a-zA-Z0-9_\\-]{1,128}$"
+	kind!:   "tool_result"
+	callId!: =~"^[a-zA-Z0-9_\\-]{1,128}$"
 	// jsonResult is the UTF-8 JSON body returned by the tool. The
 	// MCP server (see ADR-0009) caps this at 256 KiB and appends a
 	// truncation marker when needed.
-	jsonResult!:     string
-	isError!:        bool
+	jsonResult!: string
+	isError!:    bool
 }
 
 // #ToolDefinition is the schema advertised to the provider for the
@@ -49,8 +49,8 @@ package llm_provider
 // aggregates here; they are derived from the MCP server's registry
 // at request time.
 #ToolDefinition: {
-	name!:            =~"^[a-z][a-z0-9_]{0,63}$"
-	description!:     string
+	name!:        =~"^[a-z][a-z0-9_]{0,63}$"
+	description!: string
 	// inputJSONSchema is the JSON Schema (draft-2020-12) for the
 	// tool inputs. Adapters translate it into the provider's tool
 	// format.

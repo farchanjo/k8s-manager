@@ -22,9 +22,14 @@ import (
 }
 
 #HealthState:
-	"reachable" |       // probe completed and the API server returned 200 on /readyz or /healthz
-	"degraded" |        // probe completed but health endpoint reported non-200 or partial readiness
-	"unreachable" |     // network or TLS error before a response
-	"unauthorized" |    // 401 from the API server
-	"forbidden" |       // 403 from the API server (auth succeeded but lacks the probe permission)
-	"unknown"           // initial state before any probe has run
+	"reachable" |
+	"degraded" // probe completed and the API server returned 200 on /readyz or /healthz
+	|
+	"unreachable" // probe completed but health endpoint reported non-200 or partial readiness
+	|
+	"unauthorized" // network or TLS error before a response
+	|
+	"forbidden" // 401 from the API server
+	|
+	"unknown" // 403 from the API server (auth succeeded but lacks the probe permission)
+// initial state before any probe has run

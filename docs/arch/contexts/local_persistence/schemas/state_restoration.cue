@@ -1,3 +1,4 @@
+// DDD role: ValueObject
 // DDD Role: ValueObject
 // Bounded context: local_persistence
 // Described by: ADR-0026 (state persistence and filesystem layout)

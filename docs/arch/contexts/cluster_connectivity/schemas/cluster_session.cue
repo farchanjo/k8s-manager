@@ -1,3 +1,4 @@
+// DDD role: AggregateRoot
 // DDD Role: AggregateRoot
 // Bounded context: cluster_connectivity
 // Described by: ADR-0025 (per-cluster isolation strategy)
@@ -8,10 +9,6 @@
 // the ClusterSessionActor that owns it.
 
 package cluster_connectivity
-
-import (
-	"time"
-)
 
 // _uuidV7Pattern matches a canonical UUIDv7 string.
 // Format: xxxxxxxx-xxxx-7xxx-[89ab]xxx-xxxxxxxxxxxx

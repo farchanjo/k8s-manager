@@ -35,9 +35,23 @@ package resource_browser
 	sourceFormat: "yaml" | "json" | "markdown"
 
 	// Full content of the editor buffer at the time of the snapshot.
-	// Stored verbatim; no redaction applied (operator is responsible for
-	// not leaving sensitive content in drafts).
+	// When resourceRef.kind is "Secret" — or any kind whose discovered
+	// OpenAPI v3 schema declares a `data` or `stringData` field —
+	// DraftAutoSaver MUST replace every value in those maps with the
+	// literal string "[REDACTED]" before serialising the buffer to this
+	// field. The map keys are preserved; only the values are elided.
+	// For all other kinds the content is stored verbatim. This
+	// obligation is enforced by DraftAutoSaver and asserted by a
+	// negative integration test that scans editor_drafts rows for known
+	// Secret marker bytes.
 	content: string
+
+	// True when the Secret-redaction path was applied to `content`
+	// before persistence. Set by DraftAutoSaver when the resource kind
+	// (or its discovered OpenAPI v3 schema) contains a `data` or
+	// `stringData` field. False for Markdown sessions, non-Secret
+	// resources, and any draft predating the redaction obligation.
+	sensitiveContentRedacted: bool | *false
 
 	// RFC3339 timestamp when this snapshot was persisted.
 	savedAt: #RFC3339

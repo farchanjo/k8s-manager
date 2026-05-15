@@ -28,15 +28,15 @@ package llm_provider
 }
 
 #ToolUseDeltaEvent: {
-	kind!:           "tool_use_delta"
-	callId!:         =~"^[a-zA-Z0-9_\\-]{1,128}$"
-	jsonChunk!:      string
+	kind!:      "tool_use_delta"
+	callId!:    =~"^[a-zA-Z0-9_\\-]{1,128}$"
+	jsonChunk!: string
 }
 
 #ToolUseFinishEvent: {
-	kind!:            "tool_use_finish"
-	callId!:          =~"^[a-zA-Z0-9_\\-]{1,128}$"
-	totalArguments!:  string
+	kind!:           "tool_use_finish"
+	callId!:         =~"^[a-zA-Z0-9_\\-]{1,128}$"
+	totalArguments!: string
 }
 
 // #UsageEvent is emitted at most once per stream when the provider

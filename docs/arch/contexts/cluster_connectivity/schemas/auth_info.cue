@@ -13,19 +13,19 @@ package cluster_connectivity
 // #ClientCertAuth is X.509 client-certificate auth, by far the
 // most common form in development clusters.
 #ClientCertAuth: {
-	kind!:        "client_cert"
+	kind!: "client_cert"
 	// certPEM and keyPEM hold the decoded bytes in memory. The
 	// adapter never persists these.
-	certPEM!:     =~"^-----BEGIN CERTIFICATE-----"
-	keyPEM!:      =~"^-----BEGIN (RSA |EC |)PRIVATE KEY-----"
+	certPEM!: =~"^-----BEGIN CERTIFICATE-----"
+	keyPEM!:  =~"^-----BEGIN (RSA |EC |)PRIVATE KEY-----"
 }
 
 // #BearerTokenAuth carries a static bearer token. The application
 // reads the token only at request time; rotation is the operator's
 // responsibility.
 #BearerTokenAuth: {
-	kind!:   "bearer_token"
-	token!:  string & =~"^[A-Za-z0-9._\\-]+$"
+	kind!:  "bearer_token"
+	token!: string & =~"^[A-Za-z0-9._\\-]+$"
 }
 
 // #ExecPluginAuth carries the parameters needed to invoke an
@@ -33,11 +33,11 @@ package cluster_connectivity
 // is parsed by `cluster_connectivity.ExecPluginPort` and never
 // stored in the aggregate.
 #ExecPluginAuth: {
-	kind!:           "exec_plugin"
-	apiVersion!:     =~"^client\\.authentication\\.k8s\\.io/v1(beta1|alpha1)?$"
-	command!:        string
-	args:           [...string] | *[]
+	kind!:       "exec_plugin"
+	apiVersion!: =~"^client\\.authentication\\.k8s\\.io/v1(beta1|alpha1)?$"
+	command!:    string
+	args: [...string] | *[]
 	env: [...{name!: string, value!: string}] | *[]
 	provideClusterInfo: bool | *false
-	installHint?:    string
+	installHint?:       string
 }

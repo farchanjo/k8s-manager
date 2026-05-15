@@ -68,99 +68,99 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// --- Global bindings -----------------------------------------------
 
 		{
-			id:          "global-command-palette-primary"
-			commandId:   "open-command-palette"
+			id:        "global-command-palette-primary"
+			commandId: "open-command-palette"
 			keyChord: {modifiers: ["command"], key: "p"}
 			scope:       "global"
 			description: "Open command palette (primary)"
 		},
 		{
-			id:          "global-command-palette-alternate"
-			commandId:   "open-command-palette"
+			id:        "global-command-palette-alternate"
+			commandId: "open-command-palette"
 			keyChord: {modifiers: ["command"], key: "k"}
 			scope:       "global"
 			description: "Open command palette (alternate)"
 		},
 		{
-			id:          "global-refresh"
-			commandId:   "refresh-view"
+			id:        "global-refresh"
+			commandId: "refresh-view"
 			keyChord: {modifiers: ["command"], key: "r"}
 			scope:       "global"
 			description: "Refresh current view"
 		},
 		{
-			id:          "global-filter"
-			commandId:   "filter-list"
+			id:        "global-filter"
+			commandId: "filter-list"
 			keyChord: {modifiers: ["command"], key: "f"}
 			scope:       "global"
 			description: "Filter resource list by name or label selector"
 		},
 		{
-			id:          "global-new-terminal"
-			commandId:   "new-terminal"
+			id:        "global-new-terminal"
+			commandId: "new-terminal"
 			keyChord: {modifiers: ["command"], key: "t"}
 			scope:       "global"
 			description: "Open new embedded terminal tab"
 		},
 		{
-			id:          "global-reopen-terminal"
-			commandId:   "reopen-closed-terminal"
+			id:        "global-reopen-terminal"
+			commandId: "reopen-closed-terminal"
 			keyChord: {modifiers: ["command", "shift"], key: "t"}
 			scope:       "global"
 			description: "Reopen most recently closed terminal tab"
 		},
 		{
-			id:          "global-close-panel"
-			commandId:   "close-active-panel"
+			id:        "global-close-panel"
+			commandId: "close-active-panel"
 			keyChord: {modifiers: ["command"], key: "w"}
 			scope:       "global"
 			description: "Close active panel or tab"
 		},
 		{
-			id:          "global-settings"
-			commandId:   "open-settings"
+			id:        "global-settings"
+			commandId: "open-settings"
 			keyChord: {modifiers: ["command"], key: ","}
 			scope:       "global"
 			description: "Open application settings"
 		},
 		{
-			id:          "global-delete-resource"
-			commandId:   "delete-resource"
+			id:        "global-delete-resource"
+			commandId: "delete-resource"
 			keyChord: {modifiers: ["command"], key: "delete"}
 			scope:       "global"
 			description: "Delete selected resource (requires confirmation)"
 		},
 		{
-			id:          "global-history-back"
-			commandId:   "history-back"
+			id:        "global-history-back"
+			commandId: "history-back"
 			keyChord: {modifiers: ["command"], key: "["}
 			scope:       "global"
 			description: "Navigate to previous resource view"
 		},
 		{
-			id:          "global-history-forward"
-			commandId:   "history-forward"
+			id:        "global-history-forward"
+			commandId: "history-forward"
 			keyChord: {modifiers: ["command"], key: "]"}
 			scope:       "global"
 			description: "Navigate to next resource view"
 		},
 		{
-			id:          "global-cluster-1"
-			commandId:   "switch-pinned-cluster-1"
+			id:        "global-cluster-1"
+			commandId: "switch-pinned-cluster-1"
 			keyChord: {modifiers: ["command"], key: "1"}
 			scope:       "global"
 			description: "Switch to pinned cluster slot 1"
 		},
 		{
-			id:          "global-cluster-2"
-			commandId:   "switch-pinned-cluster-2"
+			id:        "global-cluster-2"
+			commandId: "switch-pinned-cluster-2"
 			keyChord: {modifiers: ["command"], key: "2"}
 			scope:       "global"
 			description: "Switch to pinned cluster slot 2"
 		},
 		{
-			id:          "global-cluster-3"
-			commandId:   "switch-pinned-cluster-3"
+			id:        "global-cluster-3"
+			commandId: "switch-pinned-cluster-3"
 			keyChord: {modifiers: ["command"], key: "3"}
 			scope:       "global"
 			description: "Switch to pinned cluster slot 3"
@@ -171,71 +171,71 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// no text field or terminal pane intercepts the event.
 
 		{
-			id:          "browser-view-logs"
-			commandId:   "view-logs"
+			id:        "browser-view-logs"
+			commandId: "view-logs"
 			keyChord: {modifiers: [], key: "l"}
 			scope:       "resource_browser"
 			description: "Stream logs for selected pod or container"
 		},
 		{
-			id:          "browser-exec-shell"
-			commandId:   "exec-shell"
+			id:        "browser-exec-shell"
+			commandId: "exec-shell"
 			keyChord: {modifiers: [], key: "s"}
 			scope:       "resource_browser"
 			description: "Open exec shell in selected pod"
 		},
 		{
-			id:          "browser-describe"
-			commandId:   "describe-resource"
+			id:        "browser-describe"
+			commandId: "describe-resource"
 			keyChord: {modifiers: [], key: "d"}
 			scope:       "resource_browser"
 			description: "Describe selected resource"
 		},
 		{
-			id:          "browser-edit-yaml"
-			commandId:   "edit-yaml"
+			id:        "browser-edit-yaml"
+			commandId: "edit-yaml"
 			keyChord: {modifiers: [], key: "e"}
 			scope:       "resource_browser"
 			description: "Open YAML editor for selected resource"
 		},
 		{
-			id:          "browser-used-by"
-			commandId:   "used-by"
+			id:        "browser-used-by"
+			commandId: "used-by"
 			keyChord: {modifiers: [], key: "u"}
 			scope:       "resource_browser"
 			description: "Show owner references and dependant resources"
 		},
 		{
-			id:          "browser-copy-yaml"
-			commandId:   "copy-yaml"
+			id:        "browser-copy-yaml"
+			commandId: "copy-yaml"
 			keyChord: {modifiers: [], key: "y"}
 			scope:       "resource_browser"
 			description: "Copy resource YAML to clipboard"
 		},
 		{
-			id:          "browser-command-mode"
-			commandId:   "enter-command-mode"
+			id:        "browser-command-mode"
+			commandId: "enter-command-mode"
 			keyChord: {modifiers: [], key: ":"}
 			scope:       "resource_browser"
 			description: "Enter colon command mode"
 		},
 		{
-			id:          "browser-inline-search"
-			commandId:   "inline-search"
+			id:        "browser-inline-search"
+			commandId: "inline-search"
 			keyChord: {modifiers: [], key: "/"}
 			scope:       "resource_browser"
 			description: "Activate inline search within resource list"
 		},
 		{
-			id:          "browser-hotkey-help"
-			commandId:   "hotkey-help"
+			id:        "browser-hotkey-help"
+			commandId: "hotkey-help"
 			keyChord: {modifiers: [], key: "?"}
 			scope:       "resource_browser"
 			description: "Show keyboard shortcut help overlay"
 		},
 		{
-			id:          "browser-cycle-namespace"
-			commandId:   "cycle-namespace"
+			id:        "browser-cycle-namespace"
+			commandId: "cycle-namespace"
 			keyChord: {modifiers: ["control"], key: "n"}
 			scope:       "resource_browser"
 			description: "Cycle to next pinned namespace"
@@ -244,8 +244,8 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// --- Node-specific action (predicate-gated) ------------------------
 
 		{
-			id:          "browser-node-debug"
-			commandId:   "node-debug"
+			id:        "browser-node-debug"
+			commandId: "node-debug"
 			keyChord: {modifiers: [], key: "s"}
 			scope:       "resource_browser"
 			whenContext: "resource.kind == Node"
@@ -255,8 +255,8 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// --- Apply YAML global action --------------------------------------
 
 		{
-			id:          "global-apply-yaml"
-			commandId:   "apply-yaml"
+			id:        "global-apply-yaml"
+			commandId: "apply-yaml"
 			keyChord: {modifiers: ["command", "option"], key: "a"}
 			scope:       "global"
 			description: "Apply YAML manifest from file picker"
@@ -265,8 +265,8 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// --- Port-forward global action ------------------------------------
 
 		{
-			id:          "global-port-forward"
-			commandId:   "port-forward"
+			id:        "global-port-forward"
+			commandId: "port-forward"
 			keyChord: {modifiers: ["command", "option"], key: "p"}
 			scope:       "global"
 			description: "Start port-forward tunnel to selected pod or service"
@@ -275,8 +275,8 @@ applicationShortcutMap: #KeyboardShortcutMap & {
 		// --- Restart deployment global action ------------------------------
 
 		{
-			id:          "global-restart-deployment"
-			commandId:   "restart-deployment"
+			id:        "global-restart-deployment"
+			commandId: "restart-deployment"
 			keyChord: {modifiers: ["command", "option"], key: "r"}
 			scope:       "global"
 			description: "Restart selected deployment via rollout restart"

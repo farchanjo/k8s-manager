@@ -11,9 +11,9 @@ import (
 // optionally pinned to a Kubernetes context that biases the
 // assistant's tool calls toward that cluster.
 #ChatSession: {
-	id!:                 =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-	title!:              string & strings.MinRunes(1) & strings.MaxRunes(120)
-	providerProfileId!:  =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	id!:                =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+	title!:             string & strings.MinRunes(1) & strings.MaxRunes(120)
+	providerProfileId!: =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 
 	// pinnedKubernetesContextId, when present, is the ContextId from
 	// the shared kernel — biases the in-process MCP server to scope

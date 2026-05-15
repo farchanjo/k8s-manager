@@ -78,4 +78,17 @@ package resource_browser
 	// reached. The mutation guard policy verifies that the token is
 	// at most 5 minutes old at dispatch time.
 	confirmationToken!: =~"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+
+	// previousEntryDigest is the SHA-256 hex digest of the
+	// immediately preceding audit row's canonical JSON serialisation
+	// (all fields in schema-defined order, excluding this field).
+	// The first row stores the sentinel value of 64 zero hex
+	// characters. Together the chain of digests forms a tamper-evident
+	// linked list: any retroactive modification of a row invalidates
+	// every digest that follows it.
+	//
+	// The chain is verified by the `spec validate --lane audit`
+	// command, which walks all rows in requestedAt order.
+	// (See ADR-0012 MEDIUM-01 finding.)
+	previousEntryDigest!: =~"^[0-9a-f]{64}$"
 }

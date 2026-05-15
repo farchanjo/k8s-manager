@@ -161,18 +161,18 @@ EmptyStateClusters: #EmptyState & {
 
 // EmptyStateDeployments is shown when the deployment list is empty.
 EmptyStateDeployments: #EmptyState & {
-	title:       "No deployments in this namespace"
-	message:     "No Deployment resources exist in the selected namespace."
+	title:   "No deployments in this namespace"
+	message: "No Deployment resources exist in the selected namespace."
 }
 
 // EmptyStateSearchResults is shown when command palette search returns zero results.
 EmptyStateSearchResults: #EmptyState & {
-	title:       "No results"
-	message:     "Try a different search term or check spelling."
+	title:   "No results"
+	message: "Try a different search term or check spelling."
 }
 
 // EmptyStateToastHistory is shown when Settings → Activity Log has no entries.
 EmptyStateToastHistory: #EmptyState & {
-	title:       "No activity yet"
-	message:     "Notification history will appear here after your first operation."
+	title:   "No activity yet"
+	message: "Notification history will appear here after your first operation."
 }
