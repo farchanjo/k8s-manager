@@ -1,229 +1,209 @@
-// DDD role: AggregateRoot
-// SQLite physical schema for the K8sManager local store.
-// Rendered with the DBML (https://dbml.dbdiagram.io/) dialect.
+// DDD role: PersistenceSchema
+// Canonical SQLite physical schema for the K8sManager local store.
+// Reference: ADR-0010 (local-persistence-sqlite-keychain).
 //
-// Path: ~/Library/Application Support/com.archanjo.K8sManager/storage.sqlite3
-// PRAGMAs:
-//   journal_mode=WAL
-//   synchronous=NORMAL
-//   foreign_keys=ON
-//   busy_timeout=5000
-//   cache_size=-65536
+// Storage path: ~/.config/k8smanager/storage.sqlite3
+//   (ADR-0026 moves root from ~/Library/Application Support/; ADR-0010 rules
+//   carry forward unchanged.)
 //
-// Schema evolution: append-only numbered migrations; the version is
-// pinned in the `schema_migrations` table. Migration code lives in
-// the `local_persistence` Swift target.
+// PRAGMAs applied at every connection open:
+//   PRAGMA journal_mode=WAL;
+//   PRAGMA synchronous=NORMAL;
+//   PRAGMA foreign_keys=ON;
+//   PRAGMA busy_timeout=5000;
+//   PRAGMA cache_size=-65536;   -- ~64 MiB page cache
+//   PRAGMA wal_autocheckpoint=1000;
+//
+// Schema evolution: append-only numbered migrations, each a Swift function
+// running inside a single GRDB transaction. Version is pinned in the
+// `schema_migrations` table. Down-migration is not supported.
+//
+// Security boundary:
+//   - LLM API keys, OIDC refresh tokens, and Azure tokens live in the
+//     macOS Keychain only (three namespaces per ADR-0010 refinement note).
+//   - Per-cluster JSON view state lives under
+//     ~/.config/k8smanager/clusters/<clusterId>/ — NOT in this database.
+//   - No row in any table may contain an API key value or raw token.
 
 Project k8s_manager_storage {
   database_type: "SQLite"
-  note: "Single-file local store for chat history, provider profiles, cluster-analysis cache, MCP invocation log, and preferences."
+  Note: "Single-file local store for chat history, provider profiles, cluster-analysis cache, mutation audit, editor drafts, MCP wire log, operator preferences, and trusted exec-plugin registry. Secrets remain in macOS Keychain (ADR-0010). Per-cluster view state is in JSON files (ADR-0025, ADR-0026)."
 }
+
+// ---------------------------------------------------------------------------
+// Table definitions
+// ---------------------------------------------------------------------------
 
 Table schema_migrations {
-  version int [pk, note: "Strictly monotonic. Latest applied migration."]
-  applied_at_rfc3339 text [not null]
-  description text [not null]
-}
+  version int [pk, note: "Strictly monotonic integer. Identifies the highest applied migration."]
+  applied_at varchar [not null, note: "RFC 3339 timestamp of when the migration completed."]
+  description varchar [not null, note: "Human-readable label matching the Swift function name, e.g. 'v1_initial_schema'."]
 
-Table provider_profiles {
-  id text [pk, note: "UUIDv7"]
-  display_name text [not null]
-  kind text [not null, note: "'anthropic' | 'openai' | 'openai_compatible'"]
-  base_url text [null, note: "Required when kind='openai_compatible'"]
-  model_id text [not null]
-  key_alias text [not null, unique, note: "References Keychain account; not the key value"]
-  sampling_defaults_json text [not null, note: "Serialised SamplingConfig"]
-  created_at_rfc3339 text [not null]
-  updated_at_rfc3339 text [not null]
-
-  Indexes {
-    (kind, model_id)
-  }
-}
-
-Table provider_capabilities {
-  provider_profile_id text [pk, ref: > provider_profiles.id]
-  supports_streaming boolean [not null, default: true]
-  supports_tool_use boolean [not null, default: true]
-  supports_usage_events boolean [not null, default: false]
-  detected_at_rfc3339 text [not null]
+  Note: "Append-only ledger of applied migrations. The application asserts on launch that the stored version matches the highest migration registered in the Swift migrator. Reference: ADR-0010."
 }
 
 Table chat_sessions {
-  id text [pk, note: "UUIDv7"]
-  title text [not null]
-  provider_profile_id text [not null, ref: > provider_profiles.id]
-  pinned_kubernetes_context_id text [null]
-  system_prompt text [not null]
-  status text [not null, note: "'active' | 'archived' | 'trash'"]
-  turn_count int [not null, default: 0]
-  created_at_rfc3339 text [not null]
-  updated_at_rfc3339 text [not null]
+  id varchar [pk, note: "UUIDv7 — lexicographically sortable by creation time."]
+  created_at varchar [not null, note: "RFC 3339."]
+  updated_at varchar [not null, note: "RFC 3339; updated on every message append."]
+  title varchar [null, note: "User-visible label; null until the assistant infers one."]
+  provider_profile_id varchar [ref: > provider_profiles.id, null, note: "UUIDv7. FK to the LLM profile used in this session. Nullable so sessions survive profile deletion."]
+  cluster_id varchar [null, note: "UUIDv7 of the pinned cluster. No FK — cluster state is managed in per-cluster JSON files (ADR-0025)."]
+  archived_at varchar [null, note: "RFC 3339. Null while active. Set to indicate the session was archived by the operator."]
 
   Indexes {
-    (status, updated_at_rfc3339) [name: "idx_sessions_status_updated"]
+    (provider_profile_id) [name: "idx_chat_sessions_provider"]
+    (archived_at) [name: "idx_chat_sessions_archived"]
   }
+
+  Note: "Represents one continuous conversation between the operator and the LLM assistant. Provider profile and cluster are soft references — the session record survives profile or cluster deletion. Reference: ADR-0010, assistant_chat bounded context."
 }
 
 Table chat_messages {
-  id text [pk, note: "UUIDv7"]
-  session_id text [not null, ref: > chat_sessions.id]
-  turn int [not null]
-  created_at_rfc3339 text [not null]
-  role text [not null, note: "'system' | 'user' | 'assistant'"]
-  content text [not null]
-  streaming boolean [not null, default: false]
-  finish_reason text [null]
-  prompt_tokens int [null]
-  completion_tokens int [null]
-  cached_prompt_tokens int [null]
+  id varchar [pk, note: "UUIDv7."]
+  session_id varchar [not null, ref: > chat_sessions.id, note: "UUIDv7. Cascading FK to the owning session."]
+  role varchar [not null, note: "'system' | 'user' | 'assistant' | 'tool'"]
+  content text [not null, note: "Full message content. For tool results this is the rendered output."]
+  tool_calls_json text [null, note: "Serialised tool-call array for assistant turns. Redacted per the secret_redaction policy (ADR-0027) before storage; field is null for non-assistant roles."]
+  created_at varchar [not null, note: "RFC 3339."]
 
   Indexes {
-    (session_id, turn) [unique, name: "idx_messages_session_turn"]
+    (session_id, created_at) [name: "idx_chat_messages_session_time"]
   }
+
+  Note: "Ordered log of all messages in a chat session. The (session_id, created_at) index supports efficient chronological retrieval. tool_calls_json is subject to the redaction policy — any credential-shaped value is scrubbed before the row commits. Reference: ADR-0010, ADR-0027."
 }
 
-Table tool_call_records {
-  call_id text [pk]
-  session_id text [not null, ref: > chat_sessions.id]
-  parent_message_id text [not null, ref: > chat_messages.id]
-  tool_name text [not null]
-  requested_at_rfc3339 text [not null]
-  completed_at_rfc3339 text [null]
-  arguments_json text [not null]
-  result_json text [null]
-  status text [not null, note: "'requested'|'running'|'succeeded'|'denied_by_policy'|'failed'|'cancelled'"]
-  detail text [null]
+Table provider_profiles {
+  id varchar [pk, note: "UUIDv7."]
+  kind varchar [not null, note: "'anthropic' | 'openai' | 'openai-compatible'"]
+  display_name varchar [not null, note: "Operator-visible label shown in the profile picker."]
+  endpoint_url varchar [not null, note: "API base URL. For Anthropic this is https://api.anthropic.com; for openai-compatible it is the custom host."]
+  model varchar [not null, note: "Model identifier string, e.g. 'claude-opus-4-7' or 'gpt-4o'."]
+  temperature real [null, note: "Sampling temperature override. Null means use the provider default."]
+  key_alias varchar [not null, note: "Keychain account slug under service='com.archanjo.K8sManager.llm'. Never the key value itself."]
+  local_only boolean [not null, default: false, note: "True for Ollama / LM Studio profiles that require no network key."]
+  created_at varchar [not null, note: "RFC 3339."]
+  updated_at varchar [not null, note: "RFC 3339."]
 
   Indexes {
-    (session_id, requested_at_rfc3339) [name: "idx_tool_calls_session_time"]
+    (kind) [name: "idx_provider_profiles_kind"]
   }
-}
 
-Table mcp_invocations {
-  id text [pk, note: "UUIDv7"]
-  tool_name text [not null]
-  requested_at_rfc3339 text [not null]
-  completed_at_rfc3339 text [null]
-  kubernetes_context_id text [not null]
-  arguments_json text [not null]
-  outcome_kind text [not null, note: "'succeeded'|'denied_by_policy'|'failed'|'cancelled'"]
-  kubernetes_status_code int [null]
-  truncated boolean [not null, default: false]
-  result_bytes int [null]
-  result_json text [null]
-  detail text [null]
-
-  Indexes {
-    (tool_name, requested_at_rfc3339) [name: "idx_invocations_tool_time"]
-    (kubernetes_context_id, requested_at_rfc3339) [name: "idx_invocations_context_time"]
-  }
+  Note: "Describes a single LLM provider configuration. The actual API key is held exclusively in the macOS Keychain entry identified by key_alias (service='com.archanjo.K8sManager.llm', account=key_alias). Reference: ADR-0008, ADR-0010."
 }
 
 Table cluster_analysis_cache {
-  id text [pk, note: "UUIDv7"]
-  kubernetes_context_id text [not null]
-  // analysis_kind is an extensible enumeration. Initial values:
-  //   'cluster_summary', 'node_pressure', 'rollout_history',
-  //   'workload_topology', 'recent_events_digest'.
-  analysis_kind text [not null]
-  summary_text text [not null]
-  payload_json text [not null]
-  generated_at_rfc3339 text [not null]
-  expires_at_rfc3339 text [not null]
+  id varchar [pk, note: "UUIDv7."]
+  cluster_id varchar [not null, note: "UUIDv7 of the target cluster. No FK — cluster registry lives outside SQLite."]
+  kind varchar [not null, note: "Analysis kind discriminator, e.g. 'cluster_summary' | 'node_pressure' | 'rollout_history' | 'workload_topology' | 'recent_events_digest'."]
+  payload_json text [not null, note: "Full JSON payload produced by the intelligence analysis step."]
+  expires_at_rfc3339 varchar [not null, note: "RFC 3339. Rows past this timestamp are eligible for pruning by the vacuum task."]
+  created_at varchar [not null, note: "RFC 3339."]
 
   Indexes {
-    (kubernetes_context_id, analysis_kind) [name: "idx_analysis_context_kind"]
-    (expires_at_rfc3339) [name: "idx_analysis_expiry"]
+    (cluster_id, expires_at_rfc3339) [name: "idx_analysis_cache_cluster_expiry"]
   }
+
+  Note: "TTL-bounded cache of LLM-generated cluster analyses. The vacuum task prunes rows where expires_at_rfc3339 < now(). The (cluster_id, expires_at_rfc3339) index supports both lookup by cluster and batch-expiry scans. Reference: ADR-0010, cluster_intelligence bounded context."
 }
 
 Table operator_preferences {
-  key text [pk]
-  value_json text [not null]
-  updated_at_rfc3339 text [not null]
+  key varchar [pk, note: "Dot-separated preference key, e.g. 'theme' | 'locale' | 'sidebar.width'."]
+  value_json text [not null, note: "JSON-encoded value. Examples: key='theme', value_json='\"system\"'; key='locale', value_json='\"en-US\"'; key='sidebar.width', value_json='320'."]
+  updated_at varchar [not null, note: "RFC 3339."]
+
+  Note: "Schemaless key/value store for application-level preferences. Consumed via OperatorPreferencesPort by the app_shell bounded context. Reference: ADR-0010."
 }
 
-// Migration note: cluster_mutation_audit added in migration ADR-0012.
-// This table records every operator-initiated mutation to a Kubernetes
-// cluster, including the confirmation token, field manager, and outcome.
-// Rows are append-only (never updated or deleted by the application).
-// Sensitive credential material MUST NOT appear in any column.
-Table cluster_mutation_audit {
-  id text [pk, note: "UUIDv7"]
-  command_id text [not null, note: "UUIDv7; correlates with the issued #MutationCommand"]
-  kubernetes_context_id text [not null, note: "Shared kernel ContextId UUIDv7"]
-  kind text [not null, note: "GVK kind (Pod, Deployment, Secret, etc.)"]
-  api_group text [null, note: "Empty for core/v1, otherwise group (apps, batch, networking.k8s.io, ...)"]
-  api_version text [not null]
-  namespace text [null, note: "Cluster-scoped resources leave this null"]
-  name text [not null]
-  verb text [not null, note: "get|list|watch|create|update|patch|delete|scale|rolloutRestart"]
-  field_manager_id text [not null, note: "Server-side apply field manager (com.archanjo.K8sManager by default)"]
-  manifest_digest text [null, note: "sha256 of the YAML payload for apply operations"]
-  confirmation_token text [not null, note: "UUIDv7 issued by the confirmation modal"]
-  double_confirmed boolean [not null, default: false, note: "True for destructive verbs (delete) after second confirmation"]
-  requested_at_rfc3339 text [not null]
-  completed_at_rfc3339 text [null]
-  outcome text [not null, note: "succeeded|denied_by_policy|failed|cancelled"]
-  kubernetes_status_code int [null]
-  detail text [null, note: "Operator-facing reason; MUST NOT include credential material"]
-
-  Indexes {
-    (kubernetes_context_id, requested_at_rfc3339) [name: "idx_mutation_audit_context_time"]
-    (verb, outcome) [name: "idx_mutation_audit_verb_outcome"]
-    (kind, namespace, name) [name: "idx_mutation_audit_target"]
-  }
-}
-
-// Migration note: editor_drafts added to support resource_browser editor sessions per ADR-0030.
-// Rows hold point-in-time snapshots of dirty #EditorSession buffers written by
-// DraftAutoSaver every 5 seconds while isDirty == true. Rows are keyed by
-// editor_session_id; the application retains only the most-recent draft per
-// session. Rows older than 24 hours with no corresponding active session are
-// eligible for pruning by the local_persistence maintenance routine.
 Table editor_drafts {
-  id text [pk, note: "UUIDv7"]
-  editor_session_id text [not null]
-  api_version text [null]
-  kind text [null]
-  namespace text [null]
-  name text [null]
-  source_format text [not null, note: "'yaml'|'json'|'markdown'"]
-  content text [not null]
-  saved_at_rfc3339 text [not null]
-  auto_saved boolean [not null, default: true]
+  id varchar [pk, note: "UUIDv7."]
+  editor_session_id varchar [not null, note: "UUIDv7 of the EditorSession that produced this draft. No FK — editor sessions are transient in-memory objects."]
+  resource_ref_json text [null, note: "JSON-encoded ResourceRef (apiVersion, kind, namespace, name). Null for new resources not yet applied."]
+  source_format varchar [not null, note: "'yaml' | 'json' | 'markdown'"]
+  content text [not null, note: "Full buffer content at the time of the auto-save snapshot."]
+  sensitive_content_redacted boolean [not null, default: false, note: "True when the content field was sanitised by the redaction policy before storage."]
+  saved_at varchar [not null, note: "RFC 3339. Used for age-based pruning."]
+  auto_saved boolean [not null, default: true, note: "False when the snapshot was triggered by an explicit operator save action."]
 
   Indexes {
-    (editor_session_id) [name: "idx_drafts_session"]
-    (saved_at_rfc3339) [name: "idx_drafts_age"]
+    (editor_session_id, saved_at) [name: "idx_editor_drafts_session_time"]
   }
+
+  Note: "Point-in-time snapshots of dirty EditorSession buffers written by DraftAutoSaver every 5 seconds. The editor_drafts_prune trigger removes rows older than 24 hours whose editor_session_id has no recent snapshot (orphan pruning). Reference: ADR-0030, resource_browser bounded context."
 }
 
-// Migration note: toasts history added per ADR-0032 — keeps last 100 entries for Settings > Activity Log.
-// Rows are written by ToastEmitter on every toast emission and updated with dismissed_at_rfc3339 on dismiss.
-// Retention: application-level DELETE after each INSERT targets rows where emitted_at_rfc3339 is older
-// than the 100th most-recent entry. No foreign keys — this table is append-only and self-contained.
-Table toast_history {
-  id text [pk, note: "UUIDv7"]
-  title text [not null]
-  message text [null]
-  severity text [not null, note: "'success'|'info'|'warning'|'error'|'neutral'"]
-  icon_symbol_name text [null]
-  emitted_at_rfc3339 text [not null]
-  action_id text [null]
-  action_payload_json text [null]
-  pinned boolean [not null, default: false]
-  dismissed_at_rfc3339 text [null]
+Table cluster_mutation_audit {
+  id varchar [pk, note: "UUIDv7."]
+  cluster_id varchar [not null, note: "UUIDv7 of the target cluster. No FK."]
+  verb varchar [not null, note: "'apply' | 'patch' | 'delete' | 'scale' | 'rollout-restart' | 'create'"]
+  gvk_group varchar [not null, note: "API group. Empty string for core/v1 resources."]
+  gvk_version varchar [not null, note: "API version, e.g. 'v1' | 'apps/v1'."]
+  gvk_kind varchar [not null, note: "Resource kind, e.g. 'Deployment' | 'Pod' | 'Secret'."]
+  namespace varchar [null, note: "Namespace. Null for cluster-scoped resources."]
+  resource_name varchar [not null, note: "Kubernetes metadata.name of the target resource."]
+  manifest_digest varchar [not null, note: "SHA-256 hex of the submitted manifest payload. Empty string for non-manifest verbs (delete, scale)."]
+  confirmation_token varchar [not null, note: "UUIDv7 issued by the confirmation modal. Proves the operator acknowledged the mutation."]
+  confirmation_issued_at_seconds bigint [not null, note: "Unix epoch seconds when the confirmation token was issued. Used to detect stale tokens."]
+  double_confirmed boolean [not null, default: false, note: "True after the second confirmation step for destructive verbs."]
+  requested_at varchar [not null, note: "RFC 3339. When the mutation was dispatched to the Kubernetes API."]
+  response_resource_version varchar [null, note: "resourceVersion returned by the API server on success. Null on failure."]
+  result varchar [not null, note: "'success' | 'conflict' | 'failed'"]
+  error_code varchar [null, note: "HTTP or Kubernetes status code as a string on failure, e.g. '409' | '403'."]
+  error_message text [null, note: "API server error body. MUST NOT contain credential material."]
+  previous_entry_digest varchar [not null, note: "SHA-256 hex of the previous row's canonical serialised form. Empty string for the first row in the table. Computed and verified in app code; the audit_chain_check trigger enforces append-only but not cryptographic verification (SQLite lacks SHA-256 functions natively)."]
 
   Indexes {
-    (emitted_at_rfc3339) [name: "idx_toasts_time"]
-    (severity, emitted_at_rfc3339) [name: "idx_toasts_severity_time"]
+    (cluster_id, requested_at) [name: "idx_mutation_audit_cluster_time"]
   }
+
+  Note: "Append-only ledger of every operator-initiated mutation to a Kubernetes cluster. Rows are guarded by two SQLite triggers (cluster_mutation_audit_no_update, cluster_mutation_audit_no_delete) defined in policies/audit-trigger.sql. The previous_entry_digest field enables offline chain verification. Reference: ADR-0012, ADR-0010."
 }
 
-Ref: provider_capabilities.provider_profile_id > provider_profiles.id [delete: cascade]
-Ref: chat_sessions.provider_profile_id > provider_profiles.id [delete: restrict]
+Table mcp_wire_log {
+  id varchar [pk, note: "UUIDv7."]
+  session_id varchar [not null, ref: > chat_sessions.id, note: "UUIDv7. FK to the owning chat session."]
+  direction varchar [not null, note: "'inbound' | 'outbound'"]
+  payload_redacted text [not null, note: "MCP wire frame with secrets scrubbed per the redaction policy (ADR-0027). Hard-capped at 256 KiB; truncated beyond that limit."]
+  created_at varchar [not null, note: "RFC 3339."]
+
+  Indexes {
+    (session_id, created_at) [name: "idx_mcp_wire_log_session_time"]
+  }
+
+  Note: "Low-level MCP protocol trace for debugging and diagnostics. Every frame is redacted before storage (ADR-0027 patterns). The payload_redacted column is capped at 256 KiB to bound storage growth. Rows are not automatically pruned — they age out with the owning chat session. Reference: ADR-0009, ADR-0027."
+}
+
+Table trusted_exec_plugins {
+  command_path varchar [pk, note: "Absolute path to the exec plugin binary, e.g. '/usr/local/bin/kubelogin'."]
+  kubeconfig_origin varchar [not null, note: "Absolute path of the kubeconfig file that declares this plugin, or 'builtin'."]
+  approved_at varchar [not null, note: "RFC 3339. When the operator approved this plugin."]
+  approved_by_user_id varchar [not null, note: "Platform user identifier at approval time, or the literal string 'local-user' on single-user systems."]
+
+  Note: "Registry of exec-plugin binaries the operator has explicitly approved to run. The cluster_connectivity bounded context consults this table before executing any kubeconfig exec plugin. Approval is shown to the operator on first encounter and persists across relaunches. Reference: ADR-0003, ADR-0018, cluster_connectivity bounded context."
+}
+
+// ---------------------------------------------------------------------------
+// Explicit referential integrity (delete actions)
+// ---------------------------------------------------------------------------
+
+Ref: chat_sessions.provider_profile_id > provider_profiles.id [delete: set null]
 Ref: chat_messages.session_id > chat_sessions.id [delete: cascade]
-Ref: tool_call_records.session_id > chat_sessions.id [delete: cascade]
-Ref: tool_call_records.parent_message_id > chat_messages.id [delete: cascade]
+Ref: mcp_wire_log.session_id > chat_sessions.id [delete: cascade]
+
+// ---------------------------------------------------------------------------
+// Logical grouping
+// ---------------------------------------------------------------------------
+
+TableGroup local_persistence {
+  schema_migrations
+  provider_profiles
+  chat_sessions
+  chat_messages
+  cluster_analysis_cache
+  operator_preferences
+  editor_drafts
+  cluster_mutation_audit
+  mcp_wire_log
+  trusted_exec_plugins
+}
