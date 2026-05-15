@@ -13,21 +13,53 @@ package port_forwarding.port_forward_policy
 # input.clusterName        — string: cluster name
 # input.operatorConfirmed  — bool: operator acknowledged a confirmation prompt
 # input.sessionAction      — "open" or "close"
+# input.bindAddress        — string: local address the tunnel binds to.
+#                            Omitting this field is treated as "127.0.0.1"
+#                            (loopback-only, safe default). Only "127.0.0.1",
+#                            "::1", and "" (absent — defaults to loopback) are
+#                            permitted; any other address (e.g. "0.0.0.0") is
+#                            denied because it exposes the tunnel on all
+#                            network interfaces.
 
 default allow := false
 
 # ---------------------------------------------------------------------------
-# Happy-path allow: non-privileged local port, non-kube-system target
+# Helper — bind address is safe (loopback only)
+# Absent field ("") is treated as "127.0.0.1" per the input schema contract.
+# ---------------------------------------------------------------------------
+
+bind_address_is_loopback {
+    input.bindAddress == "127.0.0.1"
+}
+
+bind_address_is_loopback {
+    input.bindAddress == "::1"
+}
+
+bind_address_is_loopback {
+    input.bindAddress == ""
+}
+
+# bindAddress absent from input → default to safe loopback
+bind_address_is_loopback {
+    not input.bindAddress
+}
+
+# ---------------------------------------------------------------------------
+# Happy-path allow: non-privileged local port, non-kube-system target,
+#                   loopback bind address.
 # ---------------------------------------------------------------------------
 
 allow {
     input.sessionAction == "open"
     input.localPort >= 1024
     input.pod.namespace != "kube-system"
+    bind_address_is_loopback
 }
 
 # ---------------------------------------------------------------------------
-# Happy-path allow: kube-system target with explicit confirmation
+# Happy-path allow: kube-system target with explicit confirmation,
+#                   loopback bind address.
 # ---------------------------------------------------------------------------
 
 allow {
@@ -35,6 +67,7 @@ allow {
     input.localPort >= 1024
     input.pod.namespace == "kube-system"
     input.operatorConfirmed == true
+    bind_address_is_loopback
 }
 
 # ---------------------------------------------------------------------------
@@ -57,6 +90,15 @@ deny_kube_system_without_confirmation[msg] {
     msg := sprintf(
         "port-forward denied: target pod %q is in kube-system namespace; explicit operator confirmation is required",
         [input.pod.name]
+    )
+}
+
+deny_non_loopback_bind_address[msg] {
+    input.sessionAction == "open"
+    not bind_address_is_loopback
+    msg := sprintf(
+        "port-forward denied: bindAddress %q is not a loopback address; only 127.0.0.1 and ::1 are permitted to prevent tunnel exposure on all network interfaces (tunnel-establish.feature:43-45)",
+        [input.bindAddress]
     )
 }
 
