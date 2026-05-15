@@ -352,7 +352,7 @@ open docs/arch/README.md   # start with the architecture root
 1. Read [`docs/arch/README.md`](docs/arch/README.md) for conventions, bounded context definitions,
    and the full ADR index.
 2. Browse [`docs/arch/decisions/`](docs/arch/decisions/) to understand each architectural choice —
-   ADR-0001 through ADR-0036 and growing.
+   ADR-0001 through ADR-0046 (baseline lock 2026-05-15).
 3. The repository is currently **spec-only**. No application binary exists yet; implementation
    begins after the specification stabilises.
 4. To contribute an architectural decision, open a PR that adds a new MADR 4.0 ADR under
@@ -362,7 +362,7 @@ open docs/arch/README.md   # start with the architecture root
 ## Decisions
 
 The full index lives in [`docs/arch/README.md`](docs/arch/README.md). At the time of writing the
-repository holds 36 proposed ADRs covering platform choice, Kubernetes adapter, kubeconfig read-only
+repository holds 46 accepted ADRs covering platform choice, Kubernetes adapter, kubeconfig read-only
 invariant, distribution and notarization, bounded contexts (initial and expanded), connection
 pooling, LLM provider abstraction, MCP host and in-process server, local persistence and Keychain
 split, Swift concurrency conventions, mutating operations policy, resource browser scope,
@@ -378,7 +378,7 @@ state-driven realtime UI, reactive stack integration, and watch stream lifecycle
 The roadmap is captured in ADRs rather than a separate document — each new capability lands as a new
 ADR before the first commit of code that implements it. The high-level direction is:
 
-1. Stabilise the MVP++ spec — all 36+ ADRs proposed; review and accept.
+1. Stabilise the MVP++ spec — all 46 ADRs accepted as baseline lock 2026-05-15.
 2. Begin implementation under a Swift Package Manager workspace (ADR-0020): 14 targets including 13
    bounded-context cores, a shared kernel, an application target, and a parallel adapter tree.
 3. Phase 2 work on native Helm (template engine + Sprig port; full install/upgrade) per ADR-0015 —
