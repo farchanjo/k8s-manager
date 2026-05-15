@@ -40,6 +40,12 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
             preferencesAdapter = container "Preferences Adapter" "UserDefaults overlay for transient UI state (window frame)." "Swift / UserDefaults"
             menuBarTray = container "Menu Bar Tray" "NSStatusItem with live cluster status widget, live metrics sparklines (CPU/mem/network/pods), recent mutations, active sessions, cluster picker. Refresh interval 5-60s; pauses on lid close, low power, or network unreachable." "Swift / SwiftUI / NSStatusItem"
             analyticsDashboard = container "Analytics Dashboard" "Multi-scope analytics dashboards (cluster / namespace / pod / node / workload / service / Helm release / debug timeline / topology). Widgets: sparklines, line charts, heatmaps p50/p95/p99, stacked bars, counts, top lists, event timelines, topology graphs, log error rates, diff viewers, conditions lists. Drill-down via click. Auto-refresh 5-60s." "Swift"
+
+            // Cross-context event bus (publish/subscribe abstraction, not a service)
+            // Defined per ADR-0040. Producers publish typed EventEnvelope values;
+            // consumers receive an AsyncStream<EventEnvelope> per subscription.
+            // bufferingOldest(64) per subscriber (ADR-0035). No replay; at-most-once delivery.
+            domainEventBus = container "DomainEventBusActor" "In-process typed event bus implementing DomainEventBusPort (ADR-0040). Maintains per-subscriber AsyncStream<EventEnvelope> continuations keyed by sourceContext and subscriberId. Emits DomainEventDropped to a dedicated meta-stream on buffer overflow. Producers never suspend; cancellation propagates through Swift structured concurrency Task trees." "Swift / AsyncStream"
         }
 
         // External systems
@@ -70,7 +76,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         appShell -> helmManagement "Reads ReleaseListReadModel, ReleaseDetailReadModel"
         appShell -> metricsObservability "Reads PrometheusEndpointStatusReadModel, CuratedQueryCatalogReadModel"
         appShell -> terminalSession "Reads OpenTerminalsReadModel"
-        appShell -> localPersistence "Reads operator preferences"
+        appShell -> localPersistence "Reads operator preferences via OperatorPreferencesPort"
 
         // Context navigation
         contextNavigation -> clusterConnectivity "Reads ClusterReadModel"
@@ -109,7 +115,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
 
         // Helm management
         helmManagement -> swiftkubeAdapter "Lists Secrets owner=helm; reads release blob"
-        helmManagement -> resourceBrowser "Delegates rollback apply via the server-side apply pipeline"
+        helmManagement -> clusterConnectivity "Submits rollback apply via ServerSideApplyPort (owned by cluster_connectivity); no dependency on resource_browser"
         helmManagement -> localPersistence "Caches release decode result for navigation speed"
 
         // Metrics observability
@@ -147,13 +153,40 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         // App shell preferences
         appShell -> preferencesAdapter "Transient UI prefs (window frame)"
 
+        // -----------------------------------------------------------------------
+        // DomainEventBus fan-out (ADR-0040 — publish/subscribe; arrows show direction of event flow)
+        // Producers publish to the bus; the bus fans out to subscribers.
+        // Each arrow is directional: publisher -> bus for publish; bus -> subscriber for subscribe.
+        // -----------------------------------------------------------------------
+
+        // Producers -> DomainEventBus
+        resourceBrowser -> domainEventBus "publish MutationApplied, MutationFailed, DraftSaved, DraftPruned"
+        clusterConnectivity -> domainEventBus "publish ClusterSessionOpened, ClusterSessionClosed, ClusterSessionDegraded, WatchStreamReconnected, WatchStreamDropped"
+        portForwarding -> domainEventBus "publish PortForwardEstablished, PortForwardClosed"
+        terminalSession -> domainEventBus "publish TerminalSessionOpened, TerminalSessionClosed"
+        helmManagement -> domainEventBus "publish HelmRollbackInitiated, HelmRollbackCompleted"
+        clusterIntelligence -> domainEventBus "publish ToolInvoked"
+        localPersistence -> domainEventBus "publish AuditEntryAppended"
+        appShell -> domainEventBus "publish LocaleChanged, ThemeChanged, PreferencesUpdated, ContextSwitched, DiagnosticsCollected"
+
+        // DomainEventBus -> Subscribers (AsyncStream<EventEnvelope> per subscriber)
+        domainEventBus -> analyticsDashboard "subscribe ClusterSession*, MutationApplied, WatchStream*, PortForward*, HelmRollback*, ToolInvoked, AuditEntryAppended, DraftSaved"
+        domainEventBus -> appShell "subscribe ClusterSession*, MutationApplied, DraftSaved, PortForward*"
+        domainEventBus -> localPersistence "subscribe MutationApplied (projects to mutation_audit); AuditEntryAppended (projects to audit_log)"
+        domainEventBus -> clusterIntelligence "subscribe ClusterSessionOpened, ClusterSessionClosed, MutationApplied"
+        domainEventBus -> contextNavigation "subscribe ClusterSessionOpened, ClusterSessionClosed, ContextSwitched"
+        domainEventBus -> assistantChat "subscribe ToolInvoked"
+        domainEventBus -> resourceBrowser "subscribe WatchStreamReconnected, DraftSaved"
+        domainEventBus -> portForwarding "subscribe ClusterSessionClosed (cascade teardown)"
+        domainEventBus -> terminalSession "subscribe MutationApplied (wait for debug Pod ready)"
+
         // Analytics dashboard
         analyticsDashboard -> clusterConnectivity "Reads ClusterReadModel and KubernetesApiPort for kube-state aggregations"
         analyticsDashboard -> resourceBrowser "Reads ResourceListReadModel and MutationAuditReadModel for resource counts and audit timeline"
         analyticsDashboard -> metricsObservability "Issues PromQL via prometheusAdapter for sparklines, heatmaps, counts, log error rate"
         analyticsDashboard -> helmManagement "Reads ReleaseListReadModel and ReleaseDetailReadModel for HelmReleaseDetail scope and topology"
         analyticsDashboard -> clusterIntelligence "Reads MCPInvocationLogReadModel for debug timeline assistant tool calls"
-        analyticsDashboard -> localPersistence "Persists dashboard customisation (operator-customised layouts)"
+        analyticsDashboard -> localPersistence "Persists dashboard customisation via DashboardPreferencesPort"
         analyticsDashboard -> menuBarTray "Reuses widget catalog from tray_metric_widget.cue for shared widgets"
 
         // Menu bar tray
@@ -163,8 +196,7 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         menuBarTray -> resourceBrowser "Reads MutationAuditReadModel for recent mutations widget"
         menuBarTray -> portForwarding "Reads ActivePortForwardsReadModel for sessions count"
         menuBarTray -> terminalSession "Reads OpenTerminalsReadModel for sessions count"
-        menuBarTray -> appShell "Quick actions: open main window, open chat, open settings"
-        appShell -> menuBarTray "Owns lifecycle; menuBarTray is part of app_shell BC but a distinct container"
+        appShell -> menuBarTray "Owns lifecycle and observes TrayCommand notifications via TrayCommandPort (open main window, open chat, open settings); menuBarTray is part of app_shell BC but a distinct container"
     }
 
     views {
