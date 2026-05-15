@@ -5,15 +5,16 @@
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
-- Tags — prometheus, metrics, observability, auto-discovery, promql, http-client, swift-concurrency, urlsession, codable
+- Tags — prometheus, metrics, observability, auto-discovery, promql, http-client, swift-concurrency,
+  urlsession, codable
 
 ## Context and problem statement
 
-K8sManager provides a resource browser, port-forwarding, and terminal access for Kubernetes clusters.
-Operators regularly need to inspect CPU, memory, network, and API-server health without leaving the
-application. Native Kubernetes metrics (via the Metrics Server) expose only instantaneous CPU and
-memory for Pods and Nodes. They do not support historical queries, rate calculations, or composite
-indicators such as API-server error rates or workload restart rates.
+K8sManager provides a resource browser, port-forwarding, and terminal access for Kubernetes
+clusters. Operators regularly need to inspect CPU, memory, network, and API-server health without
+leaving the application. Native Kubernetes metrics (via the Metrics Server) expose only
+instantaneous CPU and memory for Pods and Nodes. They do not support historical queries, rate
+calculations, or composite indicators such as API-server error rates or workload restart rates.
 
 Prometheus, when deployed in-cluster (most commonly via kube-prometheus-stack), stores time-series
 data and exposes a REST HTTP API that any client can query with PromQL. K8sManager must integrate
@@ -34,9 +35,10 @@ The questions this ADR must settle are:
 
 - K8sManager uses URLSession and Codable throughout; no third-party networking library is in scope.
 - No public Swift package for Prometheus query exists; an in-house HTTP client is required.
-- The application is macOS-native. Network calls must use async/await and Swift structured concurrency.
-- Security: bearer tokens must never persist to disk. Prometheus auth follows the same session-scoped
-  token strategy used by KubernetesApiPort.
+- The application is macOS-native. Network calls must use async/await and Swift structured
+  concurrency.
+- Security: bearer tokens must never persist to disk. Prometheus auth follows the same
+  session-scoped token strategy used by KubernetesApiPort.
 - UX: dashboards must render within 1 second when kube-prometheus-stack is installed and healthy.
 - Graceful degradation: when no Prometheus is reachable, the UI shows an actionable explanation, not
   a blank panel.
@@ -95,8 +97,8 @@ K8sManager implements Option C.
 ### Discovery pipeline
 
 The discovery pipeline runs once when a cluster context becomes active. Results are stored in the
-`PrometheusEndpointRepository` (backed by local_persistence / SQLite) with a `discoverySource`
-field indicating which tier produced the result.
+`PrometheusEndpointRepository` (backed by local_persistence / SQLite) with a `discoverySource` field
+indicating which tier produced the result.
 
 The pipeline is implemented as `PrometheusDiscoveryService`, a Domain Service in the
 `metrics_observability` bounded context. It depends on `KubernetesApiPort` for the Service listing
@@ -106,14 +108,18 @@ Discovery sources and their precedence order:
 
 1. `manual_override` — operator-supplied URL in per-cluster settings. Highest precedence. The
    pipeline skips tiers 2–4 when a manual override is stored.
-2. `well_known` — fixed URL `http://prometheus-operated.monitoring.svc:9090`. Probed via a HEAD
-   request to `/-/healthy`. Used when the probe returns 2xx.
+2. `well_known` — the kube-apiserver proxy path for the default kube-prometheus-stack Service:
+   `/api/v1/namespaces/monitoring/services/http:prometheus-operated:9090/proxy`. A HEAD request is
+   issued to this proxy path appended with `/api/v1/query?query=up&time=0`. The proxy approach uses
+   the existing authenticated cluster connection (the same `KubernetesSession` bearer token already
+   held in memory) and works from the operator's desktop without requiring network reachability to
+   in-cluster addresses. Used when the proxy request returns 2xx.
 3. `auto_label` — Service with `app.kubernetes.io/name=prometheus`.
 4. `auto_annotation` — Service with `prometheus.io/scrape=true`.
 
-When multiple candidates are found via auto_label or auto_annotation, the first sorted by
-(namespace ASC, name ASC) becomes the active endpoint. All candidates are written to the repository
-so the settings UI can offer selection.
+When multiple candidates are found via auto_label or auto_annotation, the first sorted by (namespace
+ASC, name ASC) becomes the active endpoint. All candidates are written to the repository so the
+settings UI can offer selection.
 
 ### HTTP client
 
@@ -136,7 +142,8 @@ are decoded through a generic `PrometheusAPIResponse<T>` envelope where `T` is o
 - `ScalarResult` — `resultType == "scalar"`, decoded as a single `(timestamp, value)` pair
 - `StringResult` — `resultType == "string"`, decoded as a single string
 
-Decoding errors for unrecognised result types surface as `PrometheusClientError.unsupportedResultType`.
+Decoding errors for unrecognised result types surface as
+`PrometheusClientError.unsupportedResultType`.
 
 Query timeout is 30 seconds (configurable via a property on `PrometheusHTTPClient`, not a global).
 
@@ -150,8 +157,8 @@ Two strategies are supported, mapped to the `authStrategy` field of `PrometheusE
   kubeconfig or service-account mount) is forwarded on every request. This covers the common case
   where Prometheus is behind kube-rbac-proxy or an OIDC-protected ingress that accepts the same
   cluster credential.
-- `bearer_explicit` — a separate bearer token supplied by the operator in per-cluster settings.
-  Used when Prometheus is exposed outside the cluster (e.g., behind an ingress with its own
+- `bearer_explicit` — a separate bearer token supplied by the operator in per-cluster settings. Used
+  when Prometheus is exposed outside the cluster (e.g., behind an ingress with its own
   authentication mechanism independent of the cluster credential).
 
 Bearer tokens are held in memory for the duration of the session. They are not written to SQLite or
@@ -162,18 +169,18 @@ triggers a re-authentication pass through `KubernetesApiPort` and retries the re
 retry also fails, the endpoint status is set to `unauthorized` and the metrics panel surfaces an
 actionable message.
 
-When using `bearer_explicit` and a `401` is received, no automatic retry is performed. The
-operator must update the token in settings.
+When using `bearer_explicit` and a `401` is received, no automatic retry is performed. The operator
+must update the token in settings.
 
 ### Caching
 
-A short-lived cache stores the last result per `(endpointId, expr, queryParams)` key with a TTL of
-5 seconds. The cache is purely in-memory (a `Dictionary` behind an `actor`). Its purpose is to
-prevent redundant HTTP requests when the same PromQL expression is rendered in multiple UI
-components simultaneously (e.g., a summary card and a full chart for the same Pod).
+A short-lived cache stores the last result per `(endpointId, expr, queryParams)` key with a TTL of 5
+seconds. The cache is purely in-memory (a `Dictionary` behind an `actor`). Its purpose is to prevent
+redundant HTTP requests when the same PromQL expression is rendered in multiple UI components
+simultaneously (e.g., a summary card and a full chart for the same Pod).
 
-The cache does not persist across application launches. It does not apply to series or label
-queries (metadata calls).
+The cache does not persist across application launches. It does not apply to series or label queries
+(metadata calls).
 
 ### PromQL curated queries
 
@@ -181,33 +188,39 @@ The application ships a compile-time set of curated PromQL templates covering th
 categories and queries:
 
 CPU:
+
 - `pod_cpu_usage_seconds` — rate of CPU seconds consumed by a Pod container group over 2 minutes.
   Placeholder: `{namespace}`, `{podName}`.
-- `node_cpu_busy_percent` — 1 minus the idle fraction across all CPU modes for a Node.
-  Placeholder: `{node}`.
+- `node_cpu_busy_percent` — 1 minus the idle fraction across all CPU modes for a Node. Placeholder:
+  `{node}`.
 
 Memory:
+
 - `pod_memory_working_set_bytes` — working-set bytes for a Pod. Placeholder: `{namespace}`,
   `{podName}`.
 - `node_memory_available_bytes` — available memory on a Node. Placeholder: `{node}`.
 
 Network:
+
 - `pod_network_rx_bytes_rate` — receive byte rate for a Pod's network interface over 2 minutes.
   Placeholder: `{namespace}`, `{podName}`.
 - `pod_network_tx_bytes_rate` — transmit byte rate for a Pod. Placeholder: `{namespace}`,
   `{podName}`.
 
 Disk:
+
 - `node_disk_io_utilization` — fraction of time the disk was busy on a Node. Placeholder: `{node}`.
 
 API server:
+
 - `apiserver_request_rate` — total API-server request rate over 1 minute.
 - `apiserver_5xx_rate` — 5xx error rate from the API server.
 - `apiserver_p99_latency` — 99th-percentile request latency in seconds.
 
 Workload health:
-- `workload_replicas_available` — available replicas for a Deployment or StatefulSet.
-  Placeholder: `{namespace}`.
+
+- `workload_replicas_available` — available replicas for a Deployment or StatefulSet. Placeholder:
+  `{namespace}`.
 - `workload_restart_rate` — rate of container restarts over 15 minutes. Placeholder: `{namespace}`.
 
 Default range for all curated queries: last 60 minutes, step 30 seconds.
@@ -219,6 +232,32 @@ Downsampling: when a query result contains more than 200 data points the applica
 exactly 200 points using uniform index sampling before passing data to the chart renderer. This
 keeps rendering time bounded regardless of step granularity.
 
+### PromQL injection mitigation
+
+Curated PromQL templates accept operator-context values (namespace, pod name, node name, label keys)
+as substitution parameters. Unvalidated string interpolation into a PromQL expression is a PromQL
+injection vector: a maliciously crafted resource name could close the current label matcher and
+append an arbitrary PromQL expression.
+
+Mitigation strategy:
+
+- All substitution values are validated against the Kubernetes label-value regex
+  `^[a-zA-Z0-9._-]{1,63}$` before interpolation. Values that do not match are rejected; the
+  corresponding query is not issued and the dashboard panel displays a `#InvalidParameterError`
+  rather than a blank or erroneous result. An audit entry is written with `outcome=denied` and
+  `detail=promql_injection_guard`.
+- For label matchers in PromQL expressions, substitution uses anchored regex equality via
+  `=~"^<value>$"` rather than exact equality `="<value>"`. This ensures that even if a value
+  contained special characters that escaped the regex guard, the anchored form limits the match to
+  the intended value only.
+- Where the Prometheus HTTP API supports it (the `query` and `query_range` endpoints accept `GET`
+  parameters), substitution values are passed as separate URL-encoded form parameters rather than
+  inlined into the PromQL expression string. The adapter constructs the URL with `URLComponents` and
+  sets each parameter via `URLQueryItem`, which applies percent-encoding automatically and prevents
+  injection through unencoded characters.
+- The curated query template set is a compile-time constant. No template is constructed from user
+  input at runtime.
+
 ### No subprocess
 
 All Prometheus communication is via the HTTP API described above. The application does not invoke
@@ -229,15 +268,15 @@ All Prometheus communication is via the HTTP API described above. The applicatio
 - Operators using kube-prometheus-stack get working dashboards with zero configuration.
 - Operators with non-standard deployments retain full control via manual URL override.
 - No third-party Swift dependency is introduced; the client is auditable and maintainable.
-- Bearer tokens never touch disk; the security posture matches the existing KubernetesApiPort
-  token handling.
+- Bearer tokens never touch disk; the security posture matches the existing KubernetesApiPort token
+  handling.
 - Curated queries cover the most common diagnostic scenarios without requiring PromQL knowledge.
 
 ## Negative consequences
 
 - The in-house HTTP client requires ongoing maintenance as the Prometheus API evolves.
-- The 5-second in-memory cache provides limited protection against burst requests; applications
-  with many simultaneous chart views may still issue parallel HTTP calls.
+- The 5-second in-memory cache provides limited protection against burst requests; applications with
+  many simultaneous chart views may still issue parallel HTTP calls.
 - Discovery cannot locate Prometheus endpoints that are not represented as Kubernetes Services
   (e.g., external Prometheus reachable only by DNS alias not backed by a Service object). These
   require manual override.
@@ -252,12 +291,23 @@ The feature is considered complete when:
 2. Against a cluster without any Prometheus installation, the metrics panel shows an empty-state
    view with a hint message referencing kube-prometheus-stack installation steps. No unhandled error
    or blank panel is shown.
-3. All three auto-discovery tiers (well_known, auto_label, auto_annotation) are covered by unit
+3. The `well_known` discovery tier uses the kube-apiserver proxy path
+   `/api/v1/namespaces/monitoring/services/http:prometheus-operated:9090/proxy` rather than a direct
+   in-cluster URL. A unit test with a mock URL session verifies that the HEAD request is directed to
+   the proxy path with the cluster's base URL as the prefix, not to any direct in-cluster address.
+4. All three auto-discovery tiers (well_known, auto_label, auto_annotation) are covered by unit
    tests with mock HTTP responses.
-4. Manual URL override is tested end-to-end: entering a URL in settings causes the override to take
+5. Manual URL override is tested end-to-end: entering a URL in settings causes the override to take
    precedence over any auto-detected candidate.
-5. Bearer token re-authentication (bearer_inherit, 401 retry) is covered by a unit test using a
-   mock URLSession.
+6. Bearer token re-authentication (bearer_inherit, 401 retry) is covered by a unit test using a mock
+   URLSession.
+7. PromQL injection guard: a unit test presents a substitution value of `default}\n# injected`
+   (which violates the label-value regex) and asserts that no HTTP request is issued to the
+   Prometheus endpoint, a `#InvalidParameterError` is returned, and an audit entry with
+   `outcome=denied` and `detail=promql_injection_guard` is written.
+8. PromQL injection guard: a unit test presents a valid substitution value `my-pod-abc123` and
+   asserts that the resulting query URL contains the value percent-encoded as a `URLQueryItem`
+   parameter, not inlined as a raw string into the `query=` parameter value.
 
 ## More information
 
