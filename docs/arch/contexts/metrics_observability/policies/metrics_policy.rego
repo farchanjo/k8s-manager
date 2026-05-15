@@ -33,14 +33,16 @@ is_via_apiserver_proxy(url) {
 
 # ---------------------------------------------------------------------------
 # PromQL injection mitigations
-# Label values that come from operator input must not contain characters
-# that can escape the label matcher and inject arbitrary PromQL.
-# Allowed: alphanumeric, hyphens, dots, underscores, forward slashes, colons.
-# Denied: curly braces, quotes, backticks, semicolons, pipes, parentheses.
+# Label values that come from operator input must conform to an explicit
+# allowlist (ADR-0044 line 44): ^[a-zA-Z0-9._-]{1,63}$
+# Only alphanumeric characters, dots, underscores, and hyphens are permitted.
+# Length is capped at 63 characters (Kubernetes label-value limit).
+# Any character outside this set — including spaces, @, #, $, ^, ~, +, =,
+# ?, <, >, comma, backtick — is rejected.
 # ---------------------------------------------------------------------------
 
 label_value_safe(val) {
-    not regex.match(`[{}'";|()\[\]\\]`, val)
+    regex.match(`^[a-zA-Z0-9._\-]{1,63}$`, val)
 }
 
 all_label_values_safe {
@@ -75,7 +77,7 @@ deny_unsafe_label_value[msg] {
     some name, val in input.labelValues
     not label_value_safe(val)
     msg := sprintf(
-        "metrics query denied: label %q has value %q containing characters that could inject PromQL; only alphanumeric, hyphens, dots, underscores, slashes, and colons are permitted",
+        "metrics query denied: label %q has value %q that does not match the allowed pattern ^[a-zA-Z0-9._-]{1,63}$; only alphanumeric characters, dots, underscores, and hyphens (max 63 chars) are permitted (ADR-0044)",
         [name, val]
     )
 }
