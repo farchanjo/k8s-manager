@@ -134,6 +134,128 @@ deny contains msg if {
 }
 
 # ---------------------------------------------------------------------------
+# Subscriber ACL (ADR-0040 "Read model dependency map").
+# Maps subscriber bounded context → set of event types it is permitted to
+# receive. Any subscription outside this table is denied.
+#
+# Source of truth: ADR-0040 §"Read model dependency map".
+# Extend this table whenever a new subscriber relationship is established.
+# ---------------------------------------------------------------------------
+
+subscriber_acl := {
+    "analytics_dashboard": {
+        "cluster_connectivity.ClusterSessionOpened",
+        "cluster_connectivity.ClusterSessionClosed",
+        "cluster_connectivity.ClusterSessionDegraded",
+        "cluster_connectivity.WatchStreamReconnected",
+        "cluster_connectivity.WatchStreamDropped",
+        "resource_browser.MutationApplied",
+        "port_forwarding.PortForwardEstablished",
+        "port_forwarding.PortForwardClosed",
+        "helm_management.HelmRollbackInitiated",
+        "helm_management.HelmManifestApplied",
+        "helm_management.HelmRollbackCompleted",
+    },
+    "app_shell": {
+        "cluster_connectivity.ClusterSessionOpened",
+        "cluster_connectivity.ClusterSessionClosed",
+        "cluster_connectivity.ClusterSessionDegraded",
+        "resource_browser.MutationApplied",
+        "resource_browser.DraftSaved",
+    },
+    "local_persistence": {
+        "local_persistence.AuditEntryAppended",
+        "resource_browser.MutationApplied",
+    },
+    "cluster_intelligence": {
+        "cluster_connectivity.ClusterSessionOpened",
+        "cluster_connectivity.ClusterSessionClosed",
+        "resource_browser.MutationApplied",
+    },
+    "context_navigation": {
+        "cluster_connectivity.ClusterSessionOpened",
+        "cluster_connectivity.ClusterSessionClosed",
+        "app_shell.ContextSwitched",
+    },
+    "assistant_chat": {
+        "cluster_intelligence.ToolInvoked",
+    },
+    # The domain event bus meta-subscriber drains DomainEventDropped for
+    # self-monitoring (ADR-0027). It may subscribe to any event type.
+    "domain_event_bus": {
+        "domain_event_bus.DomainEventDropped",
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Rule: subscriber not permitted for this event type.
+# Evaluated when input carries a subscriber field (subscribe-side evaluation).
+# If input.subscriber is absent (publish-side check), this rule is a no-op.
+# ---------------------------------------------------------------------------
+
+deny contains msg if {
+    input.subscriber != null
+    input.subscriber != ""
+    allowed := subscriber_acl[input.subscriber]
+    not input.eventType in allowed
+    msg := sprintf(
+        "subscriber %q is not permitted to receive event type %q — update subscriber_acl in event_bus_policy.rego and ADR-0040 if this subscription is intentional",
+        [input.subscriber, input.eventType],
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Rule: unknown subscriber (not in ACL at all).
+# ---------------------------------------------------------------------------
+
+deny contains msg if {
+    input.subscriber != null
+    input.subscriber != ""
+    not subscriber_acl[input.subscriber]
+    msg := sprintf(
+        "unknown subscriber %q — add an entry to subscriber_acl in event_bus_policy.rego and ADR-0040",
+        [input.subscriber],
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Payload credential scan.
+# Serialised payload must not contain embedded API keys, tokens, or PEM
+# material. Reuses patterns from local_persistence.secret_redaction.
+# ---------------------------------------------------------------------------
+
+# Known credential-shaped patterns (vendor-prefixed and format-anchored).
+_secret_patterns := [
+    # Anthropic
+    `sk-(ant|proj|live|test)-[A-Za-z0-9_-]{16,}`,
+    # OpenAI (legacy + project)
+    `sk-[A-Za-z0-9]{20,}`,
+    # Google AI
+    `AIza[0-9A-Za-z_-]{35}`,
+    # Hugging Face
+    `hf_[A-Za-z0-9]{34,}`,
+    # Azure OpenAI subscription key (32-hex GUID without hyphens)
+    `[a-f0-9]{32}`,
+    # PEM material markers
+    `-----BEGIN (CERTIFICATE|PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY)-----`,
+]
+
+payload_contains_secret(serialized) if {
+    some pattern in _secret_patterns
+    regex.match(pattern, serialized)
+}
+
+deny contains msg if {
+    input.payloadSerialized != null
+    input.payloadSerialized != ""
+    payload_contains_secret(input.payloadSerialized)
+    msg := sprintf(
+        "event type %q: serialised payload contains a string matching a known credential pattern; credentials must not be published on the event bus",
+        [input.eventType],
+    )
+}
+
+# ---------------------------------------------------------------------------
 # Tests (OPA test suite — run with: opa test event_bus_policy.rego)
 # ---------------------------------------------------------------------------
 
@@ -283,4 +405,157 @@ test_deny_payload_one_over_boundary if {
     count(result) > 0
     some msg in result
     contains(msg, "payload too large")
+}
+
+# ---------------------------------------------------------------------------
+# Subscriber ACL tests
+# ---------------------------------------------------------------------------
+
+# -- pass: analytics_dashboard may receive MutationApplied ------------------
+
+test_allow_subscriber_analytics_mutation_applied if {
+    allow with input as object.union(
+        _valid_input,
+        {
+            "subscriber": "analytics_dashboard",
+            "payloadSerialized": "",
+        },
+    )
+}
+
+# -- pass: app_shell may receive DraftSaved ----------------------------------
+
+test_allow_subscriber_app_shell_draft_saved if {
+    allow with input as {
+        "eventType": "resource_browser.DraftSaved",
+        "subscriber": "app_shell",
+        "payloadSerialized": "",
+        "envelope": {
+            "eventId":       "01905e2a-dead-7000-beef-000000000010",
+            "eventType":     "resource_browser.DraftSaved",
+            "sourceContext": "resource_browser",
+            "occurredAt":    "2026-05-15T10:00:00.000Z",
+            "version":       1,
+        },
+        "payload": {"size": 64},
+    }
+}
+
+# -- fail: app_shell may NOT receive HelmRollbackInitiated -------------------
+
+test_deny_subscriber_app_shell_helm_event if {
+    result := deny with input as {
+        "eventType": "helm_management.HelmRollbackInitiated",
+        "subscriber": "app_shell",
+        "payloadSerialized": "",
+        "envelope": {
+            "eventId":       "01905e2a-dead-7000-beef-000000000011",
+            "eventType":     "helm_management.HelmRollbackInitiated",
+            "sourceContext": "helm_management",
+            "occurredAt":    "2026-05-15T10:00:00.000Z",
+            "version":       1,
+        },
+        "payload": {"size": 64},
+    }
+    count(result) > 0
+    some msg in result
+    contains(msg, "not permitted to receive")
+}
+
+# -- fail: unknown subscriber denied ----------------------------------------
+
+test_deny_unknown_subscriber if {
+    result := deny with input as object.union(
+        _valid_input,
+        {
+            "subscriber":       "rogue_context",
+            "payloadSerialized": "",
+        },
+    )
+    count(result) > 0
+    some msg in result
+    contains(msg, "unknown subscriber")
+}
+
+# -- pass: absent subscriber field skips ACL check (publish-side) -----------
+
+test_allow_absent_subscriber_skips_acl if {
+    allow with input as object.union(
+        _valid_input,
+        {"payloadSerialized": ""},
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Payload credential scan tests
+# ---------------------------------------------------------------------------
+
+# -- fail: Anthropic key in payload ----------------------------------------
+
+test_deny_anthropic_key_in_payload if {
+    result := deny with input as object.union(
+        _valid_input,
+        {
+            "payloadSerialized": "sk-ant-api01-ABCDEFGHIJKLMNOPQRSTUVWXYZabcde",
+            "subscriber":        "",
+        },
+    )
+    count(result) > 0
+    some msg in result
+    contains(msg, "credential pattern")
+}
+
+# -- fail: Google AI key in payload ----------------------------------------
+
+test_deny_google_ai_key_in_payload if {
+    result := deny with input as object.union(
+        _valid_input,
+        {
+            "payloadSerialized": "AIzaSyD-9tSrke72I6e0DVos2Vz8kAqnkPj9E0s",
+            "subscriber":        "",
+        },
+    )
+    count(result) > 0
+    some msg in result
+    contains(msg, "credential pattern")
+}
+
+# -- fail: Hugging Face token in payload ------------------------------------
+
+test_deny_hf_token_in_payload if {
+    result := deny with input as object.union(
+        _valid_input,
+        {
+            "payloadSerialized": "hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890ab",
+            "subscriber":        "",
+        },
+    )
+    count(result) > 0
+}
+
+# -- fail: PEM certificate fragment in payload ------------------------------
+
+test_deny_pem_in_payload if {
+    result := deny with input as object.union(
+        _valid_input,
+        {
+            "payloadSerialized": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBg==\n-----END PRIVATE KEY-----",
+            "subscriber":        "",
+        },
+    )
+    count(result) > 0
+    some msg in result
+    contains(msg, "credential pattern")
+}
+
+# -- pass: clean payload does not trigger credential scan -------------------
+
+test_allow_clean_payload_no_credential_match if {
+    allow with input as object.union(
+        _valid_input,
+        {
+            "payloadSerialized": "{\"clusterId\":\"prod\",\"verb\":\"apply\",\"gvk\":\"apps/v1/Deployment\"}",
+            "subscriber":        "",
+        },
+    )
 }
