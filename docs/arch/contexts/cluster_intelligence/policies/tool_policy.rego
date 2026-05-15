@@ -1,6 +1,9 @@
+# DDD role: Policy
 package cluster_intelligence.tool_policy
 
-# DDD role: Policy
+import future.keywords.every
+import future.keywords.in
+
 #
 # The MCP server delegates every tool invocation through these rules
 # BEFORE issuing any HTTP request to a Kubernetes API server. A deny
@@ -33,7 +36,7 @@ tool_registered {
 # The closed set of allowed verbs is exactly {get, list, watch}.
 no_mutating_verbs {
     every v in input.invocation.requestedVerbs {
-        v == "get" or v == "list" or v == "watch"
+        v in {"get", "list", "watch"}
     }
 }
 

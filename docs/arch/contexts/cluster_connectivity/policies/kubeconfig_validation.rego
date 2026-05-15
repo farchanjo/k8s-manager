@@ -1,3 +1,4 @@
+# DDD role: Policy
 package cluster_connectivity.kubeconfig_validation
 
 # DDD role: Policy
@@ -74,15 +75,15 @@ deny[msg] {
 }
 
 credential_strategies(user) := strategies {
-    strategies := [s |
+    strategies := {s |
         s := "client_cert";    user.clientCertificateData
-    ] | [s |
+    } | {s |
         s := "client_cert";    user.clientCertificatePath
-    ] | [s |
+    } | {s |
         s := "bearer_token";   user.token
-    ] | [s |
+    } | {s |
         s := "bearer_token";   user.tokenFile
-    ] | [s |
+    } | {s |
         s := "exec_plugin";    user.exec
-    ]
+    }
 }

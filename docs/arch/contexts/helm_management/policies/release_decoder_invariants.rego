@@ -1,3 +1,4 @@
+# DDD role: Policy
 package helm_management.release_decoder
 
 # DDD role: DomainService

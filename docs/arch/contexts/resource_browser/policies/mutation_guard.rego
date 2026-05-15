@@ -1,3 +1,4 @@
+# DDD role: Policy
 package resource_browser.mutation_guard
 
 # DDD role: DomainService

@@ -1,3 +1,4 @@
+# DDD role: Policy
 package local_persistence.secret_redaction
 
 # DDD role: Policy
