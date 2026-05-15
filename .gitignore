@@ -40,6 +40,8 @@ Package.resolved.bak
 *.swiftsourceinfo
 *.swiftinterface
 *.swift-version
+# Re-track the canonical toolchain pin inside the SwiftPM package root
+!project/.swift-version
 
 # Build outputs
 build/
