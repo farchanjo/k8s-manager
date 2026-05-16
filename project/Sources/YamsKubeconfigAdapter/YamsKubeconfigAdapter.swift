@@ -28,6 +28,15 @@ public struct YamsKubeconfigLoader: KubeconfigLoaderPort, Sendable {
         return try Self.parse(yaml: content, sourcePath: resolvedPath, mtime: mtime)
     }
 
+    /// Parses a kubeconfig YAML string supplied in-memory (e.g., from the
+    /// system clipboard). No filesystem I/O is performed.
+    /// Used by the clipboard-import sheet (ADR-0056).
+    public func parse(yaml content: String) async throws -> Kubeconfig {
+        try await Task.detached(priority: .utility) {
+            try Self.parse(yaml: content, sourcePath: "<clipboard>", mtime: "")
+        }.value
+    }
+
     public func contexts(in config: Kubeconfig) -> [KubeconfigContext] {
         config.contexts
     }

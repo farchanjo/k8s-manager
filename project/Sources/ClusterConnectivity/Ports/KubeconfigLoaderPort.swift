@@ -20,6 +20,17 @@ public protocol KubeconfigLoaderPort: Sendable {
     /// - Throws: `KubeconfigLoadError` on parse failure or I/O error.
     func load(from path: KubeconfigPath) async throws -> Kubeconfig
 
+    /// Parses a kubeconfig YAML string supplied in-memory (e.g., from the
+    /// system clipboard). No filesystem I/O is performed; credential material
+    /// is never written to disk during this call.
+    ///
+    /// Used by the clipboard-import sheet (ADR-0056).
+    ///
+    /// - Parameter yaml: Raw kubeconfig YAML text.
+    /// - Returns: Parsed `Kubeconfig` aggregate.
+    /// - Throws: `KubeconfigLoadError.parseError` or `.validationError`.
+    func parse(yaml: String) async throws -> Kubeconfig
+
     /// Returns the ordered list of context entries from a parsed `Kubeconfig`.
     func contexts(in config: Kubeconfig) -> [KubeconfigContext]
 
@@ -45,6 +56,17 @@ public enum KubeconfigLoadError: Error, Sendable {
     case unimplemented
 }
 
+// MARK: - Default implementation
+
+public extension KubeconfigLoaderPort {
+    /// Default implementation throws `.unimplemented` so that existing conformers
+    /// that pre-date ADR-0056 do not require a source change. Adapters that
+    /// support in-memory parsing must override this method.
+    func parse(yaml: String) async throws -> Kubeconfig {
+        throw KubeconfigLoadError.unimplemented
+    }
+}
+
 // MARK: - UnimplementedKubeconfigLoaderPort
 
 /// Crash-fast sentinel used as `liveValue` / `testValue` before an adapter
@@ -53,6 +75,10 @@ public struct UnimplementedKubeconfigLoaderPort: KubeconfigLoaderPort {
     public init() {}
 
     public func load(from path: KubeconfigPath) async throws -> Kubeconfig {
+        throw KubeconfigLoadError.unimplemented
+    }
+
+    public func parse(yaml: String) async throws -> Kubeconfig {
         throw KubeconfigLoadError.unimplemented
     }
 

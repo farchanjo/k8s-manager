@@ -125,6 +125,15 @@ private struct FakeTrayKubeconfigLoader: KubeconfigLoaderPort {
         )
     }
 
+    func parse(yaml: String) async throws -> Kubeconfig {
+        Kubeconfig(
+            sourcePath: KubeconfigPath("<clipboard>"),
+            sourceMTimeRFC3339: "",
+            currentContext: stubbedCurrentContext,
+            contexts: stubbedContexts
+        )
+    }
+
     func contexts(in config: Kubeconfig) -> [KubeconfigContext] { config.contexts }
 
     func activeContext(in config: Kubeconfig) -> KubeconfigContext? {
