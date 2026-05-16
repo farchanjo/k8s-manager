@@ -357,6 +357,60 @@ at the point they are relevant.
   `#LoadingPresentation`, `#EmptyState`.
 - `contexts/app_shell/features/loading-states.feature` — BDD coverage.
 
+## Amendment 2026-05-16 — Skeleton mandate for all resource list views
+
+### Context
+
+The original ADR body (§"Presentation mode selection") permitted `spinner` for
+operations estimated to complete in under 500 ms. In practice, all Kubernetes API
+list calls are unbounded in latency — they depend on cluster reachability, namespace
+size, and kubeconfig health. There is no safe way to estimate completion time before
+the first byte arrives. Using `ProgressView` for initial data load of any resource
+list surface therefore violates the operator-trust requirement and produces the
+regression observed in frames 17–25 of the 2026-05-16 recording:
+
+- `ApplicationsView` — "Loading applications..." centered spinner for 6+ seconds.
+  No skeleton rows, no structural placeholder.
+- `SecretsListView`, `ResourceQuotasListView`, `HPAListView`, and all other Config,
+  Network, RBAC, Storage, and Cluster resource list views — same centred spinner
+  pattern, ADR-0031 §"Skeleton loaders" violated.
+
+### Invariant (binding)
+
+> **No `ProgressView` for initial resource list load. Always `WorkloadListSkeleton`
+> (or an equivalent skeleton component matching the view's layout) for `.idle` and
+> `.loading` states on any resource list surface.**
+
+Specifically:
+
+- Any view that switches on `AsyncResource<T>` (or an equivalent `loadState` enum)
+  and presents content from a Kubernetes API list call MUST render
+  `WorkloadListSkeleton(rowCount: 8)` for the `.idle` and `.loading` cases.
+- Centered `ProgressView()` ("Loading X...") is **prohibited** for these cases.
+- The 200 ms transition throttle (§"200 ms transition throttle") remains in force —
+  sub-200 ms loads skip the skeleton entirely. The skeleton is shown only when the
+  operation exceeds the throttle threshold.
+- The exception from the original ADR for "quick ops" (<500 ms spinner) applies only
+  to non-list surfaces: namespace switch confirmation, kubeconfig parse, search index
+  warm-up. It does NOT apply to any `KubernetesResourceListPort.list(...)` call.
+
+### Affected surfaces
+
+All resource list views in `Sources/AppShell/Views/Resources/**` plus
+`ApplicationsView`. The `ApplicationsView` already used `WorkloadListSkeleton()` via
+its `loadingView` private computed property, but the declaration was `private var
+loadingView: some View { WorkloadListSkeleton() }`. This was already correct; the
+amendment confirms it as the mandatory pattern for all siblings.
+
+### Non-list exceptions
+
+`ProgressView` remains permitted for:
+
+- The `refreshButton` spinner inside `GlobalNamespacePill` (namespace list refresh).
+- Inline row-level spinners for mutating operations (delete, apply, rollback) that
+  target a single resource, not a list.
+- The `ResourceListContainer` toolbar slot during list refresh (not initial load).
+
 ## Addendum — Onda 3 implementation (2026-05-16)
 
 The presentation components that this ADR specified were authored in this onda:
