@@ -1,5 +1,6 @@
 // AppShell.swift — NavigationSplitView shell
 // Bounded context: app_shell (per ADR-0005)
+// ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts), ADR-0032 (toasts)
 import SwiftUI
 
 /// Namespace marker for the AppShell bounded context.
@@ -11,30 +12,75 @@ public enum AppShell: Sendable {
     public static let moduleVersion = "0.0.1-skeleton"
 }
 
-/// Root SwiftUI scene presenting a `NavigationSplitView` shell.
+// MARK: - K8sManagerRootScene
+
+/// Root SwiftUI scene graph presenting a `NavigationSplitView` shell plus:
+/// - `K8sManagerMenuBarScene` — tray icon (ADR-0022).
+/// - `.commands { K8sManagerCommands() }` — global keyboard bindings (ADR-0023).
+/// - `ToastStackView` overlay — operation feedback (ADR-0032).
+/// - `CommandPaletteOverlay` overlay — universal command entry (ADR-0023).
 ///
 /// Wired by the `K8sManagerApp` composition root. All feature panels
 /// are driven by `Feature.allCases` through the sidebar selection binding.
 public struct K8sManagerRootScene: Scene {
+
+    // Shared view models lifted to scene scope so Commands and the main window
+    // reference the same instances.
+    @State private var paletteViewModel = CommandPaletteViewModel()
+    @State private var toastViewModel = ToastStackViewModel()
+    @State private var selectedFeature: Feature? = .clusters
+
     public init() {}
 
     public var body: some Scene {
         WindowGroup {
-            AppShellView()
+            AppShellView(
+                selectedFeature: $selectedFeature,
+                paletteViewModel: paletteViewModel,
+                toastViewModel: toastViewModel
+            )
         }
         .defaultSize(width: 1280, height: 800)
         .windowResizability(.contentSize)
+        .commands {
+            K8sManagerCommands(
+                isPaletteVisible: Binding(
+                    get: { paletteViewModel.isVisible },
+                    set: { newValue in
+                        if newValue { paletteViewModel.open() } else { paletteViewModel.dismiss() }
+                    }
+                ),
+                selectedFeature: $selectedFeature
+            )
+        }
+
+        // Menu bar tray (ADR-0022).
+        K8sManagerMenuBarScene()
     }
 }
 
-/// Top-level shell view — sidebar + detail layout.
-///
-/// `selectedFeature` defaults to `.clusters` so the app opens to a
-/// useful state without requiring an explicit sidebar tap.
-public struct AppShellView: View {
-    @State private var selectedFeature: Feature? = .clusters
+// MARK: - AppShellView
 
-    public init() {}
+/// Top-level shell view — sidebar + detail layout + overlays.
+///
+/// Receives `paletteViewModel` and `toastViewModel` from the scene so both
+/// overlays share the same state as `K8sManagerCommands`.
+@MainActor
+public struct AppShellView: View {
+
+    @Binding var selectedFeature: Feature?
+    var paletteViewModel: CommandPaletteViewModel
+    var toastViewModel: ToastStackViewModel
+
+    public init(
+        selectedFeature: Binding<Feature?>,
+        paletteViewModel: CommandPaletteViewModel,
+        toastViewModel: ToastStackViewModel
+    ) {
+        self._selectedFeature = selectedFeature
+        self.paletteViewModel = paletteViewModel
+        self.toastViewModel = toastViewModel
+    }
 
     public var body: some View {
         NavigationSplitView {
@@ -42,7 +88,14 @@ public struct AppShellView: View {
         } detail: {
             detail
         }
+        .k8sKeyboardShortcuts(
+            selectedFeature: $selectedFeature,
+            paletteViewModel: paletteViewModel,
+            toastViewModel: toastViewModel
+        )
     }
+
+    // MARK: Sidebar
 
     private var sidebar: some View {
         List(Feature.allCases, selection: $selectedFeature) { feature in
@@ -53,6 +106,8 @@ public struct AppShellView: View {
         .navigationTitle("K8sManager")
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
     }
+
+    // MARK: Detail
 
     @ViewBuilder
     private var detail: some View {
