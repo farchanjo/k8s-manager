@@ -57,6 +57,19 @@ public enum ApplicationPaths: Sendable {
         supportDirectory.appendingPathComponent("logs", isDirectory: true)
     }
 
+    /// Absolute URL to the workspace-state subtree — JSON files that are not
+    /// scoped to any single cluster (workspace tabs, future workspace-level
+    /// preferences). Backs ADR-0054 workspace-tab persistence.
+    public static var workspaceStateRoot: URL {
+        supportDirectory.appendingPathComponent("workspace", isDirectory: true)
+    }
+
+    /// Absolute URL to `workspace/workspace-tabs.json` (ADR-0054 — persistent
+    /// Welcome tab + any future workspace-scoped tab kinds).
+    public static var workspaceTabsURL: URL {
+        workspaceStateRoot.appendingPathComponent("workspace-tabs.json")
+    }
+
     // MARK: Bootstrap
 
     /// Creates `supportDirectory` with `0700` permissions if it does not already

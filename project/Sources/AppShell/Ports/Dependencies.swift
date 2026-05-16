@@ -21,6 +21,10 @@ public struct AppShellDependencies: Sendable {
     ///         .appendingPathComponent("\(clusterId.rawValue)/open-tabs.json"))
     /// ```
     public let openTabsActor: OpenTabsActor?
+    /// Workspace-scoped tabs actor — owns the persistent Welcome tab and any
+    /// future workspace-level surfaces (ADR-0054). Single instance per launch.
+    /// `nil` only in previews/tests that do not exercise the Welcome flow.
+    public let workspaceTabsActor: WorkspaceTabsActor?
     /// Code editor port (YAML/JSON/MD highlighting) — ADR-0030.
     /// Composition root injects `CodeEditorViewAdapter`; AppShell never imports
     /// the adapter target directly to preserve the ADR-0020 invariant.
@@ -31,12 +35,14 @@ public struct AppShellDependencies: Sendable {
         toastEmitter: any ToastEmitterPort,
         localePreference: any LocalePreferencePort,
         openTabsActor: OpenTabsActor? = nil,
+        workspaceTabsActor: WorkspaceTabsActor? = nil,
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor()
     ) {
         self.translationCatalog = translationCatalog
         self.toastEmitter = toastEmitter
         self.localePreference = localePreference
         self.openTabsActor = openTabsActor
+        self.workspaceTabsActor = workspaceTabsActor
         self.codeEditor = codeEditor
     }
 

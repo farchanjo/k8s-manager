@@ -84,6 +84,13 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
 
     // MARK: Cases
 
+    /// Persistent workspace-scoped Welcome tab (ADR-0054).
+    ///
+    /// Single-instance per workspace, always pinned, never closeable. Renders
+    /// the cluster-acquisition launch pad with five canonical start actions
+    /// and the Useful Guides section.
+    case welcome
+
     /// Cluster-level overview dashboard.
     case overview(clusterId: ClusterId)
 
@@ -152,9 +159,14 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
 
     // MARK: ClusterId extraction
 
-    /// The cluster this tab belongs to.
-    public var clusterId: ClusterId {
+    /// The cluster this tab belongs to, or `nil` for workspace-scoped tabs.
+    ///
+    /// Workspace-scoped tabs (currently only `.welcome`) carry no cluster
+    /// association — they exist at the application workspace level.
+    public var clusterId: ClusterId? {
         switch self {
+        case .welcome:
+            return nil
         case .overview(let c),
              .applications(let c),
              .nodes(let c),
@@ -177,11 +189,38 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         }
     }
 
+    // MARK: Workspace scope + closeability
+
+    /// Whether this tab is workspace-scoped rather than cluster-scoped.
+    ///
+    /// Workspace-scoped tabs persist independently of any cluster and are not
+    /// torn down when clusters disconnect.
+    public var isWorkspaceScoped: Bool {
+        switch self {
+        case .welcome:  return true
+        default:        return false
+        }
+    }
+
+    /// Whether the tab bar should render a close affordance for this tab.
+    ///
+    /// `.welcome` is permanently exempt from the close button per ADR-0054.
+    /// All other tabs are closeable. Used by `TabBarView` to conditionally
+    /// render the close button and exclude the tab from "close other / close
+    /// to right" sweeps.
+    public var isCloseable: Bool {
+        switch self {
+        case .welcome:  return false
+        default:        return true
+        }
+    }
+
     // MARK: Display
 
     /// Human-readable tab label shown in the tab chip.
     public var title: String {
         switch self {
+        case .welcome:                              return "Welcome"
         case .overview:                             return "Overview"
         case .applications:                         return "Applications"
         case .nodes:                                return "Nodes"
@@ -216,6 +255,7 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
     /// SF Symbol name used for the tab chip icon.
     public var systemImage: String {
         switch self {
+        case .welcome:          return "hand.wave"
         case .overview:         return "square.grid.2x2"
         case .applications:     return "app.gift"
         case .nodes:            return "server.rack"
@@ -244,8 +284,11 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
     /// Excludes mutable-only fields (`draft`, `follow`) so toggling them
     /// does not open duplicate tabs.
     private var stableKey: String {
-        let c = clusterId.rawValue
+        // Workspace-scoped tabs have no cluster — return a fixed identity.
+        if case .welcome = self { return "welcome" }
+        let c = clusterId?.rawValue ?? "workspace"
         switch self {
+        case .welcome:              return "welcome"
         case .overview:             return "overview:\(c)"
         case .applications:         return "applications:\(c)"
         case .nodes:                return "nodes:\(c)"
@@ -317,6 +360,7 @@ extension DocumentTab: Codable {
     }
 
     private enum TypeTag: String, Codable {
+        case welcome
         case overview, applications, nodes, resourceList, resourceDetail
         case yamlEditor, logs, exec, nodeDebug, events, helmRelease, namespaces
         case portForward, customResource, securityOverview, apiResources
@@ -326,8 +370,16 @@ extension DocumentTab: Codable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let tag = try c.decode(TypeTag.self, forKey: .type)
+        // Welcome tabs are workspace-scoped — no clusterId is encoded.
+        if tag == .welcome {
+            self = .welcome
+            return
+        }
         let cid = try c.decode(ClusterId.self, forKey: .clusterId)
         switch tag {
+        case .welcome:
+            // Unreachable: handled by early return above.
+            self = .welcome
         case .overview:         self = .overview(clusterId: cid)
         case .applications:     self = .applications(clusterId: cid)
         case .nodes:            self = .nodes(clusterId: cid)
@@ -377,8 +429,16 @@ extension DocumentTab: Codable {
 
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(clusterId, forKey: .clusterId)
+        // Workspace-scoped tabs (welcome) have no clusterId — encode only the tag.
+        if case .welcome = self {
+            try c.encode(TypeTag.welcome, forKey: .type)
+            return
+        }
+        try c.encodeIfPresent(clusterId, forKey: .clusterId)
         switch self {
+        case .welcome:
+            // Unreachable: handled by early return above.
+            try c.encode(TypeTag.welcome, forKey: .type)
         case .overview:
             try c.encode(TypeTag.overview, forKey: .type)
         case .applications:

@@ -54,9 +54,11 @@ public struct ActiveTabContentView: View {
             get: { self.selectedRef != nil },
             set: { presented in if !presented { self.selectedRef = nil } }
         )) {
-            if let ref = self.selectedRef, let tab = self.activeTab {
+            if let ref = self.selectedRef,
+               let tab = self.activeTab,
+               let cid = tab.clusterId {
                 ResourceDetailDrawer(
-                    clusterId: tab.clusterId,
+                    clusterId: cid,
                     ref: ref,
                     onOpenTab: self.onOpenTab,
                     onDismiss: { self.selectedRef = nil }
@@ -71,6 +73,9 @@ public struct ActiveTabContentView: View {
     @ViewBuilder
     private func tabContent(for tab: DocumentTab) -> some View {
         switch tab {
+        case .welcome:
+            WelcomeTabView()
+
         case .overview:
             ClusterListView()
 

@@ -68,17 +68,27 @@ public final class TabBarViewModel {
     }
 
     /// Requests the actor to close all tabs except the one identified by `keepId`.
+    ///
+    /// Tabs whose `isCloseable == false` (e.g. the workspace Welcome tab) are
+    /// preserved regardless of the keep selection. Closeability is enforced
+    /// per ADR-0054 for workspace-scoped surfaces.
     public func closeOthers(keeping keepId: TabId) async {
         guard let actor else { return }
-        let toClose = tabs.map(\.id).filter { $0 != keepId }
+        let toClose = tabs
+            .filter { $0.id != keepId && $0.isCloseable }
+            .map(\.id)
         for id in toClose { await actor.closeTab(id) }
     }
 
     /// Requests the actor to close all tabs to the right of `anchorId`.
+    ///
+    /// Non-closeable tabs (workspace Welcome, etc.) are skipped per ADR-0054.
     public func closeToRight(of anchorId: TabId) async {
         guard let actor,
               let anchorIdx = tabs.firstIndex(where: { $0.id == anchorId }) else { return }
-        let toClose = tabs[(anchorIdx + 1)...].map(\.id)
+        let toClose = tabs[(anchorIdx + 1)...]
+            .filter(\.isCloseable)
+            .map(\.id)
         for id in toClose { await actor.closeTab(id) }
     }
 
@@ -107,16 +117,38 @@ public struct TabBarView: View {
     /// The actor to subscribe to. Injected from the parent that owns the actor.
     private let openTabsActor: OpenTabsActor
 
-    public init(openTabsActor: OpenTabsActor) {
+    /// Optional callback invoked whenever a cluster tab is focused by the user.
+    ///
+    /// Used by parents that coordinate with a sibling workspace-tab surface
+    /// (ADR-0054) so the workspace Welcome chip can clear its "active" state
+    /// the moment a cluster tab takes focus.
+    private let onTabFocused: ((TabId) -> Void)?
+
+    /// Optional override for the visually active tab id.
+    ///
+    /// When non-nil, takes precedence over `OpenTabsActor`'s own `activeTabId`
+    /// for rendering. Parents pass `nil` here when they want the cluster tabs
+    /// to act as the sole active source; they pass a non-cluster id (e.g. the
+    /// workspace Welcome tab id) to clear every cluster chip's active state.
+    private let externalActiveOverride: TabId?
+
+    public init(
+        openTabsActor: OpenTabsActor,
+        externalActiveOverride: TabId? = nil,
+        onTabFocused: ((TabId) -> Void)? = nil
+    ) {
         self.openTabsActor = openTabsActor
+        self.externalActiveOverride = externalActiveOverride
+        self.onTabFocused = onTabFocused
     }
 
     public var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 0) {
                 ForEach(viewModel.tabs) { tab in
-                    TabChip(tab: tab, isActive: tab.id == viewModel.activeTabId) {
+                    TabChip(tab: tab, isActive: isChipActive(tab)) {
                         Task { await viewModel.focus(tab.id) }
+                        onTabFocused?(tab.id)
                     } onClose: {
                         Task { await viewModel.close(tab.id) }
                     }
@@ -132,12 +164,25 @@ public struct TabBarView: View {
         .task { await viewModel.start(actor: openTabsActor) }
     }
 
+    /// `true` when the cluster chip should render its active style.
+    ///
+    /// Cluster chips defer to the external override when present (so a
+    /// workspace Welcome focus visually deactivates every cluster chip).
+    private func isChipActive(_ tab: DocumentTab) -> Bool {
+        if let override = externalActiveOverride {
+            return tab.id == override
+        }
+        return tab.id == viewModel.activeTabId
+    }
+
     // MARK: Context menu
 
     @ViewBuilder
     private func tabContextMenu(for tab: DocumentTab) -> some View {
-        Button("Close Tab") {
-            Task { await viewModel.close(tab.id) }
+        if tab.isCloseable {
+            Button("Close Tab") {
+                Task { await viewModel.close(tab.id) }
+            }
         }
         Button("Close Other Tabs") {
             Task { await viewModel.closeOthers(keeping: tab.id) }
@@ -190,7 +235,7 @@ struct TabChip: View {
 
     @ViewBuilder
     private var closeButton: some View {
-        if isActive || isHovering {
+        if tab.isCloseable, isActive || isHovering {
             Button {
                 onClose()
             } label: {
@@ -202,7 +247,8 @@ struct TabChip: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Close \(tab.title)")
         } else {
-            // Reserve space so chip width stays stable on hover.
+            // Reserve space so chip width stays stable on hover; for permanently
+            // non-closeable tabs (welcome) this keeps the chip layout uniform.
             Color.clear
                 .frame(width: 14, height: 14)
         }

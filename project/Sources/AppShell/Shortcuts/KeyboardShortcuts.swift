@@ -49,6 +49,13 @@ public struct K8sManagerCommands: Commands {
 
             Divider()
 
+            // ⌘⇧W — focus the persistent workspace Welcome tab (ADR-0054)
+            Button("Go to Welcome Tab") {
+                NotificationCenter.default.post(name: .k8sManagerFocusWelcomeTab, object: nil)
+            }
+            .keyboardShortcut("w", modifiers: [.command, .shift])
+            .accessibilityLabel("Focus the Welcome tab")
+
             // ⌘⇧C — switch context via palette pre-filtered
             Button("Switch Context…") {
                 NotificationCenter.default.post(
@@ -139,6 +146,9 @@ public extension Notification.Name {
     static let k8sManagerOpenPalette = Notification.Name("appShell.openPalette")
     /// Posted by ⌘1–⌘9. `userInfo`: `["feature": String]` matching `Feature.rawValue`.
     static let k8sManagerJumpToFeature = Notification.Name("appShell.jumpToFeature")
+    /// Posted by ⌘⇧W or the command palette "Go to Welcome tab" entry — the
+    /// workspace tabs actor subscribes and focuses the persistent Welcome tab.
+    static let k8sManagerFocusWelcomeTab = Notification.Name("appShell.focusWelcomeTab")
 }
 
 // MARK: - KeyboardShortcutsHandler

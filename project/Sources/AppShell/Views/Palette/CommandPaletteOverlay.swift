@@ -125,6 +125,17 @@ public final class CommandPaletteViewModel {
     public static func staticCommands() -> [Command] {
         [
             Command(
+                id: "go-to-welcome-tab",
+                title: "Go to Welcome Tab",
+                subtitle: "Cmd+Shift+W",
+                systemImage: "hand.wave"
+            ) {
+                NotificationCenter.default.post(
+                    name: .k8sManagerFocusWelcomeTab,
+                    object: nil
+                )
+            },
+            Command(
                 id: "refresh",
                 title: "Refresh Resources",
                 subtitle: nil,

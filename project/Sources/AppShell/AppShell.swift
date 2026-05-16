@@ -53,16 +53,25 @@ public struct K8sManagerRootScene: Scene {
     ///     pathways from one source prevents tab-bar / sidebar drift.
     public init(
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
-        openTabsActor: OpenTabsActor? = nil
+        openTabsActor: OpenTabsActor? = nil,
+        workspaceTabsActor: WorkspaceTabsActor? = nil
     ) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
+        )
+        // Default workspace tabs actor — composition root may override with a
+        // pre-hydrated instance. Falls back to the default persistence URL so
+        // the persistent Welcome tab works in previews and tests without
+        // bootstrap wiring.
+        let resolvedWorkspaceTabs = workspaceTabsActor ?? WorkspaceTabsActor(
+            persistenceURL: ApplicationPaths.workspaceTabsURL
         )
         appShellDeps = AppShellDependencies(
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
             localePreference: InMemoryLocalePreferenceStore(),
             openTabsActor: openTabsActor,
+            workspaceTabsActor: resolvedWorkspaceTabs,
             codeEditor: codeEditor
         )
     }
