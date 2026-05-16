@@ -80,7 +80,7 @@ public struct ActiveTabContentView: View {
             ClusterListView()
 
         case .applications(let clusterId):
-            WorkloadsOverviewView(clusterId: clusterId)
+            ApplicationsView(clusterId: clusterId)
 
         case .nodes(let clusterId):
             NodesListView(clusterId: clusterId)
