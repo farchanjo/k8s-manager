@@ -25,6 +25,7 @@ import SharedKernel
 import TerminalSession
 
 // Adapter imports (composition root is the ONLY place that imports infrastructure)
+import KubeconfigContextNavigationAdapter
 import AnthropicAdapter
 import AWSExecCredentialAdapter
 import AzureExecCredentialAdapter
@@ -79,6 +80,9 @@ private extension K8sManagerApp {
             db: db, keyManager: keyManager
         )
         let (loader, kubeApi, resourceList) = wireKubernetes()
+        let contextRepo = KubeconfigContextRepository(loader: loader, metadataStore: clusterStore)
+        let activeContextWatch = KubeconfigActiveContextWatch(repository: contextRepo, loader: loader)
+        let sidebarReadModel = KubeconfigSidebarReadModel(repository: contextRepo, watch: activeContextWatch)
 
         prepareDependencies { values in
             // Connectivity
@@ -91,6 +95,11 @@ private extension K8sManagerApp {
             values.providerRepository = providerRepo
             values.clusterMetadataStore = clusterStore
             values.auditChain = auditChain
+
+            // ContextNavigation ports
+            values.contextRepository = contextRepo
+            values.activeContextWatch = activeContextWatch
+            values.sidebarReadModel = sidebarReadModel
 
             // Keychain
             values.keychainAccess = keychain
