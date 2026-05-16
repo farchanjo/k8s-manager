@@ -57,6 +57,45 @@ public extension DependencyValues {
     }
 }
 
+// MARK: - ReleaseDecoderPortKey
+
+/// `DependencyKey` for `ReleaseDecoderPort`.
+///
+/// `liveValue` and `testValue` are both the `Unimplemented` sentinel so the
+/// build is clean with no adapter linked. `HelmSecretDecoderAdapter` overrides
+/// `liveValue` at composition root.
+public enum ReleaseDecoderPortKey: DependencyKey {
+    public static let liveValue: any ReleaseDecoderPort = UnimplementedReleaseDecoderPort()
+    public static let testValue: any ReleaseDecoderPort = UnimplementedReleaseDecoderPort()
+}
+
+public extension DependencyValues {
+    /// The port that decodes `helm.sh/release.v1` Secret payloads into `Release` aggregates.
+    var releaseDecoder: any ReleaseDecoderPort {
+        get { self[ReleaseDecoderPortKey.self] }
+        set { self[ReleaseDecoderPortKey.self] = newValue }
+    }
+}
+
+// MARK: - AuditLogPortKey
+
+/// `DependencyKey` for `AuditLogPort`.
+///
+/// Helm-specific audit log — separate from `resource_browser`'s mutation audit.
+/// Backed by `local_persistence` at composition root.
+public enum AuditLogPortKey: DependencyKey {
+    public static let liveValue: any AuditLogPort = UnimplementedAuditLogPort()
+    public static let testValue: any AuditLogPort = UnimplementedAuditLogPort()
+}
+
+public extension DependencyValues {
+    /// The port that records Helm-specific audit entries for rollback operations.
+    var auditLog: any AuditLogPort {
+        get { self[AuditLogPortKey.self] }
+        set { self[AuditLogPortKey.self] = newValue }
+    }
+}
+
 // MARK: - ChartRepositoryPortKey
 
 /// `DependencyKey` for `ChartRepositoryPort`.
