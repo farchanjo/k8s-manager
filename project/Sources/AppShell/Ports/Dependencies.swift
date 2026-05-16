@@ -1,5 +1,6 @@
 // Ports/Dependencies.swift — app_shell bounded context
 // DDD role: Dependency key registry + Unimplemented defaults
+// ADR ref: ADR-0050 (tab system — openTabsActor)
 
 // MARK: - AppShellDependencies
 
@@ -10,15 +11,27 @@ public struct AppShellDependencies: Sendable {
     public let translationCatalog: any TranslationCatalogPort
     public let toastEmitter: any ToastEmitterPort
     public let localePreference: any LocalePreferencePort
+    /// Tab-state actor for the currently active cluster, or `nil` when no
+    /// cluster session is in progress (ADR-0050).
+    ///
+    /// Production initialisation:
+    /// ```swift
+    /// OpenTabsActor(persistenceURL:
+    ///     ApplicationPaths.clusterStateRoot
+    ///         .appendingPathComponent("\(clusterId.rawValue)/open-tabs.json"))
+    /// ```
+    public let openTabsActor: OpenTabsActor?
 
     public init(
         translationCatalog: any TranslationCatalogPort,
         toastEmitter: any ToastEmitterPort,
-        localePreference: any LocalePreferencePort
+        localePreference: any LocalePreferencePort,
+        openTabsActor: OpenTabsActor? = nil
     ) {
         self.translationCatalog = translationCatalog
         self.toastEmitter = toastEmitter
         self.localePreference = localePreference
+        self.openTabsActor = openTabsActor
     }
 
     // MARK: - Unimplemented defaults

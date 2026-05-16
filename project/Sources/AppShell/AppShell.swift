@@ -1,6 +1,7 @@
 // AppShell.swift — NavigationSplitView shell
 // Bounded context: app_shell (per ADR-0005)
-// ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts), ADR-0032 (toasts)
+// ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts),
+//          ADR-0032 (toasts), ADR-0050 (tab bar), ADR-0051 (Lens-style layout)
 import Foundation
 import SwiftUI
 
@@ -101,56 +102,45 @@ public struct AppShellView: View {
         self.toastViewModel = toastViewModel
     }
 
+    @Environment(\.appShellDependencies) private var deps
+
     public var body: some View {
-        NavigationSplitView {
-            sidebar
-        } detail: {
-            detail
-        }
-        .k8sKeyboardShortcuts(
-            selectedFeature: $selectedFeature,
-            paletteViewModel: paletteViewModel,
-            toastViewModel: toastViewModel
-        )
-    }
+        HStack(spacing: 0) {
+            // Fixed-width cluster strip (ADR-0051). Always visible; not collapsible.
+            ClusterStripView()
 
-    // MARK: Sidebar
-
-    private var sidebar: some View {
-        List(Feature.allCases, selection: $selectedFeature) { feature in
-            NavigationLink(value: feature) {
-                Label(feature.title, systemImage: feature.systemImage)
+            // NavigationSplitView: hierarchical sidebar tree | canvas (ADR-0050/0051)
+            NavigationSplitView {
+                sidebarTree
+            } detail: {
+                canvas
             }
-        }
-        .navigationTitle("K8sManager")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
-    }
-
-    // MARK: Detail
-
-    @ViewBuilder
-    private var detail: some View {
-        switch selectedFeature {
-        case .clusters:      ClusterListView()
-        case .contexts:      ContextNavigationView()
-        case .resources:     ResourceBrowserView()
-        case .chat:          AssistantChatView()
-        case .intelligence:  ClusterIntelligenceView()
-        case .providers:     LLMProviderView()
-        case .persistence:   LocalPersistenceView()
-        case .helm:          HelmManagementView()
-        case .metrics:       MetricsObservabilityView()
-        case .portForward:   PortForwardingView()
-        case .terminal:      TerminalSessionView()
-        case .none:          emptyState
+            .k8sKeyboardShortcuts(
+                selectedFeature: $selectedFeature,
+                paletteViewModel: paletteViewModel,
+                toastViewModel: toastViewModel
+            )
         }
     }
 
-    private var emptyState: some View {
-        ContentUnavailableView(
-            "Select a feature",
-            systemImage: "sidebar.left",
-            description: Text("Pick from the sidebar")
-        )
+    // MARK: - Sidebar column (Lens-style hierarchical resource tree)
+
+    /// Hierarchical Kubernetes resource tree (ADR-0050 + ADR-0051).
+    ///
+    /// Replaces the flat `Feature`-based list. Legacy view models
+    /// (HelmManagementViewModel, MetricsObservabilityViewModel, etc.) are
+    /// preserved; they will be wired to specific `DocumentTab` cases in Onda 2.
+    private var sidebarTree: some View {
+        SidebarTreeView()
+            .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 360)
+    }
+
+    // MARK: - Canvas column (tab bar + active tab content + status bar)
+
+    private var canvas: some View {
+        VStack(spacing: 0) {
+            SidebarCanvasView(openTabsActor: deps.openTabsActor)
+            StatusBarView(toastViewModel: toastViewModel)
+        }
     }
 }
