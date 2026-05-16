@@ -48,6 +48,17 @@ public struct PodsListView: View {
                 onPath: { handleFABPath($0) }
             )
         }
+        .modifier(ExportMenuContainer(
+            kind: "Pod",
+            rows: viewModel.filteredRows.map { row in
+                ResourceListRow(values: [
+                    row.name, row.namespace, row.phase.rawValue,
+                    "\(row.readyContainers)/\(row.totalContainers)",
+                    "\(row.restartCount)", row.nodeName, row.age,
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
