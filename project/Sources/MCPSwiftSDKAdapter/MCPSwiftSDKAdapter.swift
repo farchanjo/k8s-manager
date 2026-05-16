@@ -1,16 +1,13 @@
-// MCPSwiftSDKAdapter.swift — infrastructure adapter placeholder
-// Implements: MCPClientPort from AssistantChat
-// Library: modelcontextprotocol/swift-sdk (Tier A per ADR-0019)
-// Status: skeleton; port implementations pending domain ports definition.
-import MCP
-import AssistantChat
+// MCPSwiftSDKAdapter.swift — infrastructure adapter target
+// Implements: MCPTransportPort (MCPInProcessTransport), mutating handlers (MCPMutatingToolHandlers)
+// Library: modelcontextprotocol/swift-sdk 0.12.1 (Tier A per ADR-0019)
+// ADR ref: ADR-0009 (MCP host + in-process server)
+
 import Foundation
 
-/// Namespace marker for the MCPSwiftSDKAdapter adapter target.
+// MARK: - Module version
+
+/// Semantic version of the MCPSwiftSDKAdapter target.
 ///
-/// Concrete actor types implementing the domain ports land under this enum
-/// in subsequent rounds. This file exists so the target compiles cleanly
-/// under Swift 6 strict concurrency with the imported infrastructure library.
-public enum MCPSwiftSDKAdapter: Sendable {
-    public static let moduleVersion = "0.0.1-skeleton"
-}
+/// Bumped on every breaking change to the adapter's public surface.
+public let mcpSwiftSDKAdapterVersion = "0.1.0"
