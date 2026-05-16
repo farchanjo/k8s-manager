@@ -1,10 +1,12 @@
 # ADR-0021 — App shell design system and main layout
 
-- Status — Superseded by ADR-0028 (closed 2026-05-15)
+- Status — Superseded by ADR-0028 (closed 2026-05-15); chrome layout refined by ADR-0051
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
+- Refined by — ADR-0028 (SF Symbols and native iconography), ADR-0051 (multi-cluster workspace:
+  cluster strip, sidebar tree, tab bar, detail drawer, status bar, top-right chrome)
 - Tags — ui, design-system, layout, accessibility, typography, color, material
 
 > **Iconography note** — The SF Symbols section of this ADR (symbol name assignments per Kubernetes
@@ -533,3 +535,38 @@ bounded-context schemas:
   multi-monitor, and fullscreen.
 - `theme-and-typography.feature` — BDD scenarios covering accent source, color scheme, scale, mono
   font, and reduce motion.
+
+---
+
+## Addendum — Chrome layout refinement (2026-05-16, ADR-0051 refinement)
+
+ADR-0051 introduces a Lens IDE-style chrome layout that supersedes the `NavigationSplitView`
+3-column structure described in this ADR's "Window structure" section. The following changes are
+introduced:
+
+**Cluster strip** — a fixed-width 52 pt column at the left extreme of the window, outside the
+`NavigationSplitView`, displaying pinned cluster session avatars. Always visible; not collapsible.
+Owned by `ClusterStripActor`.
+
+**Per-cluster sidebar tree** — the sidebar column is restructured from a flat bounded-context list
+to a provider-grouped, category-expanded tree per the taxonomy in ADR-0050. Provider sections (AKS,
+EKS, GKE, OIDC, Local Kubeconfigs) group clusters by authentication method.
+
+**Tab bar** — a horizontally-scrollable tab bar above the content area (below the window toolbar)
+replaces the single-active-view model. Each tab is a `DocumentTab` owned by `OpenTabsActor`.
+
+**Detail drawer** — a slide-in right panel (280–600 pt, default 360 pt) replaces the `.inspector`
+panel and the `NavigationSplitView` third column for resource detail. The drawer carries: resource
+header, action toolbar, Prometheus metrics panel, properties grid, containers/volumes sections,
+events section.
+
+**Status bar extension** — the status bar is extended with Kubernetes version, CPU/Mem telemetry,
+watch stream count, and error count badge in addition to the cluster name and health indicator
+already specified in this ADR.
+
+**Top-right chrome** — the assistant AI toggle (`⌘⇧A`), notifications dropdown, and user/
+preferences menu are added to the unified toolbar's trailing group.
+
+The design token system (color, materials, typography, WCAG requirements) and operator-configurable
+knobs specified in this ADR remain unchanged. ADR-0051 governs layout structure; this ADR remains
+the canonical reference for design tokens and accessibility requirements.
