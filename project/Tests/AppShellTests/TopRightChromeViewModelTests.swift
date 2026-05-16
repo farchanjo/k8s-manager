@@ -71,7 +71,7 @@ final class TopRightChromeViewModelTests: XCTestCase {
         )
 
         // Allow one polling cycle (≥1 s).
-        try await Task.sleep(for: .seconds(1, tolerance: 0.5))
+        try await Task.sleep(for: .seconds(1), tolerance: .seconds(0.5))
 
         XCTAssertEqual(sut.notifications.count, 1)
         XCTAssertEqual(sut.notifications.first?.title, "Pod CrashLoopBackOff")
@@ -90,7 +90,7 @@ final class TopRightChromeViewModelTests: XCTestCase {
         toastVM.enqueue(ToastCard(title: "Alpha", severity: .info))
         toastVM.enqueue(ToastCard(title: "Beta",  severity: .warning))
 
-        try await Task.sleep(for: .seconds(1, tolerance: 0.5))
+        try await Task.sleep(for: .seconds(1), tolerance: .seconds(0.5))
 
         XCTAssertEqual(sut.unreadNotificationCount, 2)
     }
@@ -107,7 +107,7 @@ final class TopRightChromeViewModelTests: XCTestCase {
         defer { task.cancel() }
 
         toastVM.enqueue(ToastCard(title: "Cluster reconnected", severity: .success))
-        try await Task.sleep(for: .seconds(1, tolerance: 0.5))
+        try await Task.sleep(for: .seconds(1), tolerance: .seconds(0.5))
 
         XCTAssertGreaterThan(sut.unreadNotificationCount, 0)
         sut.markAllRead()
@@ -126,7 +126,7 @@ final class TopRightChromeViewModelTests: XCTestCase {
         defer { task.cancel() }
 
         toastVM.enqueue(ToastCard(title: "Gamma", severity: .neutral))
-        try await Task.sleep(for: .seconds(1, tolerance: 0.5))
+        try await Task.sleep(for: .seconds(1), tolerance: .seconds(0.5))
 
         sut.clearAll()
         XCTAssertTrue(sut.notifications.isEmpty)
