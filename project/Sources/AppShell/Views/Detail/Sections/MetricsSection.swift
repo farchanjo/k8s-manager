@@ -1,10 +1,12 @@
 // Views/Detail/Sections/MetricsSection.swift — app_shell bounded context
 // DDD role: View — Prometheus metrics chart with window + tab selector
 // ADR ref: ADR-0021 (detail drawer — Onda 2), ADR-0016 (HTTP client strategy)
+// ADR ref: ADR-0058 (drawer chart — PrometheusChartSection embedded below header)
 
-import SwiftUI
 import Charts
+import MetricsObservability
 import SharedKernel
+import SwiftUI
 
 // MARK: - MetricsSection
 
@@ -33,8 +35,22 @@ public struct MetricsSection: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            controlRow
-            chartArea
+            // ADR-0058: PrometheusChartSection is the primary chart when a real
+            // endpoint is configured. The legacy single-series chart below is
+            // shown only when the new chart section delegates to notConfigured.
+            PrometheusChartSection(
+                clusterId: clusterId,
+                ref: ref,
+                viewModel: viewModel.chartViewModel,
+                onViewInMetrics: {
+                    // Navigation to full MetricsObservabilityView — handled by parent
+                    // via onOpenTab; no direct access here (ADR-0020 layering).
+                }
+            )
+            if case .notConfigured = viewModel.chartViewModel.endpointStatus {
+                controlRow
+                legacyChartArea
+            }
         }
     }
 
@@ -42,8 +58,6 @@ public struct MetricsSection: View {
 
     private var controlRow: some View {
         HStack {
-            Label("Metrics", systemImage: "chart.xyaxis.line")
-                .font(.headline)
             Spacer()
             windowPicker
             metricChips
@@ -90,7 +104,7 @@ public struct MetricsSection: View {
     }
 
     @ViewBuilder
-    private var chartArea: some View {
+    private var legacyChartArea: some View {
         if viewModel.prometheusUnavailable {
             prometheusPlaceholder
         } else if viewModel.metricSeries.isEmpty {

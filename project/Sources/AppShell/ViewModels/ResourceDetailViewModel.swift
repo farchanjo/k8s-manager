@@ -187,6 +187,14 @@ public final class ResourceDetailViewModel {
     @ObservationIgnored
     @Dependency(\.prometheusQuery) private var prometheusPort
 
+    // MARK: Prometheus chart view model (ADR-0058)
+
+    /// Dedicated view model for the ADR-0058 drawer chart.
+    ///
+    /// Owned here so the drawer can pass it to `PrometheusChartSection`
+    /// without re-creating it on every re-render.
+    public let chartViewModel: MetricChartViewModel = MetricChartViewModel()
+
     // MARK: Navigation callback
 
     /// Called when an action needs to open a new tab. Injected by the parent view.
