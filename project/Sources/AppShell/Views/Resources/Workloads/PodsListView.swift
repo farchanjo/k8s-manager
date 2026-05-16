@@ -40,9 +40,22 @@ public struct PodsListView: View {
         ) {
             podTable
         }
+        .overlay(alignment: .bottomTrailing) {
+            ResourceListFAB(
+                kind: "Pod",
+                clusterId: clusterId,
+                hasSelection: viewModel.selectedId != nil,
+                onPath: { handleFABPath($0) }
+            )
+        }
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
+    }
+
+    private func handleFABPath(_ path: FABCreatePath) {
+        // Onda 3: route to kind-skeleton editor or clipboard path.
+        // v1 stub: paths are no-ops; ADR-0064 inline editor is forward reference.
     }
 
     // MARK: Private

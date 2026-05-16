@@ -40,6 +40,14 @@ public struct DeploymentsListView: View {
         ) {
             tableContent
         }
+        .overlay(alignment: .bottomTrailing) {
+            ResourceListFAB(
+                kind: "Deployment",
+                clusterId: clusterId,
+                hasSelection: viewModel.selectedId != nil,
+                onPath: { _ in /* Onda 3: route to kind-skeleton editor */ }
+            )
+        }
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
