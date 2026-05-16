@@ -9,13 +9,18 @@ import SharedKernel
 // MARK: - SidebarCanvasView
 
 /// Canvas area combining a header strip (namespace picker), the horizontal
-/// tab bar, and the active tab content view.
+/// tab bar, the active tab content view, and the bottom-docked panes
+/// (ADR-0057 terminal, ADR-0064 YAML editor).
 ///
 /// Per ADR-0054 the tab bar renders a persistent workspace Welcome chip at
 /// position 0 in addition to the per-cluster tabs sourced from
 /// ``OpenTabsActor``. The canvas treats the Welcome tab as the sole active
 /// surface whenever it is selected, regardless of the cluster's own active
 /// tab id.
+///
+/// The bottom-docked region is a `VStack` below `activeContent`. Only one
+/// docked pane is visible at a time (ADR-0064 §Coexistence). The terminal
+/// pane toggles with `⌃\`` and the YAML editor pane toggles with `⌥E`.
 public struct SidebarCanvasView: View {
 
     // MARK: Init parameters
@@ -57,6 +62,7 @@ public struct SidebarCanvasView: View {
             tabBarRow
             Divider()
             activeContent
+            dockedPaneRegion
         }
         .task {
             guard let actor = openTabsActor else { return }
@@ -69,6 +75,16 @@ public struct SidebarCanvasView: View {
             NotificationCenter.default.publisher(for: .k8sManagerFocusWelcomeTab)
         ) { _ in
             focusWelcomeTab()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .k8sManagerToggleTerminalPane)
+        ) { _ in
+            Task { await deps.dockedTerminalPaneActor?.toggleVisibility() }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .k8sManagerToggleYAMLEditorPane)
+        ) { _ in
+            Task { await deps.dockedYAMLEditorPaneActor?.toggleVisibility() }
         }
     }
 
@@ -134,6 +150,22 @@ public struct SidebarCanvasView: View {
         ActiveTabContentView(activeTab: activeTab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    /// Bottom-docked pane region (ADR-0057 terminal + ADR-0064 YAML editor).
+    ///
+    /// Only one pane is visible at a time per ADR-0064 §Coexistence. The
+    /// terminal pane has priority when both actors have open state; the YAML
+    /// editor pane is preferred when the operator explicitly opened it.
+    @ViewBuilder
+    private var dockedPaneRegion: some View {
+        if let terminalActor = deps.dockedTerminalPaneActor {
+            DockedTerminalPane(actor: terminalActor)
+        }
+        if let editorActor = deps.dockedYAMLEditorPaneActor {
+            DockedYAMLEditorPane(actor: editorActor)
+        }
+    }
+
 
     /// Resolves the active `DocumentTab`. The workspace Welcome surface takes
     /// precedence whenever `workspaceActive` is set.

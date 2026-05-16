@@ -33,6 +33,12 @@ public struct AppShellDependencies: Sendable {
     /// Composition root injects `CodeEditorViewAdapter`; AppShell never imports
     /// the adapter target directly to preserve the ADR-0020 invariant.
     public let codeEditor: any CodeEditorPort
+    /// Bottom-docked terminal pane actor (ADR-0057). Single instance per workspace
+    /// window. `nil` only in previews/tests that do not exercise the docked pane.
+    public let dockedTerminalPaneActor: DockedTerminalPaneActor?
+    /// Inline docked YAML editor pane actor (ADR-0064). Single instance per workspace
+    /// window. `nil` only in previews/tests that do not exercise the docked editor.
+    public let dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor?
 
     public init(
         translationCatalog: any TranslationCatalogPort,
@@ -41,7 +47,9 @@ public struct AppShellDependencies: Sendable {
         openTabsActor: OpenTabsActor? = nil,
         workspaceTabsActor: WorkspaceTabsActor? = nil,
         navigationHistoryActor: NavigationHistoryActor? = nil,
-        codeEditor: any CodeEditorPort = UnimplementedCodeEditor()
+        codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
+        dockedTerminalPaneActor: DockedTerminalPaneActor? = nil,
+        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil
     ) {
         self.translationCatalog = translationCatalog
         self.toastEmitter = toastEmitter
@@ -50,6 +58,8 @@ public struct AppShellDependencies: Sendable {
         self.workspaceTabsActor = workspaceTabsActor
         self.navigationHistoryActor = navigationHistoryActor
         self.codeEditor = codeEditor
+        self.dockedTerminalPaneActor = dockedTerminalPaneActor
+        self.dockedYAMLEditorPaneActor = dockedYAMLEditorPaneActor
     }
 
     // MARK: - Unimplemented defaults

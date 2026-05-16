@@ -76,6 +76,18 @@ public enum ApplicationPaths: Sendable {
         workspaceStateRoot.appendingPathComponent("navigation-history.json")
     }
 
+    /// Absolute URL to `workspace/docked-terminal-pane.json` (ADR-0057 — bottom-docked
+    /// terminal pane state: open tabs, pane height, active tab id).
+    public static var dockedTerminalPaneURL: URL {
+        workspaceStateRoot.appendingPathComponent("docked-terminal-pane.json")
+    }
+
+    /// Absolute URL to `workspace/docked-yaml-editor-pane.json` (ADR-0064 — inline
+    /// docked YAML editor pane state: active draft, pane height).
+    public static var dockedYAMLEditorPaneURL: URL {
+        workspaceStateRoot.appendingPathComponent("docked-yaml-editor-pane.json")
+    }
+
     // MARK: Bootstrap
 
     /// Creates `supportDirectory` with `0700` permissions if it does not already

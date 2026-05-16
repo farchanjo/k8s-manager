@@ -139,6 +139,20 @@ public struct K8sManagerCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: .command)
             .accessibilityLabel("Toggle notifications panel")
+
+            // ⌃` — toggle docked terminal pane (ADR-0057)
+            Button("Toggle Terminal Pane") {
+                NotificationCenter.default.post(name: .k8sManagerToggleTerminalPane, object: nil)
+            }
+            .keyboardShortcut("`", modifiers: .control)
+            .accessibilityLabel("Toggle bottom-docked terminal pane")
+
+            // ⌥E — toggle docked YAML editor pane (ADR-0064)
+            Button("Toggle YAML Editor Pane") {
+                NotificationCenter.default.post(name: .k8sManagerToggleYAMLEditorPane, object: nil)
+            }
+            .keyboardShortcut("e", modifiers: .option)
+            .accessibilityLabel("Toggle inline docked YAML editor pane")
         }
     }
 }
@@ -169,6 +183,12 @@ public extension Notification.Name {
     static let k8sManagerNavigateBack = Notification.Name("appShell.navigateBack")
     /// Posted when ⌘] is pressed — `NavigationHistoryActor` subscriber calls `forward()`.
     static let k8sManagerNavigateForward = Notification.Name("appShell.navigateForward")
+    /// Posted when `⌃\`` is pressed — `SidebarCanvasView` toggles the docked terminal pane
+    /// (ADR-0057).
+    static let k8sManagerToggleTerminalPane = Notification.Name("appShell.toggleTerminalPane")
+    /// Posted when `⌥E` is pressed — `SidebarCanvasView` toggles the docked YAML editor pane
+    /// (ADR-0064).
+    static let k8sManagerToggleYAMLEditorPane = Notification.Name("appShell.toggleYAMLEditorPane")
 }
 
 // MARK: - KeyboardShortcutsHandler
