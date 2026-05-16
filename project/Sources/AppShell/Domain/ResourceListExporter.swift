@@ -64,11 +64,12 @@ public struct KindExportConfig: Sendable {
                 "name", "namespace", "ready", "up-to-date", "available", "age",
             ])
         }
-        for k in ["Job", "CronJob"] {
-            c[k] = .init(kind: k, columns: [
-                "name", "namespace", "completions", "duration", "age",
-            ])
-        }
+        c["Job"] = .init(kind: "Job", columns: [
+            "name", "namespace", "completions", "duration", "age",
+        ])
+        c["CronJob"] = .init(kind: "CronJob", columns: [
+            "name", "namespace", "schedule", "suspend", "active", "last-schedule", "age",
+        ])
         c["ConfigMap"] = .init(kind: "ConfigMap", columns: [
             "name", "namespace", "keys", "age",
         ])
@@ -76,18 +77,49 @@ public struct KindExportConfig: Sendable {
             "name", "namespace", "type", "keys", "age",
         ])
         c["Service"] = .init(kind: "Service", columns: [
-            "name", "namespace", "type", "cluster-ip", "external-ip", "ports", "age",
+            "name", "namespace", "status", "age",
         ])
         c["Ingress"] = .init(kind: "Ingress", columns: [
-            "name", "namespace", "class", "hosts", "address", "ports", "age",
+            "name", "namespace", "status", "age",
         ])
+        for k in ["Endpoints", "EndpointSlice", "IngressClass", "NetworkPolicy"] {
+            c[k] = .init(kind: k, columns: ["name", "namespace", "status", "age"])
+        }
         c["PersistentVolume"] = .init(kind: "PersistentVolume", columns: [
-            "name", "capacity", "access-modes", "reclaim-policy",
-            "status", "claim", "storage-class", "age",
+            "name", "status", "age",
         ])
         c["PersistentVolumeClaim"] = .init(kind: "PersistentVolumeClaim", columns: [
-            "name", "namespace", "status", "volume", "capacity",
-            "access-modes", "storage-class", "age",
+            "name", "namespace", "status", "age",
+        ])
+        for k in ["StorageClass", "VolumeSnapshot", "VolumeSnapshotClass", "CSIDriver"] {
+            c[k] = .init(kind: k, columns: ["name", "status", "age"])
+        }
+        c["HorizontalPodAutoscaler"] = .init(kind: "HorizontalPodAutoscaler", columns: [
+            "name", "namespace", "reference", "min", "max", "current", "targets", "age",
+        ])
+        c["Lease"] = .init(kind: "Lease", columns: [
+            "name", "namespace", "holder", "age",
+        ])
+        c["LimitRange"] = .init(kind: "LimitRange", columns: [
+            "name", "namespace", "constraints", "age",
+        ])
+        c["PodDisruptionBudget"] = .init(kind: "PodDisruptionBudget", columns: [
+            "name", "namespace", "min-available", "allowed-disruptions", "age",
+        ])
+        c["PriorityClass"] = .init(kind: "PriorityClass", columns: [
+            "name", "value", "global-default", "description", "age",
+        ])
+        c["ResourceQuota"] = .init(kind: "ResourceQuota", columns: [
+            "name", "namespace", "hard-limits", "used", "age",
+        ])
+        c["RuntimeClass"] = .init(kind: "RuntimeClass", columns: [
+            "name", "handler", "age",
+        ])
+        c["MutatingWebhookConfiguration"] = .init(kind: "MutatingWebhookConfiguration", columns: [
+            "name", "webhooks", "age",
+        ])
+        c["ValidatingWebhookConfiguration"] = .init(kind: "ValidatingWebhookConfiguration", columns: [
+            "name", "webhooks", "age",
         ])
         for k in ["Namespace", "Event"] {
             c[k] = .init(kind: k, columns: ["name", "status", "age"])
@@ -95,6 +127,12 @@ public struct KindExportConfig: Sendable {
         for k in ["Role", "ClusterRole", "RoleBinding", "ClusterRoleBinding"] {
             c[k] = .init(kind: k, columns: ["name", "namespace", "age"])
         }
+        c["ServiceAccount"] = .init(kind: "ServiceAccount", columns: [
+            "name", "namespace", "status", "age",
+        ])
+        c["CertificateSigningRequest"] = .init(kind: "CertificateSigningRequest", columns: [
+            "name", "status", "age",
+        ])
         return c
     }()
 }

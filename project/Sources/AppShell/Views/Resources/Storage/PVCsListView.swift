@@ -102,6 +102,16 @@ public struct PVCsListView: View {
         ) {
             content
         }
+        .modifier(ExportMenuContainer(
+            kind: "PersistentVolumeClaim",
+            rows: viewModel.filteredRows.map { item in
+                ResourceListRow(values: [
+                    item.name, item.namespace ?? "", item.status,
+                    ageLabel(item.ageSeconds),
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task { await viewModel.start(clusterId: clusterId, namespace: nil) }
     }
 

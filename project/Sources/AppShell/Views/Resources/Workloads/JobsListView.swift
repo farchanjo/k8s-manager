@@ -34,6 +34,16 @@ public struct JobsListView: View {
         ) {
             tableContent
         }
+        .modifier(ExportMenuContainer(
+            kind: "Job",
+            rows: viewModel.filteredRows.map { row in
+                ResourceListRow(values: [
+                    row.name, row.namespace, row.completions,
+                    row.duration ?? "—", row.age,
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }

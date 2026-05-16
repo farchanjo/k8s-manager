@@ -178,6 +178,16 @@ public struct NodesListView: View {
         ) {
             nodesTable
         }
+        .modifier(ExportMenuContainer(
+            kind: "Node",
+            rows: viewModel.filteredRows.map { row in
+                ResourceListRow(values: [
+                    row.name, row.version, ageLabel(row.ageSeconds),
+                    row.role, row.status, row.internalIP,
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task { await viewModel.start(clusterId: clusterId) }
     }
 

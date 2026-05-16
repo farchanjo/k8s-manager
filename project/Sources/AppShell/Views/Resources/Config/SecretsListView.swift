@@ -102,6 +102,17 @@ public struct SecretsListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            ExportMenu(
+                kind: "Secret",
+                rows: viewModel.rows.map { row in
+                    ResourceListRow(values: [
+                        row.name, row.namespace, row.type, "\(row.dataCount)", row.age,
+                    ])
+                },
+                isHidden: viewModel.rows.isEmpty
+            )
+        }
         ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")

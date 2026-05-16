@@ -75,6 +75,18 @@ public struct PodDisruptionBudgetsListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            ExportMenu(
+                kind: "PodDisruptionBudget",
+                rows: viewModel.rows.map { row in
+                    ResourceListRow(values: [
+                        row.name, row.namespace, row.minAvailable,
+                        row.allowedDisruptions, row.age,
+                    ])
+                },
+                isHidden: viewModel.rows.isEmpty
+            )
+        }
         ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")

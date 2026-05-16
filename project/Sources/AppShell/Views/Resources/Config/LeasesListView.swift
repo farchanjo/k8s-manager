@@ -73,6 +73,17 @@ public struct LeasesListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            ExportMenu(
+                kind: "Lease",
+                rows: viewModel.rows.map { row in
+                    ResourceListRow(values: [
+                        row.name, row.namespace, row.holder, row.age,
+                    ])
+                },
+                isHidden: viewModel.rows.isEmpty
+            )
+        }
         ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")

@@ -106,6 +106,17 @@ public struct ConfigMapsListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            ExportMenu(
+                kind: "ConfigMap",
+                rows: viewModel.rows.map { row in
+                    ResourceListRow(values: [
+                        row.name, row.namespace, "\(row.dataCount)", row.age,
+                    ])
+                },
+                isHidden: viewModel.rows.isEmpty
+            )
+        }
         ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")

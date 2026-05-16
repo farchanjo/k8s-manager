@@ -34,6 +34,16 @@ public struct ReplicationControllersListView: View {
         ) {
             tableContent
         }
+        .modifier(ExportMenuContainer(
+            kind: "ReplicationController",
+            rows: viewModel.filteredRows.map { row in
+                ResourceListRow(values: [
+                    row.name, row.namespace, "\(row.desired)", "\(row.current)",
+                    "\(row.ready)", row.age,
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }

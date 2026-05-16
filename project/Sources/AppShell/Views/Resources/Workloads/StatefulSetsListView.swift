@@ -34,6 +34,13 @@ public struct StatefulSetsListView: View {
         ) {
             tableContent
         }
+        .modifier(ExportMenuContainer(
+            kind: "StatefulSet",
+            rows: viewModel.filteredRows.map { row in
+                ResourceListRow(values: [row.name, row.namespace, row.ready, row.age])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }

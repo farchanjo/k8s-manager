@@ -75,6 +75,17 @@ public struct MutatingWebhooksListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            ExportMenu(
+                kind: "MutatingWebhookConfiguration",
+                rows: viewModel.rows.map { row in
+                    ResourceListRow(values: [
+                        row.name, "\(row.webhooksCount)", row.age,
+                    ])
+                },
+                isHidden: viewModel.rows.isEmpty
+            )
+        }
         ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")

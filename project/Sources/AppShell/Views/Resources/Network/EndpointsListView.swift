@@ -102,6 +102,16 @@ public struct EndpointsListView: View {
         ) {
             endpointsContent
         }
+        .modifier(ExportMenuContainer(
+            kind: "Endpoints",
+            rows: viewModel.filteredRows.map { item in
+                ResourceListRow(values: [
+                    item.name, item.namespace ?? "", item.status,
+                    ageLabel(item.ageSeconds),
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task { await viewModel.start(clusterId: clusterId, namespace: nil) }
     }
 

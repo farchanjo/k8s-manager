@@ -107,6 +107,15 @@ public struct RolesListView: View {
         ) {
             content
         }
+        .modifier(ExportMenuContainer(
+            kind: "Role",
+            rows: viewModel.filteredRows.map { item in
+                ResourceListRow(values: [
+                    item.name, item.namespace ?? "", ageLabel(item.ageSeconds),
+                ])
+            },
+            isHidden: viewModel.filteredRows.isEmpty
+        ))
         .task { await viewModel.start(clusterId: clusterId, namespace: nil) }
     }
 
