@@ -7,6 +7,8 @@
 - Informed — (none yet)
 - Refines — ADR-0010 (local persistence — SQLite for non-secret state, macOS Keychain for LLM API
   keys)
+- Refined by — ADR-0050 (tab persistence path: clusters/`<clusterId>`/open-tabs.json), ADR-0051
+  (cluster strip pin order: workspace/cluster-strip-pins.json)
 - Tags — persistence, filesystem, storage-path, application-support, cold-launch, restoration
 
 > **Path correction (2026-05-16).** The initial draft of this ADR placed the storage root at
@@ -14,12 +16,12 @@
 > inconsistency carried over from Linux conventions. macOS HIG mandates
 > `~/Library/Application Support/` for application data. The storage root is corrected to
 > `~/Library/Application Support/K8sManager/`, resolved at runtime via
-> `FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)`.
-> Rationale: macOS users expect application data under Application Support; backup tools such as
-> Time Machine respect this directory automatically; and the path is correct for both sandboxed and
-> Developer ID–distributed builds. The XDG `~/.config` path is not used on macOS outside
-> command-line tools that explicitly target cross-platform operators — K8sManager is a native macOS
-> application and must follow platform conventions.
+> `FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)`. Rationale:
+> macOS users expect application data under Application Support; backup tools such as Time Machine
+> respect this directory automatically; and the path is correct for both sandboxed and Developer
+> ID–distributed builds. The XDG `~/.config` path is not used on macOS outside command-line tools
+> that explicitly target cross-platform operators — K8sManager is a native macOS application and
+> must follow platform conventions.
 
 > **ADR-0010 refinement note (2026-05-15).** The SQLite storage file formerly specified under
 > `~/Library/Application Support/com.archanjo.K8sManager/` in ADR-0010 is now at
@@ -100,8 +102,9 @@ Use the XDG Base Directory convention.
 
 - Deviates from Apple's `~/Library/Application Support` convention; this is an early-draft
   inconsistency carried over from Linux conventions, not a deliberate macOS design choice.
-- Requires a hardened-runtime entitlement (`com.apple.security.temporary-exception.files.
-  home-relative-path.read-write`) that is not needed with Application Support.
+- Requires a hardened-runtime entitlement
+  (`com.apple.security.temporary-exception.files. home-relative-path.read-write`) that is not needed
+  with Application Support.
 - Time Machine does not back up `~/.config` by default; operators must configure exclusions manually
   to avoid this.
 - Inconsistent with every other native macOS application the operator uses.
@@ -364,3 +367,37 @@ re-entered manually; this is the correct security posture.
 - ADR-0011 — `PersistenceActor` is the sole writer to `storage.sqlite3`.
 - ADR-0025 — `ClusterSessionActor` owns per-cluster JSON files under `clusters/<clusterId>/`.
 - ADR-0042 — Single-instance enforcement via `flock(2)` on `.instance.lock`.
+
+---
+
+## Addendum — Tab and cluster strip persistence paths (2026-05-16, ADR-0050/ADR-0051 refinements)
+
+ADR-0050 and ADR-0051 introduce two new persistent state artifacts in the filesystem layout:
+
+**Open tabs per cluster** — each cluster's open tab list is persisted to:
+
+```
+~/Library/Application Support/K8sManager/clusters/<clusterId>/open-tabs.json
+```
+
+This file is written by `OpenTabsActor` (ADR-0050) on every tab mutation, debounced to 500 ms. The
+schema is defined in `contexts/app_shell/schemas/open_tabs_state.cue`. The file is restored by
+`OpenTabsActor` during cold launch after the cluster session is established. If the file does not
+exist (first launch, or after cluster removal), `OpenTabsActor` starts with an empty tab list.
+
+The file follows the same atomic write semantics as other per-cluster JSON files: write to
+`open-tabs.json.tmp` in the same directory, then `rename(2)` to `open-tabs.json`.
+
+**Cluster strip pin order** — the ordered list of pinned cluster strip entries is persisted to:
+
+```
+~/Library/Application Support/K8sManager/workspace/cluster-strip-pins.json
+```
+
+The `workspace/` subdirectory is workspace-global (not per-cluster). It is created by
+`ClusterStripActor` (ADR-0051) on first pin operation. The schema is defined in
+`contexts/app_shell/schemas/cluster_strip_pin.cue`. The file is restored by `ClusterStripActor`
+during cold launch before any cluster session is established, so the strip can display pinned
+cluster avatars immediately even while sessions are still connecting.
+
+The atomic-write and redaction rules from the main ADR apply to both files without exception.
