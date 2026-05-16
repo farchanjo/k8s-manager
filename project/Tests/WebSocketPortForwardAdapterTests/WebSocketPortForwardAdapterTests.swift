@@ -1,5 +1,5 @@
 // WebSocketPortForwardAdapterTests.swift — infrastructure adapter tests
-// Coverage: URL builder, channel-index math, construction smoke.
+// Coverage: URL builder, channel-index math, frame layout (ADR-0014), construction smoke.
 // XCTest / Swift 6 strict concurrency.
 
 import XCTest
@@ -134,6 +134,79 @@ final class PortForwardChannelIndexTests: XCTestCase {
                 "Port \(i): error channel must be odd"
             )
         }
+    }
+}
+
+// MARK: - PortForwardFrameLayoutTests (ADR-0014 §Confirmation)
+
+/// Byte-exact wire-layout tests mandated by ADR-0014 §Confirmation.
+///
+/// These tests protect against regressions to the previously incorrect byte order
+/// (channel-first instead of portIndex-first). The corrected layout is:
+///   byte 0 = portIndex, byte 1 = streamType, bytes 2… = payload.
+final class PortForwardFrameLayoutTests: XCTestCase {
+
+    // ADR-0014 §Confirmation: encode "hello" (5 bytes) for portIndex 0, data stream.
+    // Expected wire bytes: [0x00, 0x00, 0x68, 0x65, 0x6C, 0x6C, 0x6F]
+    func test_encode_portIndex0_data_hello_matchesADRVector() {
+        let frame = PortForwardFrame(
+            portIndex: 0,
+            streamType: .data,
+            payload: Data("hello".utf8)
+        )
+        let wire = frame.encoded()
+        XCTAssertEqual([UInt8](wire), [0x00, 0x00, 0x68, 0x65, 0x6C, 0x6C, 0x6F],
+                       "Wire bytes must match ADR-0014 §Confirmation vector exactly")
+    }
+
+    // ADR-0014 §Confirmation: decode [0x01, 0x01, …] → portIndex 1, streamType error.
+    func test_decode_portIndex1_error_stream() {
+        let wire = Data([0x01, 0x01, 0x62, 0x61, 0x64]) // portIndex=1, error, "bad"
+        let frame = PortForwardFrame.decode(wire)
+        XCTAssertNotNil(frame)
+        XCTAssertEqual(frame?.portIndex, 1)
+        XCTAssertEqual(frame?.streamType, .error)
+        XCTAssertEqual(String(data: frame?.payload ?? Data(), encoding: .utf8), "bad")
+    }
+
+    func test_encode_decode_roundtrip_portIndex2_data() {
+        let original = PortForwardFrame(
+            portIndex: 2,
+            streamType: .data,
+            payload: Data([0xDE, 0xAD, 0xBE, 0xEF])
+        )
+        let decoded = PortForwardFrame.decode(original.encoded())
+        XCTAssertEqual(decoded?.portIndex, original.portIndex)
+        XCTAssertEqual(decoded?.streamType, original.streamType)
+        XCTAssertEqual(decoded?.payload, original.payload)
+    }
+
+    func test_empty_payload_data_frame_signals_eof() {
+        // Zero-byte payload on data stream = graceful half-close (ADR-0014 §Wire protocol)
+        let frame = PortForwardFrame(portIndex: 0, streamType: .data, payload: Data())
+        let wire = frame.encoded()
+        XCTAssertEqual(wire.count, 2, "Header only, no payload bytes")
+        XCTAssertEqual([UInt8](wire), [0x00, 0x00])
+    }
+
+    func test_decode_too_short_returns_nil() {
+        XCTAssertNil(PortForwardFrame.decode(Data()), "Empty data must return nil")
+        XCTAssertNil(PortForwardFrame.decode(Data([0x00])), "Single byte must return nil")
+    }
+
+    func test_decode_unknown_streamType_returns_nil() {
+        // Byte 1 = 0xFF is not a recognised streamType.
+        let wire = Data([0x00, 0xFF, 0x01])
+        XCTAssertNil(PortForwardFrame.decode(wire))
+    }
+
+    func test_port_index_byte_is_first_byte_not_second() {
+        // Regression guard: byte 0 must be portIndex, not streamType.
+        // portIndex=3, streamType=data → first byte MUST be 0x03 (portIndex 3).
+        let frame = PortForwardFrame(portIndex: 3, streamType: .data, payload: Data())
+        let wire = frame.encoded()
+        XCTAssertEqual(wire[wire.startIndex], 0x03, "byte 0 must be portIndex")
+        XCTAssertEqual(wire[wire.startIndex.advanced(by: 1)], 0x00, "byte 1 must be streamType (data=0x00)")
     }
 }
 
