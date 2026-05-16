@@ -103,9 +103,9 @@ public final class CodeEditorViewAdapter: CodeEditorPort {
                 continuation.onTermination = { @Sendable [weak self] _ in
                     Task { @MainActor [weak self] in
                         guard let self else { return }
-                        if self.continuation === continuation {
-                            self.continuation = nil
-                        }
+                        // AsyncStream.Continuation is a value type — no identity
+                        // check. Whichever stream finishes last clears the slot.
+                        self.continuation = nil
                     }
                 }
             }
