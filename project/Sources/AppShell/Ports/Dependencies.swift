@@ -21,17 +21,23 @@ public struct AppShellDependencies: Sendable {
     ///         .appendingPathComponent("\(clusterId.rawValue)/open-tabs.json"))
     /// ```
     public let openTabsActor: OpenTabsActor?
+    /// Code editor port (YAML/JSON/MD highlighting) — ADR-0030.
+    /// Composition root injects `CodeEditorViewAdapter`; AppShell never imports
+    /// the adapter target directly to preserve the ADR-0020 invariant.
+    public let codeEditor: any CodeEditorPort
 
     public init(
         translationCatalog: any TranslationCatalogPort,
         toastEmitter: any ToastEmitterPort,
         localePreference: any LocalePreferencePort,
-        openTabsActor: OpenTabsActor? = nil
+        openTabsActor: OpenTabsActor? = nil,
+        codeEditor: any CodeEditorPort = UnimplementedCodeEditor()
     ) {
         self.translationCatalog = translationCatalog
         self.toastEmitter = toastEmitter
         self.localePreference = localePreference
         self.openTabsActor = openTabsActor
+        self.codeEditor = codeEditor
     }
 
     // MARK: - Unimplemented defaults
@@ -42,8 +48,29 @@ public struct AppShellDependencies: Sendable {
         AppShellDependencies(
             translationCatalog: UnimplementedTranslationCatalog(),
             toastEmitter: UnimplementedToastEmitter(),
-            localePreference: UnimplementedLocalePreferenceStore()
+            localePreference: UnimplementedLocalePreferenceStore(),
+            codeEditor: UnimplementedCodeEditor()
         )
+    }
+}
+
+// MARK: - UnimplementedCodeEditor
+
+import SwiftUI
+
+/// Stand-in `CodeEditorPort` for previews/tests; aborts on use so missing wiring
+/// at composition root surfaces immediately. Production code receives a real
+/// `CodeEditorViewAdapter` instance via dependency injection.
+public struct UnimplementedCodeEditor: CodeEditorPort, Sendable {
+    public init() {}
+
+    @MainActor
+    public func makeEditor(initial: String, language: EditorLanguage, theme: EditorTheme) -> AnyView {
+        preconditionFailure("CodeEditorPort not implemented — inject CodeEditorViewAdapter at composition root")
+    }
+
+    public func editStream() -> AsyncStream<EditEvent> {
+        AsyncStream { continuation in continuation.finish() }
     }
 }
 

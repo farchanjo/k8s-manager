@@ -25,6 +25,7 @@ public struct YAMLEditorTab: View {
     // MARK: State
 
     @State private var viewModel = YAMLEditorViewModel()
+    @State private var editorView: AnyView?
     @Environment(\.appShellDependencies) private var deps
 
     /// Bindable projection of `viewModel` used in sheet / alert modifiers.
@@ -56,7 +57,7 @@ public struct YAMLEditorTab: View {
                 .frame(maxHeight: 120)
             }
         }
-        .task { await viewModel.start(clusterId: clusterId, ref: ref, initialDraft: initialDraft) }
+        .task { await bootstrap() }
         .sheet(isPresented: bindableVM.confirmingApply) {
             ApplyConfirmationSheet(viewModel: viewModel, ref: ref)
         }
@@ -99,15 +100,34 @@ public struct YAMLEditorTab: View {
     }
 
     private var codeEditorRegion: some View {
-        TextEditor(text: $viewModel.draftText)
-            .font(.system(.body, design: .monospaced))
-            .frame(minWidth: 320)
-            .onChange(of: viewModel.draftText) {
-                Task {
-                    await viewModel.validate()
-                    await viewModel.runDryRun()
-                }
+        Group {
+            if let editorView {
+                editorView
+            } else {
+                ProgressView().controlSize(.small)
             }
+        }
+        .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Boots the view: mounts the CodeEditor port, starts the view model,
+    /// and consumes the port's edit stream to keep `viewModel.draftText` in
+    /// sync (replaces the previous SwiftUI `TextEditor` stub).
+    /// The concrete adapter (`CodeEditorViewAdapter`) is wired by the
+    /// composition root; AppShell consumes only `CodeEditorPort` to honour
+    /// the ADR-0020 invariant.
+    private func bootstrap() async {
+        editorView = deps.codeEditor.makeEditor(
+            initial: initialDraft,
+            language: .yaml,
+            theme: .system
+        )
+        await viewModel.start(clusterId: clusterId, ref: ref, initialDraft: initialDraft)
+        for await event in deps.codeEditor.editStream() {
+            viewModel.draftText = event.content
+            await viewModel.validate()
+            await viewModel.runDryRun()
+        }
     }
 
     // MARK: Private helpers

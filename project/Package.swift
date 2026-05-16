@@ -276,6 +276,7 @@ let package = Package(
             name: "MetricsObservability",
             dependencies: [
                 "SharedKernel",
+                "ClusterConnectivity",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Metrics", package: "swift-metrics"),

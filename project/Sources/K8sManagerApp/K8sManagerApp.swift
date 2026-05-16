@@ -79,7 +79,7 @@ struct K8sManagerApp: App {
     }
 
     var body: some Scene {
-        K8sManagerRootScene()
+        K8sManagerRootScene(codeEditor: CodeEditorViewAdapter())
     }
 }
 

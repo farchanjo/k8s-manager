@@ -107,15 +107,11 @@ public struct ApplyYAMLView: View {
 
     @ViewBuilder
     private var editorBody: some View {
-        if let codeEditor = deps.codeEditor {
-            PlainTextEditorBridge(
-                text: $viewModel.yamlText,
-                language: .yaml,
-                codeEditor: codeEditor
-            )
-        } else {
-            fallbackEditor
-        }
+        PlainTextEditorBridge(
+            text: $viewModel.yamlText,
+            language: .yaml,
+            codeEditor: deps.codeEditor
+        )
     }
 
     private var fallbackEditor: some View {
@@ -184,9 +180,7 @@ private struct PlainTextEditorBridge: View {
     }
 }
 
-// MARK: - AppShellDependencies + codeEditor shim
-
-private extension AppShellDependencies {
-    /// Returns the code editor port when one has been registered; `nil` otherwise.
-    var codeEditor: (any CodeEditorPort)? { nil }  // Onda 3: inject from composition root
-}
+// `codeEditor` shim removed — AppShellDependencies now carries `codeEditor`
+// natively (Onda 3 composition-root wiring). Fallback editor unused; the
+// adapter port is always available, falling through to UnimplementedCodeEditor
+// in previews/tests if not injected.

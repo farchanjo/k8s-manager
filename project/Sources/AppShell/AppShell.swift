@@ -39,14 +39,20 @@ public struct K8sManagerRootScene: Scene {
     /// domain emitter writes to the aggregate actor; the view model drives the UI stack.
     private let appShellDeps: AppShellDependencies
 
-    public init() {
+    /// Designated init.
+    /// - Parameter codeEditor: Concrete `CodeEditorPort` injected by the
+    ///   composition root (`K8sManagerApp` passes `CodeEditorViewAdapter()`).
+    ///   Defaults to `UnimplementedCodeEditor()` so previews and tests can
+    ///   instantiate the scene without the adapter target.
+    public init(codeEditor: any CodeEditorPort = UnimplementedCodeEditor()) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
         )
         appShellDeps = AppShellDependencies(
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
-            localePreference: InMemoryLocalePreferenceStore()
+            localePreference: InMemoryLocalePreferenceStore(),
+            codeEditor: codeEditor
         )
     }
 
