@@ -1,23 +1,35 @@
-# ADR-0026 — State persistence and filesystem layout under `~/.config/k8smanager/`
+# ADR-0026 — State persistence and filesystem layout under `~/Library/Application Support/K8sManager/`
 
-- Status — Accepted (ratified 2026-05-15)
+- Status — Accepted (ratified 2026-05-15; path corrected 2026-05-16)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
 - Refines — ADR-0010 (local persistence — SQLite for non-secret state, macOS Keychain for LLM API
   keys)
-- Tags — persistence, filesystem, storage-path, xdg, cold-launch, restoration
+- Tags — persistence, filesystem, storage-path, application-support, cold-launch, restoration
 
-> **Refinement note (2026-05-15).** ADR-0010 placed the SQLite storage file under
-> `~/Library/Application Support/com.archanjo.K8sManager/`. This ADR moves the storage root to
-> `~/.config/k8smanager/` (XDG-style, operator-friendly path). macOS convention would normally
-> mandate `~/Library/Application Support/com.archanjo.K8sManager/`, but the target operator profile
-> (DevOps / platform engineers) expects `~/.config`-style paths that are immediately discoverable,
-> easy to back up with a single `tar`, and compatible with dotfile management workflows. The
-> Keychain placement is unchanged — Keychain is OS-managed and is the correct and most secure home
-> for secret material. All other rules from ADR-0010 (WAL mode, GRDB, migrations, redaction policy)
-> carry forward without change.
+> **Path correction (2026-05-16).** The initial draft of this ADR placed the storage root at
+> `~/.config/k8smanager/` following the XDG Base Directory convention. That was an early-draft
+> inconsistency carried over from Linux conventions. macOS HIG mandates
+> `~/Library/Application Support/` for application data. The storage root is corrected to
+> `~/Library/Application Support/K8sManager/`, resolved at runtime via
+> `FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)`.
+> Rationale: macOS users expect application data under Application Support; backup tools such as
+> Time Machine respect this directory automatically; and the path is correct for both sandboxed and
+> Developer ID–distributed builds. The XDG `~/.config` path is not used on macOS outside
+> command-line tools that explicitly target cross-platform operators — K8sManager is a native macOS
+> application and must follow platform conventions.
+
+> **ADR-0010 refinement note (2026-05-15).** The SQLite storage file formerly specified under
+> `~/Library/Application Support/com.archanjo.K8sManager/` in ADR-0010 is now at
+> `~/Library/Application Support/K8sManager/storage.sqlite3`. All other rules from ADR-0010 — WAL
+> mode, GRDB driver, PRAGMA settings, append-only migrations, Keychain placement under
+> `service = "com.archanjo.K8sManager.llm"`, redaction policy, and the `PersistenceActor`
+> sole-writer model — carry forward without change. Per-cluster view state and restorable session
+> data are stored in per-cluster JSON files under
+> `~/Library/Application Support/K8sManager/clusters/<clusterId>/` (ADR-0025), not in the SQLite
+> database.
 
 ## Context and problem statement
 
@@ -33,21 +45,18 @@ three additional requirements emerged:
   pinned cluster sessions, dashboard layouts, chat sessions, terminal sessions (with opt-in prompt),
   and port-forward listeners (with opt-in prompt). A structured restoration manifest simplifies the
   boot sequence.
-- **Operator-friendly path** — the target operator works daily with `~/.kube/config`,
-  `~/.config/starship.toml`, `~/.config/gh/hosts.yml`. The `~/Library/Application Support` hierarchy
-  is opaque to CLI operators and requires Finder navigation. A `~/.config/k8smanager/` root is in
-  band with the operator's existing tooling.
-
-Additionally, a first-run migration path is needed for operators who already have a storage file at
-the `~/Library/Application Support` location from an earlier build.
+- **Consistent path** — the storage root must follow macOS conventions so that Time Machine backs it
+  up automatically, App Store sandbox entitlements are straightforward, and macOS users can locate
+  application data via "Show in Finder" affordances in System Settings.
 
 ## Decision drivers
 
-- **Operator discoverability** — `~/.config/k8smanager/` is reachable from the terminal without
-  navigating macOS-specific Finder locations.
-- **Backup simplicity** — `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures the
-  complete application state (excluding Keychain secrets, which are OS-managed and inapplicable to
-  file backup).
+- **macOS HIG compliance** — `~/Library/Application Support/` is the platform-mandated home for
+  application data; deviating requires explicit justification and additional entitlements.
+- **Time Machine compatibility** — `~/Library/Application Support/` is automatically included in
+  Time Machine backups without any operator configuration.
+- **Sandbox-compatible** — `applicationSupportDirectory` is the correct `FileManager` search path
+  constant for both sandboxed (App Store) and Developer ID–distributed builds.
 - **Per-cluster isolation** — per-cluster view state and restorable session data live under
   `clusters/<clusterId>/` so that removing a cluster context removes exactly one subtree.
 - **Privacy by design** — log files must not contain credential material; cache data must be
@@ -59,110 +68,80 @@ the `~/Library/Application Support` location from an earlier build.
 
 ## Considered options
 
-### Option A — `~/Library/Application Support/com.archanjo.K8sManager/` (ADR-0010 baseline)
+### Option A — `~/Library/Application Support/K8sManager/` (chosen)
 
-Keep the macOS-conventional path.
+Use `FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)` and append
+the `K8sManager` component.
 
 **Pros**
 
-- Aligns with Apple platform conventions.
-- Automatic exclusion from iCloud Desktop & Documents sync (App Support is not synced by default).
+- Aligns with Apple platform conventions and macOS HIG.
+- Automatic inclusion in Time Machine backups without operator configuration.
 - Sandbox-compatible if the app is ever submitted to the App Store.
+- No additional entitlements beyond the standard application sandbox.
+- `NSFileManager` and SwiftUI "Open in Finder" affordances resolve this path correctly.
 
 **Cons**
 
-- Opaque to CLI operators; not discoverable without Finder.
-- Longer path; does not integrate with dotfile managers or `stow`.
-- `tar` backup requires knowing the bundle identifier.
-- Inconsistent with the rest of the operator's `~/.config`-centric toolchain.
+- Path is longer and less immediately visible to CLI operators than `~/.config`.
+- Operators who use dotfile managers (chezmoi, stow) cannot manage this directory directly.
 
-### Option B — Dot-folder in `$HOME` (e.g., `~/.k8smanager/`)
+### Option B — `~/.config/k8smanager/` (XDG — rejected)
 
-Place the storage root directly in `$HOME` as a hidden dot-folder.
+Use the XDG Base Directory convention.
+
+**Pros**
+
+- Immediately discoverable by DevOps / platform engineers familiar with `~/.config`.
+- Compatible with dotfile management workflows.
+- `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures everything.
+
+**Cons**
+
+- Deviates from Apple's `~/Library/Application Support` convention; this is an early-draft
+  inconsistency carried over from Linux conventions, not a deliberate macOS design choice.
+- Requires a hardened-runtime entitlement (`com.apple.security.temporary-exception.files.
+  home-relative-path.read-write`) that is not needed with Application Support.
+- Time Machine does not back up `~/.config` by default; operators must configure exclusions manually
+  to avoid this.
+- Inconsistent with every other native macOS application the operator uses.
+
+### Option C — Dot-folder in `$HOME` (e.g., `~/.k8smanager/`)
 
 **Pros**
 
 - Single path component; easy to remember.
-- Compatible with dotfile workflows.
 
 **Cons**
 
-- `$HOME` dot-folder proliferation is a known usability anti-pattern (XDG was introduced precisely
-  to reduce this).
+- `$HOME` dot-folder proliferation is a known usability anti-pattern.
 - No separation between application data, cache, and logs.
-- Conflicts with any other tool that chose `~/.k8smanager` as its config path.
-
-### Option C — XDG `~/.config/k8smanager/` (chosen)
-
-Use the XDG Base Directory convention for the root. Although macOS does not standardise on XDG, the
-operator population (DevOps / platform engineers) universally encounters `~/.config` through tools
-such as `gh`, `starship`, `lazygit`, `k9s`, `kubectx`, and `helm`.
-
-**Pros**
-
-- Discovered instantly by operators who know `~/.config`.
-- Clean separation of persistent state (root), caches (`cache/`), per-cluster state (`clusters/`),
-  logs (`logs/`), and operator-initiated exports (`exports/`).
-- `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures everything except Keychain
-  secrets.
-- Per-cluster subtree under `clusters/<clusterId>/` maps directly onto the ADR-0025
-  `#ClusterSession` lifecycle.
-- Compatible with `chezmoi`, `stow`, and similar dotfile managers.
-
-**Cons**
-
-- Deviates from Apple's recommended `~/Library/Application Support` convention; some App Store
-  review guidelines refer to this path. K8sManager is a Developer ID–distributed app (ADR-0004), so
-  App Store sandbox constraints do not apply.
-- Application sandbox must explicitly declare the `~/.config` entitlement
-  (`com.apple.security.temporary-exception.files.home-relative-path.read-write` or a
-  hardened-runtime equivalent).
-
-## Pros and cons of the options
-
-### Option A — `~/Library/Application Support/com.archanjo.K8sManager/` (ADR-0010 baseline)
-
-- Good, because it aligns with Apple platform conventions and is automatically excluded from iCloud
-  Desktop and Documents sync.
-- Good, because it is sandbox-compatible if the app were ever submitted to the App Store.
-- Bad, because it is opaque to CLI operators and not discoverable without navigating Finder.
-- Bad, because `tar` backup requires knowing the bundle identifier; incompatible with `chezmoi`,
-  `stow`, or the operator's existing dotfile management workflows.
-
-### Option B — Dot-folder in `$HOME` (e.g., `~/.k8smanager/`)
-
-- Good, because the single path component is easy to remember and compatible with dotfile workflows.
-- Bad, because `$HOME` dot-folder proliferation is a known usability anti-pattern; the XDG Base
-  Directory specification was introduced precisely to reduce this.
-- Bad, because there is no separation between application data, cache, and logs, making per-category
-  cache clearing and selective backup impossible.
-
-### Option C — XDG `~/.config/k8smanager/` (chosen)
-
-- Good, because `~/.config` is immediately discoverable by the operator profile (DevOps / platform
-  engineers) who universally encounter it through `gh`, `starship`, `lazygit`, `k9s`, `kubectx`, and
-  `helm`.
-- Good, because clean separation into `cache/`, `clusters/`, `logs/`, and `exports/` subdirectories
-  supports per-category operations (wipe cache, inspect logs) without touching other data.
-- Good, because `tar -czf k8smanager-backup.tar.gz ~/.config/k8smanager/` captures the complete
-  application state in a single command without knowing the bundle identifier.
-- Bad, because it deviates from Apple's `~/Library/Application Support` convention; the app must
-  declare a hardened-runtime entitlement for `~/.config` access.
-- Bad, because Keychain backup remains a separate workflow; operators must understand that the `tar`
-  backup does not include their LLM API keys.
+- No Time Machine coverage by default.
 
 ## Decision outcome
 
-The storage root for K8sManager is `~/.config/k8smanager/`. The directory is created on first launch
-with `0700` permissions.
+The storage root for K8sManager is `~/Library/Application Support/K8sManager/`. The directory is
+created on first launch via `ApplicationPaths.ensureSupportDirectoryExists()` with `0700`
+permissions. The path is resolved at runtime using:
+
+```swift
+FileManager.default
+    .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+    .first!
+    .appendingPathComponent("K8sManager", isDirectory: true)
+```
+
+All call sites must use `ApplicationPaths` (defined in `Sources/SharedKernel/Paths/`) rather than
+constructing the path inline.
 
 ### Complete filesystem layout
 
 ```
-~/.config/k8smanager/
+~/Library/Application Support/K8sManager/
 ├── storage.sqlite3            # Main SQLite database (WAL, GRDB, ADR-0010 rules)
 ├── storage.sqlite3-wal        # WAL sidecar (managed by SQLite)
 ├── storage.sqlite3-shm        # Shared-memory sidecar (managed by SQLite)
+├── .instance.lock             # POSIX flock single-instance guard (ADR-0042)
 ├── cache/                     # Transient caches — safe to delete; reset on app version bump
 │   ├── resource_list/         # Kubernetes resource list responses (TTL-keyed)
 │   └── prometheus/            # Prometheus query result cache (TTL-keyed)
@@ -180,6 +159,7 @@ with `0700` permissions.
 
 - `storage.sqlite3` — opened with `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`,
   `busy_timeout=5000`, `cache_size=-65536`. Identical PRAGMAs to ADR-0010; only the path changes.
+- `.instance.lock` — `flock(2)` advisory lock; held for the process lifetime (ADR-0042).
 - `cache/` — the entire subtree is wiped on app version bump. Any cached value must be fully
   reconstructible from the cluster or from storage. Never put user-authoritative data in `cache/`.
 - `clusters/<clusterId>/` — created when a `ClusterSessionActor` is first opened for that cluster;
@@ -199,8 +179,19 @@ with `0700` permissions.
 ### Keychain (unchanged)
 
 Keychain entries remain under macOS Keychain with `service = "com.archanjo.K8sManager.llm"` per
-ADR-0010. Keychain is OS-managed; it is the correct home for secret material and is not part of the
-`~/.config/k8smanager/` backup.
+ADR-0010. Keychain is OS-managed; it is the correct home for secret material.
+
+### Permissions
+
+The root directory and all subdirectories are created with `0700` permissions via:
+
+```swift
+try FileManager.default.createDirectory(
+    at: supportDirectory,
+    withIntermediateDirectories: true,
+    attributes: [.posixPermissions: 0o700]
+)
+```
 
 ### Write rules
 
@@ -228,6 +219,7 @@ sequenceDiagram
     participant CSA as ClusterSessionActor
     participant UI as MainActor (SwiftUI)
 
+    App->>FS: ensureSupportDirectoryExists() — 0700
     App->>FS: Read RestorationManifest\n(clusters/id/view_state.json per pinned cluster)
     App->>DB: Open SQLite, run pending migrations
     App->>DB: Load ContextNavigationState (active context)
@@ -262,17 +254,18 @@ sequenceDiagram
 On launch, before opening any storage, the application checks whether the legacy storage file exists
 at `~/Library/Application Support/com.archanjo.K8sManager/storage.sqlite3`.
 
-If the legacy file is found **and** `~/.config/k8smanager/storage.sqlite3` does not yet exist, the
-application presents a one-time migration prompt:
+If the legacy file is found **and** `~/Library/Application Support/K8sManager/storage.sqlite3` does
+not yet exist, the application presents a one-time migration prompt:
 
 > "K8sManager found an existing database from a previous version at
-> `~/Library/Application Support/com.archanjo.K8sManager/`. Move it to `~/.config/k8smanager/`?"
+> `~/Library/Application Support/com.archanjo.K8sManager/`. Move it to
+> `~/Library/Application Support/K8sManager/`?"
 >
 > [Move] [Start fresh]
 
 If the operator confirms:
 
-1. `~/.config/k8smanager/` is created.
+1. `~/Library/Application Support/K8sManager/` is created.
 2. `storage.sqlite3`, `storage.sqlite3-wal`, and `storage.sqlite3-shm` are moved (not copied) to the
    new location.
 3. The legacy directory is left in place but empty, so that the operator can confirm the move and
@@ -282,7 +275,7 @@ If the operator confirms:
 
 If the operator chooses "Start fresh":
 
-1. `~/.config/k8smanager/` is created.
+1. `~/Library/Application Support/K8sManager/` is created.
 2. A fresh `storage.sqlite3` is initialised with the current schema.
 3. The legacy directory is left untouched.
 
@@ -290,8 +283,8 @@ If neither file exists (fresh install): step 1 only; no prompt.
 
 ### Privacy note
 
-The log files at `~/.config/k8smanager/logs/` are intended for operator-facing diagnostics. They
-must not contain:
+The log files at `~/Library/Application Support/K8sManager/logs/` are intended for operator-facing
+diagnostics. They must not contain:
 
 - Bearer tokens, client certificates, or kubeconfig-sourced credentials.
 - LLM API key values or key fragments.
@@ -304,10 +297,11 @@ payloads, `Bearer <token>`, `Authorization:` header values) and replaces matches
 ### Backup guidance
 
 An operator wanting a full backup of application state (excluding Keychain secrets and cluster
-credentials) runs:
+credentials) may use Time Machine (automatic) or run:
 
 ```sh
-tar -czf k8smanager-backup-$(date +%Y%m%d).tar.gz ~/.config/k8smanager/
+tar -czf k8smanager-backup-$(date +%Y%m%d).tar.gz \
+  ~/Library/Application\ Support/K8sManager/
 ```
 
 To restore on a new machine: extract and launch the application. The application will find the
@@ -318,33 +312,39 @@ re-entered manually; this is the correct security posture.
 
 **Positive**
 
-- Storage root is immediately discoverable by CLI operators.
+- Storage root follows macOS HIG; Time Machine backs it up without operator configuration.
 - Per-cluster state under `clusters/<clusterId>/` has a natural lifecycle tied to
   `ClusterSessionActor` from ADR-0025.
-- `tar` backup is a single command without knowing the bundle identifier.
-- Clearing the `cache/` subtree is safe at any time and resolves most storage-related support
-  issues.
+- No additional hardened-runtime entitlements required beyond the standard application sandbox.
+- Sandbox-compatible if the app is ever submitted to the App Store.
 - Log rotation (daily, 30-day cap) prevents unbounded disk use.
 
 **Negative**
 
-- Deviates from Apple's `~/Library/Application Support` convention; the app must declare a
-  hardened-runtime entitlement for `~/.config` access.
-- Keychain backup is a separate workflow; operators must understand that the `tar` backup does not
-  include their LLM API keys.
+- Path is less immediately visible to CLI operators than `~/.config`; the "reveal in Finder"
+  affordance in Settings is the intended discovery mechanism.
+- Keychain backup is a separate workflow; operators must understand that the backup does not include
+  their LLM API keys.
 - First-run migration adds a conditional code path; it must be tested to prevent data loss.
 
 **Neutral**
 
-- The path change is transparent to the operator's existing workflows; nothing else in the
-  application references the old path after migration.
+- The path change from the draft XDG location is transparent at runtime; `ApplicationPaths`
+  centralises the path so no call site needs updating individually.
 - SQLite WAL sidecar files (`-wal`, `-shm`) are included in the `tar` backup and are safe to
   restore.
 
 ### Confirmation
 
-- A cold-launch test on a fresh machine creates `~/.config/k8smanager/storage.sqlite3` and confirms
-  `journal_mode` returns `wal`.
+- A cold-launch test on a fresh machine creates
+  `~/Library/Application Support/K8sManager/storage.sqlite3` and confirms `journal_mode` returns
+  `wal`.
+- `ApplicationPathsTests.test_supportDirectory_endsWithK8sManager` asserts the resolved path ends
+  with `K8sManager`.
+- `ApplicationPathsTests.test_allPathsUnderSupportDirectory` asserts that `storageURL`,
+  `instanceLockURL`, `clusterStateRoot`, and `logDirectory` all share the `supportDirectory` prefix.
+- `ApplicationPathsTests.test_ensureSupportDirectoryExists_creates0700` asserts the directory is
+  created with `0700` permissions.
 - A migration test places a legacy database at
   `~/Library/Application Support/com.archanjo.K8sManager/storage.sqlite3`, launches the app,
   confirms the migration prompt is shown, accepts, and asserts the file is present at the new path
@@ -353,16 +353,14 @@ re-entered manually; this is the correct security posture.
   app, relaunches, and asserts that both `view_state.json` files were restored correctly.
 - A redaction test writes a log message containing a bearer token; asserts that the log file on disk
   contains `[REDACTED]` in place of the token value.
-- A backup-restore test creates a backup `tar`, extracts it onto a fresh machine, launches the app,
-  and confirms that chat history and dashboard layouts are present.
 
 ## More information
 
-- ADR-0003 — Kubeconfig read-only; kubeconfig files are not moved or copied to
-  `~/.config/k8smanager/`.
-- ADR-0004 — Developer ID distribution; App Store sandbox is not applicable, freeing the XDG path
-  choice.
+- ADR-0003 — Kubeconfig read-only; kubeconfig files are not moved or copied to the storage root.
+- ADR-0004 — Developer ID distribution; App Store sandbox constraints do not apply, but the chosen
+  path is compatible with the App Store if distribution changes in the future.
 - ADR-0006 — Bounded contexts; `local_persistence` owns the storage root.
 - ADR-0010 — Base persistence decision; GRDB, WAL, Keychain rules carry forward unchanged.
 - ADR-0011 — `PersistenceActor` is the sole writer to `storage.sqlite3`.
 - ADR-0025 — `ClusterSessionActor` owns per-cluster JSON files under `clusters/<clusterId>/`.
+- ADR-0042 — Single-instance enforcement via `flock(2)` on `.instance.lock`.
