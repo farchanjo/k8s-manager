@@ -40,7 +40,52 @@ package resource_browser
 	// with this kind (e.g. ["all"], ["workloads"]). Used for sidebar
 	// grouping in the UI. May be empty.
 	categories!: [...string]
+
+	// permittedOperations is the closed set of UI-level operation tokens
+	// that the resource_browser context permits on instances of this
+	// kind. ADR-0061 (per-row action menu) and ADR-0066 (FAB) derive
+	// menu item visibility from this field. The
+	// `resource_mutation_policy.rego` Rego policy maps
+	// `MutationCommand.commandKind` to one of these tokens and rejects
+	// any command whose required token is absent here.
+	//
+	// Operation tokens differ from `supportedVerbs` because they encode
+	// UI affordances rather than raw Kubernetes API verbs. For example,
+	// `scale` is a UI operation backed by the `scale` subresource plus
+	// the `patch` verb; `rollout-restart` is a UI operation backed by
+	// `patch` with an annotation bump.
+	//
+	// Operations enumerated in the closed set (see
+	// `#PermittedOperation` below).
+	permittedOperations!: [...#PermittedOperation]
 }
+
+// #PermittedOperation is the closed set of UI-level operation tokens
+// referenced by `resource_mutation_policy.rego`, the per-row action
+// menu (ADR-0061), and the floating action button (ADR-0066).
+//
+// - "list"             — list view rendering; always present.
+// - "get"              — single-resource fetch; always present.
+// - "watch"            — long-lived watch stream subscription.
+// - "edit-yaml"        — Edit YAML row action; opens the integrated
+//                        editor (ADR-0030) or the inline docked editor
+//                        pane (ADR-0064).
+// - "delete"           — Delete row action; requires double-confirm
+//                        per ADR-0012.
+// - "events"           — View Events row action; surfaces the events
+//                        feed for the selected resource.
+// - "create"           — Create action; surfaces the FAB
+//                        (ADR-0066) and the "Create from scratch"
+//                        skeleton template path.
+// - "scale"            — Scale row action (Workloads family);
+//                        Deployment, StatefulSet, ReplicaSet only.
+// - "rollout-restart"  — Rollout Restart row action;
+//                        Deployment, StatefulSet, DaemonSet only.
+// - "logs"             — View Logs row action; Pod only.
+// - "exec"             — Open Terminal row action; Pod only.
+#PermittedOperation:
+	"list" | "get" | "watch" | "edit-yaml" | "delete" | "events" |
+	"create" | "scale" | "rollout-restart" | "logs" | "exec"
 
 // #GroupVersionKind encodes the three-part Kubernetes type identity.
 // The group is empty for core/v1 kinds.

@@ -25,14 +25,21 @@ _tabRFC3339: string & =~"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(
 // ---------------------------------------------------------------------------
 
 // #TabKind discriminates the purpose and rendering strategy of a DocumentTab.
+//
+// "welcome" and "applicationsList" were added by ADR-0054 (Welcome tab) and
+// ADR-0067 (Applications cluster scope) respectively. "welcome" is a
+// workspace-scoped tab kind (clusterId is nil and isPinned is permanently
+// true; single instance per workspace).
 #TabKind:
-	"resourceList" |     // List view for a Kubernetes kind + namespace
-	"resourceDetail" |   // Detail view for a named resource
-	"clusterOverview" |  // Synthetic cluster overview (not a Kubernetes resource)
-	"helmReleases" |     // Helm release list for a cluster
-	"helmDetail" |       // Helm release detail
-	"events" |           // Event feed for a cluster or namespace
-	"terminalSession"    // Pod exec or Node debug terminal
+	"resourceList" |       // List view for a Kubernetes kind + namespace
+	"resourceDetail" |     // Detail view for a named resource
+	"clusterOverview" |    // Synthetic cluster overview (not a Kubernetes resource)
+	"helmReleases" |       // Helm release list for a cluster
+	"helmDetail" |         // Helm release detail
+	"events" |             // Event feed for a cluster or namespace
+	"terminalSession" |    // Pod exec or Node debug terminal (dedicated-tab variant; ADR-0017)
+	"welcome" |            // Persistent workspace Welcome tab (ADR-0054)
+	"applicationsList"     // Applications scope per cluster (ADR-0067)
 
 // ---------------------------------------------------------------------------
 // #DocumentTab — ValueObject
