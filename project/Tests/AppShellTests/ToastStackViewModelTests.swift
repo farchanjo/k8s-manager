@@ -107,11 +107,11 @@ final class ToastStackViewModelTests: XCTestCase {
 
 final class ToastSeverityTests: XCTestCase {
 
-    func test_autoDismissMilliseconds_matchesADR0032() {
-        XCTAssertEqual(ToastSeverity.success.autoDismissMilliseconds, 3_000)
-        XCTAssertEqual(ToastSeverity.info.autoDismissMilliseconds,    3_000)
-        XCTAssertEqual(ToastSeverity.warning.autoDismissMilliseconds, 5_000)
-        XCTAssertEqual(ToastSeverity.error.autoDismissMilliseconds,   8_000)
-        XCTAssertEqual(ToastSeverity.neutral.autoDismissMilliseconds, 4_000)
+    func test_autoDismissMs_matchesADR0032() {
+        XCTAssertEqual(ToastSeverity.success.autoDismissMs, 3_000)
+        XCTAssertEqual(ToastSeverity.info.autoDismissMs,    3_000)
+        XCTAssertEqual(ToastSeverity.warning.autoDismissMs, 5_000)
+        XCTAssertEqual(ToastSeverity.error.autoDismissMs,   8_000)
+        XCTAssertEqual(ToastSeverity.neutral.autoDismissMs, 4_000)
     }
 }

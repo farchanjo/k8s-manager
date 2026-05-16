@@ -234,7 +234,7 @@ final class PromptInjectionEventTests: XCTestCase {
         )
 
         let data = try JSONEncoder().encode(event)
-        let decoded = try JSONDecoder().decode(PromptInjectionSuspected.self, from: data)
+        let decoded = try JSONDecoder().decode(AssistantChat.PromptInjectionSuspected.self, from: data)
         XCTAssertEqual(event, decoded)
     }
 }
