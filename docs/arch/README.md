@@ -286,6 +286,10 @@ graph TB
   `OpenTabsActor.activeTabId` via `subscribeToOpenTabs()` subscription; `SidebarNode.from(documentTab:)`
   inverse mapping; eager write in `activate(_:)` for instant visual feedback). Accepted (ratified
   2026-05-16). Refines ADR-0034, ADR-0050.
+- **ADR-0071** — Skeleton mandate for resource list view loading states (ban `ProgressView` for
+  initial list load; mandate `WorkloadListSkeleton` for all `KubernetesResourceListPort` list
+  calls; permitted `ProgressView` exceptions enumerated). Accepted (ratified 2026-05-16). Refines
+  ADR-0031.
 
 ## Status lifecycle
 
