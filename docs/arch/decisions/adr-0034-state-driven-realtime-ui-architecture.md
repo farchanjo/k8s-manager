@@ -5,6 +5,8 @@
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
+- Refined by — ADR-0050 (tab persistence pattern, OpenTabsActor state ownership, cross-tab event
+  broadcast via DomainEventBusPort)
 - Tags — architecture, ui, state-management, observation, async-sequence, realtime, swiftui
 
 ## Context and problem statement
@@ -357,4 +359,41 @@ Adopt Pointfree's TCA library as the state management layer: reducers, `Store`, 
   defined by this ADR.
 - ADR-0032 — Toast notification system; `#ToastStack` is an `@Observable` aggregate.
 - `contexts/app_shell/schemas/observable_state.cue` — CUE schema for `#ObservableStateContract`.
+
+---
+
+## Addendum — Tab persistence pattern (2026-05-16, ADR-0050 refinement)
+
+ADR-0050 introduces the multi-document tab system. The following state-architecture additions are
+specified here for consistency with the `@Observable` pattern:
+
+**OpenTabsActor** is a Swift `actor` (not an `@Observable` class) that owns all mutable tab state.
+It is not the view model; it is the domain state holder. The view model (`TabBarViewModel`) is a
+`@MainActor @Observable final class` that consumes `OpenTabsActor`'s `AsyncStream<[DocumentTab]>`
+output via the standard `for await` loop in an `@ObservationIgnored` `Task`. This maintains the
+separation between actor-isolated domain state and `@Observable` view-model state established in
+this ADR.
+
+**Tab observation per cluster** — the `TabBarViewModel` exposes a filtered computed property
+`tabsForActiveCluster: [DocumentTab]` that is derived from the full tab list. Only the active
+cluster's tabs drive re-renders in the tab bar; background cluster tab changes are queued silently.
+
+**Cross-tab event broadcast** — domain events that affect open tabs (e.g., `ClusterSessionClosed`
+from `cluster_connectivity`) are delivered to `OpenTabsActor` via `DomainEventBusPort.subscribe`.
+When a session closes, `OpenTabsActor` marks all tabs for that `clusterId` as `disconnected` and
+cancels their watch Tasks. The `TabBarViewModel` re-renders affected tab chips with a disconnected
+indicator. This is a standard `actor_streamed_event` update source per `#ObservableStateContract`.
+
+**TabOpenState** — a new `#ObservableStateContract` instance for the tab bar:
+
+```
+stateId: "tab_open_state"
+updateSource: actor_streamed_event
+consumerScope: GlobalEnvironment
+reactToCancellation: true
+```
+
+The `tabOpenState` property is defined in `contexts/app_shell/schemas/open_tabs_state.cue` and added
+to the canonical observable state catalogue in `observable_state.cue`.
+
 - `contexts/app_shell/features/state-driven-realtime.feature` — BDD coverage.
