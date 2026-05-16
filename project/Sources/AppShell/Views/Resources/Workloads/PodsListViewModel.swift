@@ -152,6 +152,15 @@ public final class PodsListViewModel {
         log.info("delete requested ids=\(ids.count) (stub)")
     }
 
+    /// Records that a port-forward was requested for the selected pod rows.
+    ///
+    /// The caller (view) should open a `.portForward` tab after invoking this.
+    public func portForwardRequested(ids: Set<String>) {
+        guard let id = ids.first,
+              let row = rows.first(where: { $0.id == id }) else { return }
+        log.info("port-forward requested for pod=\(row.name) ns=\(row.namespace)")
+    }
+
     // MARK: Private projection
 
     private static func project(_ item: ResourceListItem) -> PodRow {

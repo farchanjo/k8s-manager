@@ -65,6 +65,12 @@ public final class ServicesListViewModel {
         await reload(clusterId: clusterId)
     }
 
+    /// Records a port-forward intent for the service with the given UID (Onda 3).
+    public func portForwardRequested(uid: String) {
+        guard let item = loadState.value?.first(where: { $0.uid == uid }) else { return }
+        logger.info("port-forward requested for service=\(item.name)")
+    }
+
     /// Re-fetches services with the current namespace filter.
     public func reload(clusterId: ClusterId) async {
         loadState = .loading
@@ -129,7 +135,9 @@ public struct ServicesListView: View {
         List(viewModel.filteredRows, id: \.uid) { item in
             ServiceRow(item: item)
                 .contextMenu {
-                    Button("Port Forward") { viewModel.selectedId = item.uid }
+                    Button("Port Forward") {
+                        viewModel.portForwardRequested(uid: item.uid)
+                    }
                     Button("View Detail") { viewModel.selectedId = item.uid }
                 }
         }
