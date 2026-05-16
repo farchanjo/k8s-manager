@@ -35,14 +35,14 @@ public struct K8sManagerCommands: Commands {
         CommandMenu("Navigate") {
             // ⌘K — toggle palette (primary activation per ADR-0023)
             Button("Command Palette") {
-                isPaletteVisible.toggle()
+                NotificationCenter.default.post(name: .k8sManagerOpenPalette, object: nil)
             }
             .keyboardShortcut("k", modifiers: .command)
             .accessibilityLabel("Toggle command palette")
 
             // ⌘P — palette alternate activation
             Button("Search Commands") {
-                isPaletteVisible.toggle()
+                NotificationCenter.default.post(name: .k8sManagerOpenPalette, object: nil)
             }
             .keyboardShortcut("p", modifiers: .command)
             .accessibilityLabel("Open command palette")
@@ -51,13 +51,12 @@ public struct K8sManagerCommands: Commands {
 
             // ⌘⇧C — switch context via palette pre-filtered
             Button("Switch Context…") {
-                isPaletteVisible = true
-                // Pre-filter token set via notification so palette receives "switch context".
                 NotificationCenter.default.post(
                     name: .palettePrefilter,
                     object: nil,
                     userInfo: ["query": "switch context"]
                 )
+                NotificationCenter.default.post(name: .k8sManagerOpenPalette, object: nil)
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .accessibilityLabel("Switch Kubernetes context")
@@ -66,7 +65,11 @@ public struct K8sManagerCommands: Commands {
             ForEach(Feature.allCases.prefix(9).indices, id: \.self) { index in
                 let feature = Feature.allCases[index]
                 Button("Jump to \(feature.title)") {
-                    selectedFeature = feature
+                    NotificationCenter.default.post(
+                        name: .k8sManagerJumpToFeature,
+                        object: nil,
+                        userInfo: ["feature": feature.rawValue]
+                    )
                 }
                 .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                 .accessibilityLabel("Navigate to \(feature.title)")
@@ -83,7 +86,7 @@ public struct K8sManagerCommands: Commands {
 
             // ⌘R — refresh current view
             Button("Refresh") {
-                NotificationCenter.default.post(name: .refreshCurrentView, object: nil)
+                NotificationCenter.default.post(name: .k8sManagerRefresh, object: nil)
             }
             .keyboardShortcut("r", modifiers: .command)
             .accessibilityLabel("Refresh current view")
@@ -112,6 +115,14 @@ public extension Notification.Name {
     static let openSettings = Notification.Name("appShell.openSettings")
     /// Posted with `userInfo["query"]` to pre-seed the palette search field.
     static let palettePrefilter = Notification.Name("appShell.palettePrefilter")
+    /// Posted by the command palette when the user selects a context-switch entry.
+    static let k8sManagerSwitchContext = Notification.Name("appShell.switchContext")
+    /// Posted by the command palette to trigger a resource refresh.
+    static let k8sManagerRefresh = Notification.Name("appShell.refresh")
+    /// Posted to bring the command palette into view.
+    static let k8sManagerOpenPalette = Notification.Name("appShell.openPalette")
+    /// Posted by ⌘1–⌘9. `userInfo`: `["feature": String]` matching `Feature.rawValue`.
+    static let k8sManagerJumpToFeature = Notification.Name("appShell.jumpToFeature")
 }
 
 // MARK: - KeyboardShortcutsHandler
@@ -147,16 +158,35 @@ public struct KeyboardShortcutsHandler: ViewModifier {
             .overlay {
                 CommandPaletteOverlay(viewModel: paletteViewModel)
             }
+            // ⌘K / ⌘P — toggle palette
+            .onReceive(NotificationCenter.default.publisher(for: .k8sManagerOpenPalette)) { _ in
+                if paletteViewModel.isVisible {
+                    paletteViewModel.dismiss()
+                } else {
+                    paletteViewModel.open()
+                }
+            }
+            // Palette pre-filter seed (⌘⇧C or tray "Switch Context…" button)
             .onReceive(NotificationCenter.default.publisher(for: .palettePrefilter)) { note in
                 let query = note.userInfo?["query"] as? String ?? ""
                 paletteViewModel.open(prefiltered: query)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .refreshCurrentView)) { _ in
-                // Broadcast consumed by individual views via `.onReceive`.
+            // Context-switch palette command → navigate to Contexts feature
+            .onReceive(NotificationCenter.default.publisher(for: .k8sManagerSwitchContext)) { _ in
+                selectedFeature = .contexts
             }
-            .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in
-                // Broadcast consumed by ResourceBrowserView via `.onReceive`.
+            // ⌘R → re-broadcast so the active feature view refreshes
+            .onReceive(NotificationCenter.default.publisher(for: .k8sManagerRefresh)) { _ in
+                NotificationCenter.default.post(name: .refreshCurrentView, object: nil)
             }
+            // ⌘1–⌘9 → jump to feature
+            .onReceive(NotificationCenter.default.publisher(for: .k8sManagerJumpToFeature)) { note in
+                guard let raw = note.userInfo?["feature"] as? String,
+                      let feature = Feature(rawValue: raw) else { return }
+                selectedFeature = feature
+            }
+            // ⌘L — focus search (forwarded; consumed by ResourceBrowserView)
+            .onReceive(NotificationCenter.default.publisher(for: .focusSearch)) { _ in }
     }
 }
 
