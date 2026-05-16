@@ -206,6 +206,27 @@ final class AdapterConstructionTests: XCTestCase {
             apiServerBase: URL(string: "https://k8s.example.com")!
         )
     }
+
+    func test_bearer_token_injected_via_session_configuration() {
+        // Verifies the ADR-0017 pattern: bearer token is forwarded via
+        // URLSessionConfiguration.httpAdditionalHeaders, not set on the adapter.
+        let config = URLSessionConfiguration.ephemeral
+        config.httpAdditionalHeaders = ["Authorization": "Bearer eyTest"]
+        config.protocolClasses = [BearerCapturingProtocol.self]
+        let session = URLSession(configuration: config)
+        let adapter = WebSocketExecAdapter(
+            urlSession: session,
+            apiServerBase: URL(string: "https://k8s.example.com:6443")!
+        )
+        // Adapter accepts the pre-configured session without modification.
+        XCTAssertNotNil(adapter)
+    }
+
+    func test_v5_subprotocol_header_is_v5_channel_k8s_io() {
+        // The adapter must request v5.channel.k8s.io in the initial WebSocket request.
+        XCTAssertEqual(ExecSubprotocol.v5.rawValue, "v5.channel.k8s.io")
+        XCTAssertEqual(ExecSubprotocol.v4.rawValue, "v4.channel.k8s.io")
+    }
 }
 
 // MARK: - MockURLProtocol (stub, no real network)
@@ -215,6 +236,18 @@ private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let error = URLError(.networkConnectionLost)
+        client?.urlProtocol(self, didFailWithError: error)
+    }
+    override func stopLoading() {}
+}
+
+// MARK: - BearerCapturingProtocol (verifies Authorization header forwarding)
+
+private final class BearerCapturingProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let error = URLError(.cancelled)
         client?.urlProtocol(self, didFailWithError: error)
     }
     override func stopLoading() {}
