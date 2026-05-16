@@ -1,6 +1,6 @@
 # ADR-0053 — Global namespace filter and resource selection propagation
 
-- Status — Accepted (ratified 2026-05-16)
+- Status — Superseded by ADR-0069
 - Date — 2026-05-16
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
@@ -9,6 +9,20 @@
   ADR-0021 (app shell design system and main layout), ADR-0034 (state-driven realtime UI
   architecture)
 - Tags — ui, namespace-filter, app-shell, observation, sidebar, selection, drawer
+
+## Supersession
+
+This ADR is superseded by
+[ADR-0069](adr-0069-global-namespace-pill-toolbar.md) (ratified 2026-05-16).
+
+ADR-0069 replaces `GlobalNamespacePicker` (canvas-header folder-icon dropdown) with
+`GlobalNamespacePill` (pill in the top-right chrome row, left of `AssistantToggleButton`).
+The `NamespaceFilterActor`, its `DependencyKey`, and the `for await stateStream` subscription
+pattern documented below are **unchanged** by ADR-0069 and remain canonical. The per-view
+`TextField("Namespace", …)` instances in Config views, which the original ADR did not address
+(they were added after ratification), are removed by ADR-0069.
+
+The remainder of this document is kept verbatim for historical reference.
 
 ## Context and problem statement
 

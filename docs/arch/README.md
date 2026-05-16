@@ -275,6 +275,13 @@ graph TB
   sidebar refresh via CRDCatalogUpdated event; generic list view with additionalPrinterColumns;
   schema-guided detail view; GVRWatchPort extension; multi-version CRD picker). Accepted (ratified
   2026-05-16). Refines ADR-0013.
+- **ADR-0053** — Global namespace filter and resource selection propagation (`NamespaceFilterActor`;
+  canvas-header `GlobalNamespacePicker`; `\.onResourceSelect` environment closure). Superseded by
+  ADR-0069 (ratified 2026-05-16).
+- **ADR-0069** — Global namespace pill in top-right chrome toolbar (`GlobalNamespacePill` in chrome
+  row left of assistant button; replaces canvas-header dropdown; Config view models wired to
+  `NamespaceFilterActor`). Accepted (ratified 2026-05-16). Supersedes ADR-0053. Refines ADR-0021,
+  ADR-0051.
 
 ## Status lifecycle
 
