@@ -12,7 +12,7 @@ import Foundation
 ///
 /// Mirrors `#PersistenceStore` from `persistence_store.cue`.
 ///
-/// Physical path: `~/.config/k8smanager/storage.sqlite3` (ADR-0026).
+/// Physical path: `~/Library/Application Support/K8sManager/storage.sqlite3` (ADR-0026).
 /// PRAGMAs applied after every connection open:
 /// ```
 /// PRAGMA journal_mode=WAL;

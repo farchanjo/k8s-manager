@@ -108,14 +108,13 @@ public final class LocalPersistenceViewModel {
         // unimplemented sentinel throws `AuditChainError.unimplemented`.
         // There is no direct StorePort — the GRDBPersistenceAdapter exposes
         // store metadata via the audit chain state; here we synthesize a
-        // stub from the convention-specified path (ADR-0026) so the UI has
+        // stub from the canonical path (ADR-0026, ApplicationPaths) so the UI has
         // something to show when the adapter is wired.
         //
         // When a dedicated StoreInfoPort is added (future ADR), replace this
         // body with a `@Dependency(\.storeInfo)` call.
         let _ = try await auditChain.currentState()
-        let path = ("~/.config/k8smanager/storage.sqlite3" as NSString)
-            .expandingTildeInPath
+        let path = ApplicationPaths.storageURL.path
         return PersistenceStore(
             id: UUID(),
             storageFilePath: path,

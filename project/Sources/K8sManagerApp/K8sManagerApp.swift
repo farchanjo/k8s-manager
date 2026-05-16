@@ -87,12 +87,9 @@ struct K8sManagerApp: App {
 
 private extension K8sManagerApp {
 
-    /// Returns the canonical lock file path under Application Support.
+    /// Returns the canonical lock file path via ``ApplicationPaths`` (ADR-0026, ADR-0042).
     nonisolated static func defaultLockPath() -> String {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first?.path ?? NSTemporaryDirectory()
-        return base + "/K8sManager/.instance.lock"
+        ApplicationPaths.instanceLockURL.path
     }
 
     /// Attempts to bring the existing instance to the foreground, then exits.
@@ -113,7 +110,7 @@ private extension K8sManagerApp {
         let keychain = KeychainAccessAdapter()
         let keyManager = AuditChainKeyManager(keychainAdapter: keychain)
         let db = try openDatabase()
-        let (chatRepo, providerRepo, clusterStore, auditChain) = wirePersistence(
+        let (chatRepo, providerRepo, clusterStore, auditChain, persistenceActor) = wirePersistence(
             db: db, keyManager: keyManager
         )
         let (loader, kubeApi, resourceList, discoveryAdapter) = wireKubernetes()
@@ -134,7 +131,8 @@ private extension K8sManagerApp {
             // Metrics — discovery adapter resolves Prometheus endpoints via k8s Services
             values.endpointDiscovery = discoveryAdapter
 
-            // Persistence
+            // Persistence — single write gate (ADR-0010)
+            values.persistenceActor = persistenceActor
             values.chatRepository = chatRepo
             values.providerRepository = providerRepo
             values.clusterMetadataStore = clusterStore
@@ -166,22 +164,25 @@ private extension K8sManagerApp {
         }
     }
 
-    /// Opens the application SQLite database at the default Application Support path.
+    /// Opens the application SQLite database via ``ApplicationPaths`` (ADR-0026).
     nonisolated static func openDatabase() throws -> DatabaseQueue {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
-            .first!.path
+        try ApplicationPaths.ensureSupportDirectoryExists()
         return try SchemaMigrator.makeQueue(
-            at: base + "/K8sManager/storage.sqlite3",
+            at: ApplicationPaths.storageURL.path,
             logger: Logger(label: "SchemaMigrator")
         )
     }
 
-    /// Constructs the four GRDB repository adapters sharing one `DatabaseQueue`.
+    /// Constructs the four GRDB repository adapters and the `PersistenceActor`
+    /// sharing one `DatabaseWriter`.
+    ///
+    /// The returned `PersistenceActor` wraps the same writer via
+    /// `GRDBWriterAdapter` and must be registered in `prepareDependencies`
+    /// as `values.persistenceActor` (ADR-0010).
     nonisolated static func wirePersistence(
         db: any DatabaseWriter,
         keyManager: AuditChainKeyManager
-    ) -> (GRDBChatRepository, GRDBProviderRepository, GRDBClusterMetadataStore, GRDBAuditChainStore) {
+    ) -> (GRDBChatRepository, GRDBProviderRepository, GRDBClusterMetadataStore, GRDBAuditChainStore, PersistenceActor) {
         let chatRepo = GRDBChatRepository(db: db)
         let providerRepo = GRDBProviderRepository(db: db)
         let clusterStore = GRDBClusterMetadataStore(db: db)
@@ -189,7 +190,8 @@ private extension K8sManagerApp {
             db: db,
             keyProvider: makeSyncKeyProvider(keyManager)
         )
-        return (chatRepo, providerRepo, clusterStore, auditChain)
+        let persistenceActor = PersistenceActor(writer: GRDBWriterAdapter(writer: db))
+        return (chatRepo, providerRepo, clusterStore, auditChain, persistenceActor)
     }
 
     /// Wraps async `AuditChainKeyManager.currentKey()` in the synchronous
@@ -271,7 +273,7 @@ private extension K8sManagerApp {
         @Dependency(\.keychainAccess) var keychain
         @Dependency(\.llmProviderRegistry) var registry
 
-        let factories: [ProviderKind: @Sendable (ProviderProfile) throws -> any LLMStreamingPort] = [
+        let factories: [ProviderKind: @Sendable (ProviderProfile) async throws -> any LLMStreamingPort] = [
             .anthropic: { profile in
                 let key = try await Self.readKey(alias: profile.keyAlias, keychain: keychain)
                 return AnthropicStreamingAdapter(apiKey: key, model: profile.modelId)
