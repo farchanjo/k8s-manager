@@ -56,6 +56,7 @@ let package = Package(
         .library(name: "WebSocketExecAdapter", targets: ["WebSocketExecAdapter"]),
         .library(name: "WebSocketPortForwardAdapter", targets: ["WebSocketPortForwardAdapter"]),
         .library(name: "CodeEditorAdapter", targets: ["CodeEditorAdapter"]),
+        .library(name: "KubeconfigContextNavigationAdapter", targets: ["KubeconfigContextNavigationAdapter"]),
     ],
 
     // MARK: External dependencies (ADR-0019 exact version pins)
@@ -514,6 +515,20 @@ let package = Package(
             swiftSettings: strictConcurrencySettings
         ),
 
+        .target(
+            name: "KubeconfigContextNavigationAdapter",
+            dependencies: [
+                "ClusterConnectivity",
+                "ContextNavigation",
+                "LocalPersistence",
+                "SharedKernel",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Logging", package: "swift-log"),
+            ],
+            path: "Sources/KubeconfigContextNavigationAdapter",
+            swiftSettings: strictConcurrencySettings
+        ),
+
         // ── Executable ────────────────────────────────────────────────────────
 
         .executableTarget(
@@ -551,6 +566,7 @@ let package = Package(
                 "WebSocketExecAdapter",
                 "WebSocketPortForwardAdapter",
                 "CodeEditorAdapter",
+                "KubeconfigContextNavigationAdapter",
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Logging", package: "swift-log"),
@@ -641,6 +657,7 @@ let package = Package(
             name: "ResourceBrowserTests",
             dependencies: [
                 "ResourceBrowser",
+                "SharedKernel",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
             ],
@@ -819,6 +836,21 @@ let package = Package(
                 "SharedKernel",
             ],
             path: "Tests/MCPSwiftSDKAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "KubeconfigContextNavigationAdapterTests",
+            dependencies: [
+                "KubeconfigContextNavigationAdapter",
+                "ContextNavigation",
+                "ClusterConnectivity",
+                "LocalPersistence",
+                "SharedKernel",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/KubeconfigContextNavigationAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
     ],
