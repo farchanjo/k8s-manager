@@ -144,7 +144,7 @@ final class ResourceDetailViewModelTests: XCTestCase {
         let fakeList = FakeResourceListPort(detail: detail)
         let points = [DataPoint(tUnix: 1_700_000_000, value: 0.05)]
         let series = [TimeSeries(metric: [:], points: points)]
-        let fakeMetrics = FakePrometheusPort(result: .rangeMatrix(series))
+        let fakeMetrics = FakePrometheusPort(stubbedResult: .rangeMatrix(series))
 
         await withDependencies {
             $0.kubernetesResourceList = fakeList

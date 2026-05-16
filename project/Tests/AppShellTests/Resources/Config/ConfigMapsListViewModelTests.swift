@@ -120,7 +120,7 @@ final class ConfigMapsListViewModelTests: XCTestCase {
 
 // MARK: - FakeResourceListPort (local test double)
 
-private final class FakeResourceListPort: KubernetesResourceListPort {
+private final class FakeResourceListPort: KubernetesResourceListPort, @unchecked Sendable {
     private let stubbedError: Error?
     private let itemsProvider: (() -> [ResourceListItem])?
     private let stubbedItems: [ResourceListItem]

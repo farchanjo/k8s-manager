@@ -130,7 +130,7 @@ final class SecretsListViewModelTests: XCTestCase {
 
 // MARK: - FakeSecretListPort (local test double)
 
-private final class FakeSecretListPort: KubernetesResourceListPort {
+private final class FakeSecretListPort: KubernetesResourceListPort, @unchecked Sendable {
     private let stubbedItems: [ResourceListItem]
     private let stubbedError: Error?
     private let onList: ((String?) -> Void)?

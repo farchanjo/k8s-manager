@@ -96,6 +96,7 @@ final class SecurityOverviewViewModelTests: XCTestCase {
 
 // MARK: - Test helpers
 
+@MainActor
 private func makeSUT(snapshot: SecuritySnapshot) -> SecurityOverviewViewModel {
     let sut = SecurityOverviewViewModel()
     sut.listPort = StubSecurityListPort(snapshot: snapshot)

@@ -33,7 +33,7 @@ final class HelmReleasesViewModelTests: XCTestCase {
     }
 
     func test_start_setsFailureWhenStoreFails() async {
-        let store = SpyHelmReleaseStore(error: HelmReleaseStoreError.unimplemented)
+        let store = SpyHelmReleaseStore(releases: [], error: HelmReleaseStoreError.unimplemented)
 
         await withDependencies {
             $0.helmReleaseStore = store
