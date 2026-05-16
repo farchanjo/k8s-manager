@@ -84,21 +84,21 @@ public enum MCPToolHandlers {
         resourceListPort: any KubernetesResourceListPort,
         logger: Logger
     ) async throws -> String {
-        let contextId = stringArg(args, "contextId").flatMap { UUID(uuidString: $0) } ?? UUID()
+        let clusterId = ClusterId(stringArg(args, "contextId") ?? "")
         let namespace = stringArg(args, "namespace")
         switch toolName {
         case "kube_get_pod":
-            return try await getPod(args: args, contextId: contextId, namespace: namespace, port: resourceListPort)
+            return try await getPod(args: args, clusterId: clusterId, namespace: namespace, port: resourceListPort)
         case "kube_list_pods":
-            return try await listResources(gvk: .core("Pod"), contextId: contextId, namespace: namespace, port: resourceListPort)
+            return try await listResources(gvk: .core("Pod"), clusterId: clusterId, namespace: namespace, port: resourceListPort)
         case "kube_list_deployments":
-            return try await listResources(gvk: GroupVersionKind(group: "apps", version: "v1", kind: "Deployment"), contextId: contextId, namespace: namespace, port: resourceListPort)
+            return try await listResources(gvk: GroupVersionKind(group: "apps", version: "v1", kind: "Deployment"), clusterId: clusterId, namespace: namespace, port: resourceListPort)
         case "kube_get_service":
-            return try await getResource(gvk: .core("Service"), args: args, contextId: contextId, namespace: namespace, port: resourceListPort)
+            return try await getResource(gvk: .core("Service"), args: args, clusterId: clusterId, namespace: namespace, port: resourceListPort)
         case "kube_get_namespace":
-            return try await getResource(gvk: .core("Namespace"), args: args, contextId: contextId, namespace: nil, port: resourceListPort)
+            return try await getResource(gvk: .core("Namespace"), args: args, clusterId: clusterId, namespace: nil, port: resourceListPort)
         case "kube_list_events":
-            return try await listResources(gvk: .core("Event"), contextId: contextId, namespace: namespace, port: resourceListPort)
+            return try await listResources(gvk: .core("Event"), clusterId: clusterId, namespace: namespace, port: resourceListPort)
         default:
             return "{\"error\":\"unknown_tool\"}"
         }
@@ -108,22 +108,22 @@ public enum MCPToolHandlers {
 
     private static func getPod(
         args: [String: Value],
-        contextId: UUID,
+        clusterId: ClusterId,
         namespace: String?,
         port: any KubernetesResourceListPort
     ) async throws -> String {
         let name = stringArg(args, "name") ?? ""
-        let detail = try await port.get(gvk: .core("Pod"), name: name, namespace: namespace, contextId: contextId)
+        let detail = try await port.get(gvk: .core("Pod"), name: name, namespace: namespace, clusterId: clusterId)
         return detail.rawJSON
     }
 
     private static func listResources(
         gvk: GroupVersionKind,
-        contextId: UUID,
+        clusterId: ClusterId,
         namespace: String?,
         port: any KubernetesResourceListPort
     ) async throws -> String {
-        let items = try await port.list(gvk: gvk, namespace: namespace, contextId: contextId)
+        let items = try await port.list(gvk: gvk, namespace: namespace, clusterId: clusterId)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(items)
@@ -133,12 +133,12 @@ public enum MCPToolHandlers {
     private static func getResource(
         gvk: GroupVersionKind,
         args: [String: Value],
-        contextId: UUID,
+        clusterId: ClusterId,
         namespace: String?,
         port: any KubernetesResourceListPort
     ) async throws -> String {
         let name = stringArg(args, "name") ?? ""
-        let detail = try await port.get(gvk: gvk, name: name, namespace: namespace, contextId: contextId)
+        let detail = try await port.get(gvk: gvk, name: name, namespace: namespace, clusterId: clusterId)
         return detail.rawJSON
     }
 

@@ -2,7 +2,6 @@
 // DDD role: Port (outbound — Kubernetes read operations)
 // ADR refs: ADR-0013 (kind catalogue), ADR-0012 (list verbs)
 
-import Foundation
 import SharedKernel
 
 // MARK: - KubernetesResourceListPort
@@ -20,13 +19,13 @@ public protocol KubernetesResourceListPort: Sendable {
     /// - Parameters:
     ///   - gvk: The Kubernetes API type to list.
     ///   - namespace: Namespace filter. `nil` lists across all namespaces.
-    ///   - contextId: The active cluster context identifier.
+    ///   - clusterId: The active cluster identifier (kubeconfig cluster name).
     /// - Returns: An array of `ResourceListItem` projections.
     /// - Throws: `ResourceListError` on network or API failures.
     func list(
         gvk: GroupVersionKind,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> [ResourceListItem]
 
     /// Fetches the full detail for a single resource.
@@ -35,14 +34,14 @@ public protocol KubernetesResourceListPort: Sendable {
     ///   - gvk: The Kubernetes API type.
     ///   - name: Resource name.
     ///   - namespace: Namespace. `nil` for cluster-scoped resources.
-    ///   - contextId: The active cluster context identifier.
+    ///   - clusterId: The active cluster identifier (kubeconfig cluster name).
     /// - Returns: A fully populated `ResourceDetail`.
     /// - Throws: `ResourceListError` on network or API failures.
     func get(
         gvk: GroupVersionKind,
         name: String,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> ResourceDetail
 }
 
@@ -75,7 +74,7 @@ public struct UnimplementedKubernetesResourceListPort: KubernetesResourceListPor
     public func list(
         gvk: GroupVersionKind,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> [ResourceListItem] {
         throw ResourceListError.unimplemented
     }
@@ -84,7 +83,7 @@ public struct UnimplementedKubernetesResourceListPort: KubernetesResourceListPor
         gvk: GroupVersionKind,
         name: String,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> ResourceDetail {
         throw ResourceListError.unimplemented
     }

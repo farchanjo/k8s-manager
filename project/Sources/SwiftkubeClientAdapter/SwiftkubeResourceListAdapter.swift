@@ -71,9 +71,9 @@ public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
     public func list(
         gvk: DomainGVK,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> [ResourceListItem] {
-        let params = try await resolveParams(contextId: contextId)
+        let params = try await resolver(clusterId)
         let client = try makeClient(from: params)
         defer { try? client.syncShutdown() }
         return try await fetchList(gvk: gvk, namespace: namespace, client: client)
@@ -87,19 +87,12 @@ public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
         gvk: DomainGVK,
         name: String,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> ResourceDetail {
-        let params = try await resolveParams(contextId: contextId)
+        let params = try await resolver(clusterId)
         let client = try makeClient(from: params)
         defer { try? client.syncShutdown() }
         return try await fetchDetail(gvk: gvk, name: name, namespace: namespace, client: client)
-    }
-
-    // MARK: - Private — resolver
-
-    private func resolveParams(contextId: UUID) async throws -> ClusterParams {
-        let clusterId = ClusterId(contextId.uuidString)
-        return try await resolver(clusterId)
     }
 
     // MARK: - Private — client factory

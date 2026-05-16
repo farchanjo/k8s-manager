@@ -5,7 +5,9 @@
 import Foundation
 import Dependencies
 import Logging
+import ClusterConnectivity
 import ResourceBrowser
+import SharedKernel
 
 private let log = Logger(label: "k8smgr.app_shell.resource_browser")
 
@@ -39,6 +41,9 @@ public final class ResourceBrowserViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var resourceList
 
+    @ObservationIgnored
+    @Dependency(\.kubeconfigLoader) private var kubeconfigLoader
+
     // MARK: Init
 
     public init() {}
@@ -56,18 +61,29 @@ public final class ResourceBrowserViewModel {
         let ns = namespace.flatMap { $0.isEmpty ? nil : $0 }
         log.info("load start kind=\(kind) namespace=\(ns ?? "<all>")")
         do {
+            let clusterId = try await resolveActiveClusterId()
             let gvk = gvkFor(kind: kind)
-            let items = try await resourceList.list(
-                gvk: gvk,
-                namespace: ns,
-                contextId: UUID()
-            )
+            let items = try await resourceList.list(gvk: gvk, namespace: ns, clusterId: clusterId)
             log.info("load OK kind=\(kind) count=\(items.count)")
             resources = .success(items)
         } catch {
             log.error("load FAILED kind=\(kind) — \(error)")
             resources = .failure(error)
         }
+    }
+
+    // MARK: Private helpers — context resolution
+
+    /// Loads `~/.kube/config` and returns the active cluster's `ClusterId`.
+    ///
+    /// - Throws: `ResourceListError.transportError` when no active context is set.
+    private func resolveActiveClusterId() async throws -> ClusterId {
+        let config = try await kubeconfigLoader.load(from: KubeconfigPath("~/.kube/config"))
+        guard let ctx = kubeconfigLoader.activeContext(in: config) else {
+            throw ResourceListError.transportError(detail: "No active Kubernetes context")
+        }
+        log.info("active context=\(ctx.name) cluster=\(ctx.cluster)")
+        return ClusterId(ctx.cluster)
     }
 
     /// Selects a list item to display in the detail panel.
