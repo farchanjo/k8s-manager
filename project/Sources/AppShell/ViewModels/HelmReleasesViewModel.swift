@@ -61,6 +61,10 @@ public struct ReleaseRef: Hashable, Sendable {
 /// `HelmReleaseStorePort`, handles rollback with lease acquisition per
 /// ADR-0046, and opens detail tabs via `OpenTabsPort`.
 ///
+/// Namespace filtering is driven by the process-wide ``NamespaceFilterActor``
+/// (ADR-0069). The view does not own a local picker; the global pill in
+/// `TopRightChrome` is the single source of truth.
+///
 /// All mutations are `@MainActor` — SwiftUI observation coalesces updates
 /// without data races.
 @MainActor
@@ -76,6 +80,7 @@ public final class HelmReleasesViewModel {
     public var selectedReleaseId: HelmReleaseRow.ID?
 
     /// Namespace filter; `nil` means all namespaces.
+    /// Updated exclusively by the ``NamespaceFilterActor`` subscription.
     public var namespace: String?
 
     /// Error from the most recent rollback, if any.
@@ -97,6 +102,9 @@ public final class HelmReleasesViewModel {
 
     @ObservationIgnored
     @Dependency(\.openTabs) private var openTabs
+
+    @ObservationIgnored
+    @Dependency(\.namespaceFilter) private var namespaceFilter
 
     @ObservationIgnored
     private let toastEmitter: any ToastEmitterPort
@@ -128,29 +136,41 @@ public final class HelmReleasesViewModel {
 
     // MARK: - Intents
 
-    /// Loads releases for `clusterId`, optionally filtered by `namespace`.
+    /// Starts the Helm releases list for `clusterId`.
+    ///
+    /// Seeds the initial namespace from the global ``NamespaceFilterActor``,
+    /// performs an initial load, then subscribes to future namespace changes for
+    /// the lifetime of the owning `.task` (cancelled when the view disappears).
     ///
     /// - Parameter clusterId: Stable identifier of the active cluster context.
-    public func start(clusterId: ClusterId) async {
-        releases = .loading
-        log.info("start clusterId=\(clusterId.rawValue)")
-        do {
-            let list = try await releaseStore.listReleases(clusterId: clusterId, namespace: namespace)
-            let rows = buildRows(from: list)
-            log.info("start OK count=\(rows.count)")
-            releases = .success(rows)
-        } catch {
-            log.error("start FAILED \(error)")
-            releases = .failure(error)
-            await emitMappedToast(for: error)
+    public func start(clusterId: ClusterId, namespace: String? = nil) async {
+        self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
+        await reload(clusterId: clusterId)
+        for await snapshot in namespaceFilter.stateStream(for: clusterId) {
+            if snapshot.namespace == self.namespace { continue }
+            self.namespace = snapshot.namespace
+            await reload(clusterId: clusterId)
         }
     }
 
-    /// Reloads releases using the same `clusterId` stored from `start`.
+    /// Fetches releases for `clusterId` using the current namespace filter.
     ///
-    /// Convenience for the refresh button; delegates to `start(clusterId:)`.
+    /// Used by the refresh button and internally by `start` on each namespace change.
+    ///
+    /// - Parameter clusterId: Stable identifier of the active cluster context.
     public func reload(clusterId: ClusterId) async {
-        await start(clusterId: clusterId)
+        releases = .loading
+        log.info("reload clusterId=\(clusterId.rawValue) namespace=\(namespace ?? "<all>")")
+        do {
+            let list = try await releaseStore.listReleases(clusterId: clusterId, namespace: namespace)
+            let rows = buildRows(from: list)
+            log.info("reload OK count=\(rows.count)")
+            releases = .success(rows)
+        } catch {
+            log.error("reload FAILED \(error)")
+            releases = .failure(error)
+            await emitMappedToast(for: error)
+        }
     }
 
     /// Opens the detail tab for `row`.

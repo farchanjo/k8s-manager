@@ -51,8 +51,8 @@ public final class DeploymentsListViewModel {
     public var loadState: AsyncResource<Int> = .idle
     public var searchText: String = ""
 
-    /// Namespaces visible in the active cluster, used to populate the
-    /// `NamespaceFilterPicker` dropdown. Loaded once per `start(...)` and
+    /// Namespaces visible in the active cluster, used to populate the global
+    /// namespace pill in `TopRightChrome`. Loaded once per `start(...)` and
     /// re-used across reloads to avoid hitting the apiserver each refresh.
     public var availableNamespaces: [String] = []
 

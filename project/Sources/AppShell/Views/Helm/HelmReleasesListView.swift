@@ -30,7 +30,7 @@ public struct HelmReleasesListView: View {
             toolbar
             tableContent
         }
-        .task { await viewModel.start(clusterId: clusterId) }
+        .task { await viewModel.start(clusterId: clusterId, namespace: nil) }
         .sheet(isPresented: $showRollbackSheet) {
             rollbackSheetContent
         }
@@ -46,15 +46,8 @@ public struct HelmReleasesListView: View {
             TextField("Filter releases…", text: $viewModel.searchText)
                 .textFieldStyle(.plain)
             Spacer()
-            NamespaceFilterPicker(selection: Binding(
-                get: { viewModel.namespace },
-                set: { ns in
-                    viewModel.namespace = ns
-                    Task { await viewModel.start(clusterId: clusterId) }
-                }
-            ))
             Button {
-                Task { await viewModel.start(clusterId: clusterId) }
+                Task { await viewModel.reload(clusterId: clusterId) }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .imageScale(.small)
@@ -129,7 +122,7 @@ public struct HelmReleasesListView: View {
                 clusterId: clusterId
             ) {
                 showRollbackSheet = false
-                Task { await viewModel.start(clusterId: clusterId) }
+                Task { await viewModel.reload(clusterId: clusterId) }
             }
         }
     }
@@ -148,7 +141,7 @@ public struct HelmReleasesListView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle).foregroundStyle(.orange)
             Text(error.localizedDescription).multilineTextAlignment(.center)
-            Button("Retry") { Task { await viewModel.start(clusterId: clusterId) } }
+            Button("Retry") { Task { await viewModel.reload(clusterId: clusterId) } }
                 .buttonStyle(.borderedProminent)
         }
         .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
