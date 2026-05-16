@@ -16,8 +16,62 @@ import future.keywords.in
 #                          extracted from the query (for injection checks)
 # input.queryTimeoutSecs — int: requested query timeout in seconds
 # input.clusterName      — string: cluster context name
+# input.templateKey      — string | null: identifier of the curated PromQL
+#                          template used to build promQL. Required for any
+#                          query issued by `MetricChartViewModel` (ADR-0058)
+#                          or by the resource-list mini-bar query batcher
+#                          (ADR-0059). Direct ad-hoc queries (operator-typed
+#                          PromQL) pass `null`.
 
 default allow := false
+
+# ---------------------------------------------------------------------------
+# Curated template-key allowlist (ADR-0058, ADR-0059)
+#
+# Every PromQL query built from a curated template MUST carry a templateKey
+# from this allowlist. Any unknown templateKey is rejected before the HTTP
+# request is issued. The allowlist is extended in lockstep with the
+# `curated_query_set.cue` schema; drift triggers a deny.
+# ---------------------------------------------------------------------------
+
+curated_template_keys := {
+    # Node detail drawer chart series (ADR-0058 §PromQL templates per kind / Node)
+    "node_drawer_cpu_usage",
+    "node_drawer_cpu_requests",
+    "node_drawer_cpu_allocatable",
+    "node_drawer_cpu_capacity",
+    "node_drawer_memory_usage",
+    "node_drawer_memory_requests",
+    "node_drawer_memory_allocatable",
+    "node_drawer_memory_capacity",
+
+    # Pod detail drawer chart series (ADR-0058 §PromQL templates per kind / Pod)
+    "pod_drawer_cpu_usage",
+    "pod_drawer_cpu_requests",
+    "pod_drawer_cpu_limits",
+    "pod_drawer_memory_usage",
+    "pod_drawer_memory_requests",
+    "pod_drawer_memory_limits",
+
+    # Workload detail drawer chart series (Deployment / StatefulSet / DaemonSet)
+    "workload_drawer_cpu_aggregate",
+    "workload_drawer_memory_aggregate",
+    "workload_drawer_replicas_deployment",
+    "workload_drawer_replicas_statefulset",
+    "workload_drawer_replicas_daemonset",
+
+    # Resource-list row mini-bar batch queries (ADR-0059)
+    "node_list_cpu_usage",
+    "node_list_cpu_capacity",
+    "node_list_memory_usage",
+    "node_list_memory_capacity",
+    "node_list_disk_usage",
+    "node_list_disk_capacity",
+    "pod_list_cpu_usage",
+    "pod_list_cpu_request",
+    "pod_list_memory_usage",
+    "pod_list_memory_request",
+}
 
 # ---------------------------------------------------------------------------
 # Allowed endpoint patterns
@@ -87,6 +141,28 @@ deny_query_timeout_exceeded[msg] {
     msg := sprintf(
         "metrics query denied: requested timeout %d seconds exceeds the maximum permitted timeout of 30 seconds",
         [input.queryTimeoutSecs]
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Curated template-key enforcement (ADR-0058, ADR-0059)
+#
+# When a templateKey is supplied (non-null, non-empty), it MUST be present in
+# `curated_template_keys`. Unknown templateKeys indicate either a typo or an
+# attempt to bypass the curated template registry. Both are denied.
+#
+# A null templateKey is permitted: this represents an ad-hoc operator query
+# (e.g. typed into the metrics dashboard's PromQL editor), where the label-value
+# injection rules above provide the primary defence.
+# ---------------------------------------------------------------------------
+
+deny_unknown_template_key[msg] {
+    input.templateKey
+    input.templateKey != ""
+    not curated_template_keys[input.templateKey]
+    msg := sprintf(
+        "metrics query denied: templateKey %q is not in the curated allowlist; add it to curated_template_keys and to curated_query_set.cue in lockstep",
+        [input.templateKey]
     )
 }
 
