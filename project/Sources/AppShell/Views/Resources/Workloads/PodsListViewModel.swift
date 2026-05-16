@@ -127,6 +127,9 @@ public final class PodsListViewModel {
     @ObservationIgnored
     @Dependency(\.namespaceFilter) private var namespaceFilter
 
+    @ObservationIgnored
+    @Dependency(\.openTabs) private var openTabs
+
     // MARK: Init
 
     public init() {}
@@ -165,6 +168,13 @@ public final class PodsListViewModel {
                 self.loadState = .failure(error)
             }
         )
+    }
+
+    /// Opens the Apply YAML editor tab for the given cluster (ADR-0066).
+    ///
+    /// Called by the FAB `createFromScratch` and `pasteFromClipboard` paths.
+    public func openApplyYAML(clusterId: ClusterId) async {
+        await openTabs.openTab(.applyYAML(clusterId: clusterId))
     }
 
     /// Confirms and executes deletion for the given row IDs (stub — Onda 3).

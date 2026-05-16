@@ -70,7 +70,15 @@ public final class DeploymentsListViewModel {
     @ObservationIgnored
     @Dependency(\.namespaceFilter) private var namespaceFilter
 
+    @ObservationIgnored
+    @Dependency(\.openTabs) private var openTabs
+
     public init() {}
+
+    /// Opens the Apply YAML editor tab for the given cluster (ADR-0066).
+    public func openApplyYAML(clusterId: ClusterId) async {
+        await openTabs.openTab(.applyYAML(clusterId: clusterId))
+    }
 
     /// Starts the list. Subscribes to the global ``NamespaceFilterActor`` so
     /// every change to the toolbar picker re-fetches deployments for the new

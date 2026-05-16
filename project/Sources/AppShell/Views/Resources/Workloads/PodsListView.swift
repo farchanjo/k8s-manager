@@ -65,8 +65,12 @@ public struct PodsListView: View {
     }
 
     private func handleFABPath(_ path: FABCreatePath) {
-        // Onda 3: route to kind-skeleton editor or clipboard path.
-        // v1 stub: paths are no-ops; ADR-0064 inline editor is forward reference.
+        switch path {
+        case .createFromScratch, .pasteFromClipboard, .forkFromSelected:
+            // ADR-0066: open Apply YAML tab; content pre-fill is a forward reference
+            // (requires DocumentTab.applyYAML initialContent extension — ADR-0064).
+            Task { await viewModel.openApplyYAML(clusterId: clusterId) }
+        }
     }
 
     // MARK: Private

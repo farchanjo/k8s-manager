@@ -45,7 +45,11 @@ public struct DeploymentsListView: View {
                 kind: "Deployment",
                 clusterId: clusterId,
                 hasSelection: viewModel.selectedId != nil,
-                onPath: { _ in /* Onda 3: route to kind-skeleton editor */ }
+                onPath: { _ in
+                    // ADR-0066: open Apply YAML tab; content pre-fill requires
+                    // DocumentTab.applyYAML initialContent extension (ADR-0064).
+                    Task { await viewModel.openApplyYAML(clusterId: clusterId) }
+                }
             )
         }
         .modifier(ExportMenuContainer(
