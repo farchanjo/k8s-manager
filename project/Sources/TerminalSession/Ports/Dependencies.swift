@@ -39,3 +39,23 @@ public extension DependencyValues {
         set { self[NodeDebugPortKey.self] = newValue }
     }
 }
+
+// MARK: - TerminalRepositoryPortKey
+
+/// `DependencyKey` for `TerminalRepositoryPort`.
+///
+/// `liveValue` and `testValue` are both the `Unimplemented` sentinel so the
+/// build is clean with no adapter linked. The `GRDBPersistenceAdapter` target
+/// overrides `liveValue` at the composition root.
+public enum TerminalRepositoryPortKey: DependencyKey {
+    public static let liveValue: any TerminalRepositoryPort = UnimplementedTerminalRepository()
+    public static let testValue: any TerminalRepositoryPort = UnimplementedTerminalRepository()
+}
+
+public extension DependencyValues {
+    /// The port that persists `TerminalSession` metadata to local SQLite storage.
+    var terminalRepository: any TerminalRepositoryPort {
+        get { self[TerminalRepositoryPortKey.self] }
+        set { self[TerminalRepositoryPortKey.self] = newValue }
+    }
+}
