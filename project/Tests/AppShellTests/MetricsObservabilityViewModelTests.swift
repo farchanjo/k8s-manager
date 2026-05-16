@@ -3,6 +3,7 @@
 
 import XCTest
 import Dependencies
+import ConcurrencyExtras
 @testable import AppShell
 import MetricsObservability
 
@@ -91,10 +92,10 @@ final class MetricsObservabilityViewModelTests: XCTestCase {
     func test_runCuratedQuery_prefersHealthyEndpoint() async {
         let degraded = makeEndpoint(status: .unauthorized)
         let healthy = makeEndpoint(status: .healthy)
-        var capturedEndpoint: PrometheusEndpoint?
+        let capturedEndpoint = LockIsolated<PrometheusEndpoint?>(nil)
         let fakeDiscovery = FakeEndpointDiscovery(endpoints: [degraded, healthy])
         let fakeQuery = FakePrometheusQuery(result: .scalar(timestampUnix: 0, value: 1)) {
-            capturedEndpoint = $0
+            capturedEndpoint.setValue($0)
         }
         let query = CuratedQueryCatalog.all[0]
 
@@ -105,7 +106,7 @@ final class MetricsObservabilityViewModelTests: XCTestCase {
             let sut = MetricsObservabilityViewModel()
             await sut.discoverEndpoints()
             await sut.runCuratedQuery(query)
-            XCTAssertEqual(capturedEndpoint?.status, .healthy)
+            XCTAssertEqual(capturedEndpoint.value?.status, .healthy)
         }
     }
 }
