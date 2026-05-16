@@ -16,6 +16,8 @@ import SwiftkubeModel
 
 // `DomainGVK` is declared as a module-level typealias in SwiftkubeResourceListAdapter.swift.
 // This file reuses it; it is NOT redeclared here to avoid the "invalid redeclaration" error.
+// `SwiftkubeModel.GroupVersionResource` is qualified explicitly below to disambiguate from
+// `SharedKernel.GroupVersionResource` which is also in scope via `ResourceBrowser` imports.
 
 // MARK: - SwiftkubeWatchAdapter
 
@@ -168,9 +170,9 @@ public actor SwiftkubeWatchAdapter: ResourceWatchPort {
     ///
     /// Core/v1 kinds use the `"core"` sentinel for `group`, which is the
     /// canonical value in SwiftkubeModel 0.26 for the legacy API group.
-    nonisolated private func makeGVR(from gvk: DomainGVK) -> GroupVersionResource {
+    nonisolated private func makeGVR(from gvk: DomainGVK) -> SwiftkubeModel.GroupVersionResource {
         let group = gvk.group.isEmpty ? "core" : gvk.group
-        return GroupVersionResource(
+        return SwiftkubeModel.GroupVersionResource(
             group: group,
             version: gvk.version,
             resource: pluralResource(for: gvk)

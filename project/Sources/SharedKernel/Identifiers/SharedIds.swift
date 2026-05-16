@@ -9,6 +9,31 @@
 // Both wrappers use RawRepresentable<String> so callers can initialise with a
 // plain String literal without importing Foundation just for UUID.
 
+// MARK: - GroupVersionResource
+
+/// Kubernetes group-version-resource tuple used with the dynamic API client.
+///
+/// Identifies the plural REST endpoint for a resource kind, distinct from the
+/// GVK (group-version-kind) used in manifests. Lives in `shared_kernel` so both
+/// `AppShell` and `ResourceBrowser` can reference it without circular imports.
+///
+/// An empty `group` string refers to the core API group (`v1`).
+public struct GroupVersionResource: Hashable, Sendable, Codable {
+    /// API group (e.g. `"argoproj.io"`) or `""` for the core group.
+    public let group: String
+    /// API version string (e.g. `"v1alpha1"`).
+    public let version: String
+    /// Plural resource name used in REST paths (e.g. `"applications"`, `"pods"`).
+    public let resource: String
+
+    /// Memberwise initialiser.
+    public init(group: String, version: String, resource: String) {
+        self.group = group
+        self.version = version
+        self.resource = resource
+    }
+}
+
 // MARK: - TabId
 
 /// Deterministic, stable identifier for an open document tab.

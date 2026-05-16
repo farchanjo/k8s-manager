@@ -265,6 +265,7 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .events:          return .events(clusterId: clusterId, scope: nil)
         case .securityCenter:  return .securityOverview(clusterId: clusterId)
         case .apiResources:    return .apiResources(clusterId: clusterId)
+        case .applyYAML:       return .applyYAML(clusterId: clusterId)
         case .helmReleases:    return .resourceList(clusterId: clusterId, kind: .helmRelease, namespace: nil)
         case .workloadKind(let k):
             return .resourceList(clusterId: clusterId, kind: k, namespace: nil)
@@ -282,7 +283,7 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .workloads, .config, .network, .storage,
              .helm, .helmCharts,
              .accessControl, .customResources,
-             .clusterOperations, .applyYAML,
+             .clusterOperations,
              .customResourceGroup:
             return nil
         }

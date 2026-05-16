@@ -32,25 +32,8 @@ public struct ResourceKind: Hashable, Sendable, Codable {
 }
 
 // MARK: - GroupVersionResource
-
-/// Kubernetes group-version-resource tuple used with the dynamic client.
-///
-/// Distinct from `ResourceKind` which is GVK — `GroupVersionResource` names
-/// the plural REST endpoint resource (e.g. `"pods"`, `"deployments"`).
-public struct GroupVersionResource: Hashable, Sendable, Codable {
-    /// API group or `""` for the core group.
-    public let group: String
-    /// API version string.
-    public let version: String
-    /// Plural resource name (e.g. `"pods"`, `"deployments"`).
-    public let resource: String
-
-    public init(group: String, version: String, resource: String) {
-        self.group = group
-        self.version = version
-        self.resource = resource
-    }
-}
+// Defined in `SharedKernel` (SharedIds.swift) so both `AppShell` and
+// `ResourceBrowser` resolve it without a circular module dependency.
 
 // MARK: - ResourceRef
 
@@ -146,6 +129,12 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
     /// API resource discovery browser.
     case apiResources(clusterId: ClusterId)
 
+    /// YAML / JSON apply tool (kubectl apply -f - equivalent).
+    case applyYAML(clusterId: ClusterId)
+
+    /// Cluster diagnostics bundle collection.
+    case diagnostics(clusterId: ClusterId)
+
     // MARK: Identifiable
 
     /// Deterministic `TabId` derived from associated values.
@@ -168,7 +157,9 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
              .nodes(let c),
              .namespaces(let c),
              .securityOverview(let c),
-             .apiResources(let c):
+             .apiResources(let c),
+             .applyYAML(let c),
+             .diagnostics(let c):
             return c
         case .resourceList(let c, _, _):    return c
         case .resourceDetail(let c, _):     return c
@@ -193,6 +184,8 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .namespaces:                           return "Namespaces"
         case .securityOverview:                     return "Security"
         case .apiResources:                         return "API Resources"
+        case .applyYAML:                            return "Apply YAML"
+        case .diagnostics:                          return "Diagnostics"
         case .resourceList(_, let kind, let ns):
             return ns.map { "\(kind.kind) (\($0))" } ?? kind.kind
         case .resourceDetail(_, let ref):           return ref.name
@@ -232,6 +225,8 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .customResource:   return "puzzlepiece.extension"
         case .securityOverview: return "lock.shield"
         case .apiResources:     return "network"
+        case .applyYAML:        return "doc.badge.plus"
+        case .diagnostics:      return "stethoscope"
         }
     }
 
@@ -250,6 +245,8 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .namespaces:           return "namespaces:\(c)"
         case .securityOverview:     return "security:\(c)"
         case .apiResources:         return "apiresources:\(c)"
+        case .applyYAML:            return "applyyaml:\(c)"
+        case .diagnostics:          return "diagnostics:\(c)"
         case .resourceList(_, let kind, let ns):
             let nsKey = ns ?? "*"
             return "resourcelist:\(c):\(kind.apiVersion):\(kind.kind):\(nsKey)"
@@ -313,6 +310,7 @@ extension DocumentTab: Codable {
         case overview, applications, nodes, resourceList, resourceDetail
         case yamlEditor, logs, exec, events, helmRelease, namespaces
         case portForward, customResource, securityOverview, apiResources
+        case applyYAML, diagnostics
     }
 
     public init(from decoder: any Decoder) throws {
@@ -326,6 +324,8 @@ extension DocumentTab: Codable {
         case .namespaces:       self = .namespaces(clusterId: cid)
         case .securityOverview: self = .securityOverview(clusterId: cid)
         case .apiResources:     self = .apiResources(clusterId: cid)
+        case .applyYAML:        self = .applyYAML(clusterId: cid)
+        case .diagnostics:      self = .diagnostics(clusterId: cid)
         case .resourceList:
             let kind = try c.decode(ResourceKind.self, forKey: .kind)
             let ns = try c.decodeIfPresent(String.self, forKey: .namespace)
@@ -378,6 +378,10 @@ extension DocumentTab: Codable {
             try c.encode(TypeTag.securityOverview, forKey: .type)
         case .apiResources:
             try c.encode(TypeTag.apiResources, forKey: .type)
+        case .applyYAML:
+            try c.encode(TypeTag.applyYAML, forKey: .type)
+        case .diagnostics:
+            try c.encode(TypeTag.diagnostics, forKey: .type)
         case .resourceList(_, let kind, let ns):
             try c.encode(TypeTag.resourceList, forKey: .type)
             try c.encode(kind, forKey: .kind)
