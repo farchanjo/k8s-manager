@@ -1,13 +1,7 @@
-// ContextNavigation.swift — domain core placeholder
+// ContextNavigation.swift — context_navigation domain core
 // Bounded context: context_navigation (per ADR-0005)
-// Status: skeleton; domain types pending CUE schema extraction.
-import Foundation
-
-/// Namespace marker for the ContextNavigation bounded context.
-///
-/// Domain types, ports, and actors land under this enum in subsequent rounds.
-/// This file exists so the target compiles cleanly under Swift 6 strict concurrency.
-public enum ContextNavigation: Sendable {
-    /// Build identifier — bumped manually until CI emits this.
-    public static let moduleVersion = "0.0.1-skeleton"
-}
+//
+// Domain types live in `Domain/`, hexagonal port protocols in `Ports/`.
+// This file intentionally exports no namespace enum: a top-level type named
+// `ContextNavigation` would shadow the module name and break adapter-side
+// type qualification when both modules export the same simple type name.
