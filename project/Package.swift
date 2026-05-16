@@ -324,6 +324,7 @@ let package = Package(
             name: "SwiftkubeClientAdapter",
             dependencies: [
                 "ClusterConnectivity",
+                "MetricsObservability",
                 "ResourceBrowser",
                 "PortForwarding",
                 "HelmManagement",
@@ -797,6 +798,7 @@ let package = Package(
             dependencies: [
                 "SwiftkubeClientAdapter",
                 "ClusterConnectivity",
+                "MetricsObservability",
                 "SharedKernel",
             ],
             path: "Tests/SwiftkubeClientAdapterTests",

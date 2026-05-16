@@ -39,8 +39,8 @@ public enum SharedNetworking {
     /// - Idle connection pool timeout: 45 s
     public static let httpClient: HTTPClient = {
         let configuration = HTTPClient.Configuration(
-            timeout: .init(connect: .seconds(10), read: .seconds(30)),
             redirectConfiguration: .follow(max: 5, allowCycles: false),
+            timeout: .init(connect: .seconds(10), read: .seconds(30)),
             connectionPool: .init(idleTimeout: .seconds(45))
         )
         return HTTPClient(
