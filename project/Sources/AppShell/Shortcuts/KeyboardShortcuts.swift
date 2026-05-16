@@ -101,6 +101,22 @@ public struct K8sManagerCommands: Commands {
             .keyboardShortcut(",", modifiers: .command)
             .accessibilityLabel("Open Settings")
         }
+
+        // ⌘\ — toggle assistant slide-out panel (ADR-0051)
+        CommandGroup(after: .toolbar) {
+            Button("Toggle Assistant") {
+                NotificationCenter.default.post(name: .k8sManagerToggleAssistant, object: nil)
+            }
+            .keyboardShortcut("\\", modifiers: .command)
+            .accessibilityLabel("Toggle PRISM AI assistant panel")
+
+            // ⌘N — toggle notifications (ADR-0051)
+            Button("Toggle Notifications") {
+                NotificationCenter.default.post(name: .k8sManagerToggleNotifications, object: nil)
+            }
+            .keyboardShortcut("n", modifiers: .command)
+            .accessibilityLabel("Toggle notifications panel")
+        }
     }
 }
 
