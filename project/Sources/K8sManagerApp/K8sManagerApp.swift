@@ -53,6 +53,22 @@ struct K8sManagerApp: App {
 
     init() {
         do {
+            // ADR-0042: enforce single-instance before any other bootstrap work.
+            let lockPath = Self.defaultLockPath()
+            try SingleInstanceLock.acquireOrExit(lockPath: lockPath)
+        } catch SingleInstanceError.alreadyRunning(let existingPid) {
+            let log = Logger(label: "K8sManagerApp.singleInstance")
+            log.warning("Another instance is already running (pid=\(existingPid.map(String.init) ?? "unknown")). Activating it.")
+            Self.activateExistingInstance(pid: existingPid)
+            // activateExistingInstance calls NSApp.terminate; this path should
+            // not be reached, but guard against a no-op delegate scenario.
+            return
+        } catch {
+            let log = Logger(label: "K8sManagerApp.singleInstance")
+            log.error("Single-instance lock error: \(error). Proceeding without enforcement.")
+        }
+
+        do {
             try Self.wireSync()
         } catch {
             let log = Logger(label: "K8sManagerApp.bootstrap")
@@ -64,6 +80,27 @@ struct K8sManagerApp: App {
 
     var body: some Scene {
         K8sManagerRootScene()
+    }
+}
+
+// MARK: - Single-instance helpers
+
+private extension K8sManagerApp {
+
+    /// Returns the canonical lock file path under Application Support.
+    nonisolated static func defaultLockPath() -> String {
+        let base = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first?.path ?? NSTemporaryDirectory()
+        return base + "/K8sManager/.instance.lock"
+    }
+
+    /// Attempts to bring the existing instance to the foreground, then exits.
+    nonisolated static func activateExistingInstance(pid: pid_t?) {
+        if let pid, let existing = NSRunningApplication(processIdentifier: pid) {
+            existing.activate(options: [.activateAllWindows])
+        }
+        DispatchQueue.main.async { NSApp.terminate(nil) }
     }
 }
 
