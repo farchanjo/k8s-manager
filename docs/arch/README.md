@@ -259,6 +259,22 @@ graph TB
   constraint by direction; HTTPS-only for public). Proposed.
 - **ADR-0046** — Helm rollback Lease-based mutual exclusion (`coordination.k8s.io/v1/Lease` named
   per release; 60s duration; 20s renewal; auto-expiry on crash). Proposed.
+- **ADR-0047** — Audit chain HMAC-Keychain signing (append-only audit log with HMAC chaining stored
+  in macOS Keychain; tamper-evidence for mutating operation audit). Proposed.
+- **ADR-0048** — LLM prompt injection defense (prompt injection detection policy; scoring threshold;
+  PromptInjectionSuspected event; circuit-breaker for repeated violations). Proposed.
+- **ADR-0049** — App shell policy coverage (Rego policy matrix for all app_shell bounded-context
+  invariants; CI conftest gate). Proposed.
+- **ADR-0050** — Resource navigation taxonomy (51 standard Kubernetes kinds; 8-category sidebar
+  tree; multi-document tab system with OpenTabsActor ownership; tab-owned watch streams; CRD group
+  sidebar section). Accepted (ratified 2026-05-16). Refines ADR-0013, ADR-0021, ADR-0034.
+- **ADR-0051** — Multi-cluster workspace (vertical cluster strip with ClusterStripActor; per-cluster
+  sidebar tree with provider grouping; tab bar; detail drawer; status bar telemetry; top-right
+  chrome). Accepted (ratified 2026-05-16). Refines ADR-0021, ADR-0025, ADR-0026.
+- **ADR-0052** — Custom resource discovery and rendering (sidebar grouping by API group; live
+  sidebar refresh via CRDCatalogUpdated event; generic list view with additionalPrinterColumns;
+  schema-guided detail view; GVRWatchPort extension; multi-version CRD picker). Accepted (ratified
+  2026-05-16). Refines ADR-0013.
 
 ## Status lifecycle
 
