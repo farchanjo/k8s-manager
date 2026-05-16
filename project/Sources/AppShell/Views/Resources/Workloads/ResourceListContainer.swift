@@ -45,7 +45,10 @@ public struct ResourceListContainer<Content: View>: View {
             Divider()
             contentArea
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Explicit maxHeight anchor guarantees the overlay placed by each
+        // *ListView caller always binds to the full panel frame, not to the
+        // Table's variable intrinsic height during the skeleton→data transition.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: Private views
@@ -60,17 +63,19 @@ public struct ResourceListContainer<Content: View>: View {
             countBadge
             Spacer()
             searchField
-            // Fixed-frame trailing slot prevents the toolbar from shrinking
-            // when `isLoading` toggles (otherwise the title + count + search
-            // shift right/left on every load → "bar sumindo e aparecendo").
+            // Fixed-frame trailing slot keeps toolbar geometry stable while
+            // the loading indicator and refresh button swap. Both views stay
+            // in the tree and are toggled via opacity so SwiftUI never
+            // cross-fades them — eliminates the "subtitle fade" artifact.
             ZStack {
-                if isLoading {
-                    ProgressView().controlSize(.small)
-                } else {
-                    refreshButton
-                }
+                ProgressView()
+                    .controlSize(.small)
+                    .opacity(isLoading ? 1 : 0)
+                refreshButton
+                    .opacity(isLoading ? 0 : 1)
             }
             .frame(width: 20, height: 20)
+            .animation(.none, value: isLoading)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
