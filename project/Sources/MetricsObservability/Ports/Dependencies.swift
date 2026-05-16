@@ -39,3 +39,26 @@ public extension DependencyValues {
         set { self[EndpointDiscoveryPortKey.self] = newValue }
     }
 }
+
+// MARK: - PrometheusEndpointRepositoryPortKey
+
+/// `DependencyKey` for `PrometheusEndpointRepositoryPort`.
+///
+/// `liveValue` and `testValue` are both the `Unimplemented` sentinel so the
+/// build is clean with no adapter linked. Adapter targets override `liveValue`
+/// at composition root.
+public enum PrometheusEndpointRepositoryPortKey: DependencyKey {
+    public static let liveValue: any PrometheusEndpointRepositoryPort =
+        UnimplementedPrometheusEndpointRepositoryPort()
+    public static let testValue: any PrometheusEndpointRepositoryPort =
+        UnimplementedPrometheusEndpointRepositoryPort()
+}
+
+public extension DependencyValues {
+    /// The port that persists and loads discovered or configured
+    /// `PrometheusEndpoint` aggregates.
+    var prometheusEndpointRepository: any PrometheusEndpointRepositoryPort {
+        get { self[PrometheusEndpointRepositoryPortKey.self] }
+        set { self[PrometheusEndpointRepositoryPortKey.self] = newValue }
+    }
+}
