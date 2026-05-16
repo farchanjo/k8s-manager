@@ -33,6 +33,22 @@ public struct K8sManagerCommands: Commands {
 
     public var body: some Commands {
         CommandMenu("Navigate") {
+            // ⌘[ — navigate back (ADR-0065)
+            Button("Back") {
+                NotificationCenter.default.post(name: .k8sManagerNavigateBack, object: nil)
+            }
+            .keyboardShortcut("[", modifiers: .command)
+            .accessibilityLabel("Navigate back")
+
+            // ⌘] — navigate forward (ADR-0065)
+            Button("Forward") {
+                NotificationCenter.default.post(name: .k8sManagerNavigateForward, object: nil)
+            }
+            .keyboardShortcut("]", modifiers: .command)
+            .accessibilityLabel("Navigate forward")
+
+            Divider()
+
             // ⌘K — toggle palette (primary activation per ADR-0023)
             Button("Command Palette") {
                 NotificationCenter.default.post(name: .k8sManagerOpenPalette, object: nil)
@@ -149,6 +165,10 @@ public extension Notification.Name {
     /// Posted by ⌘⇧W or the command palette "Go to Welcome tab" entry — the
     /// workspace tabs actor subscribes and focuses the persistent Welcome tab.
     static let k8sManagerFocusWelcomeTab = Notification.Name("appShell.focusWelcomeTab")
+    /// Posted when ⌘[ is pressed — `NavigationHistoryActor` subscriber calls `back()`.
+    static let k8sManagerNavigateBack = Notification.Name("appShell.navigateBack")
+    /// Posted when ⌘] is pressed — `NavigationHistoryActor` subscriber calls `forward()`.
+    static let k8sManagerNavigateForward = Notification.Name("appShell.navigateForward")
 }
 
 // MARK: - KeyboardShortcutsHandler

@@ -82,6 +82,11 @@ public struct SidebarCanvasView: View {
     private var headerBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
+                // Back/forward navigation arrows — ADR-0065.
+                if let historyActor = deps.navigationHistoryActor {
+                    NavigationHistoryToolbar(historyActor: historyActor)
+                        .padding(.leading, 4)
+                }
                 Spacer()
                 if let clusterId = activeClusterId {
                     GlobalNamespacePicker(clusterId: clusterId)

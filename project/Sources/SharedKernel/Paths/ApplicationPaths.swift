@@ -70,6 +70,12 @@ public enum ApplicationPaths: Sendable {
         workspaceStateRoot.appendingPathComponent("workspace-tabs.json")
     }
 
+    /// Absolute URL to `workspace/navigation-history.json` (ADR-0065 — per-window
+    /// navigation history stack).
+    public static var navigationHistoryURL: URL {
+        workspaceStateRoot.appendingPathComponent("navigation-history.json")
+    }
+
     // MARK: Bootstrap
 
     /// Creates `supportDirectory` with `0700` permissions if it does not already

@@ -54,7 +54,8 @@ public struct K8sManagerRootScene: Scene {
     public init(
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
         openTabsActor: OpenTabsActor? = nil,
-        workspaceTabsActor: WorkspaceTabsActor? = nil
+        workspaceTabsActor: WorkspaceTabsActor? = nil,
+        navigationHistoryActor: NavigationHistoryActor? = nil
     ) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
@@ -66,12 +67,19 @@ public struct K8sManagerRootScene: Scene {
         let resolvedWorkspaceTabs = workspaceTabsActor ?? WorkspaceTabsActor(
             persistenceURL: ApplicationPaths.workspaceTabsURL
         )
+        // Default navigation history actor — composition root may override with a
+        // pre-hydrated instance for testing. Falls back to the canonical ADR-0065
+        // persistence path so cold-launch restoration works out of the box.
+        let resolvedNavHistory = navigationHistoryActor ?? NavigationHistoryActor(
+            persistenceURL: ApplicationPaths.navigationHistoryURL
+        )
         appShellDeps = AppShellDependencies(
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
             localePreference: InMemoryLocalePreferenceStore(),
             openTabsActor: openTabsActor,
             workspaceTabsActor: resolvedWorkspaceTabs,
+            navigationHistoryActor: resolvedNavHistory,
             codeEditor: codeEditor
         )
     }

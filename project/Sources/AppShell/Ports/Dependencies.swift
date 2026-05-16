@@ -25,6 +25,10 @@ public struct AppShellDependencies: Sendable {
     /// future workspace-level surfaces (ADR-0054). Single instance per launch.
     /// `nil` only in previews/tests that do not exercise the Welcome flow.
     public let workspaceTabsActor: WorkspaceTabsActor?
+    /// Per-window navigation history actor (ADR-0065). Owns the back/forward
+    /// deque and exposes keyboard-shortcut entry points. `nil` only in
+    /// previews/tests that do not exercise the navigation-history flow.
+    public let navigationHistoryActor: NavigationHistoryActor?
     /// Code editor port (YAML/JSON/MD highlighting) — ADR-0030.
     /// Composition root injects `CodeEditorViewAdapter`; AppShell never imports
     /// the adapter target directly to preserve the ADR-0020 invariant.
@@ -36,6 +40,7 @@ public struct AppShellDependencies: Sendable {
         localePreference: any LocalePreferencePort,
         openTabsActor: OpenTabsActor? = nil,
         workspaceTabsActor: WorkspaceTabsActor? = nil,
+        navigationHistoryActor: NavigationHistoryActor? = nil,
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor()
     ) {
         self.translationCatalog = translationCatalog
@@ -43,6 +48,7 @@ public struct AppShellDependencies: Sendable {
         self.localePreference = localePreference
         self.openTabsActor = openTabsActor
         self.workspaceTabsActor = workspaceTabsActor
+        self.navigationHistoryActor = navigationHistoryActor
         self.codeEditor = codeEditor
     }
 
