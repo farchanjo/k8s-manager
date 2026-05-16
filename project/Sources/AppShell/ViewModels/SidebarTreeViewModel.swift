@@ -27,7 +27,8 @@ public enum OpenTabsDependencyKey: DependencyKey {
 
 // MARK: - OpenTabsPort
 
-/// Minimal port for opening a tab from the sidebar.
+/// Port for the open-tabs subsystem, consumed by `SidebarTreeViewModel` and
+/// other view models that need to open or observe tabs.
 ///
 /// The full `OpenTabsActor` implementation is defined in a parallel delivery.
 /// This protocol provides a compile-time surface so `SidebarTreeViewModel`
@@ -35,16 +36,29 @@ public enum OpenTabsDependencyKey: DependencyKey {
 public protocol OpenTabsPort: Sendable {
     /// Opens (or focuses) the given `DocumentTab`.
     func openTab(_ tab: DocumentTab) async
+
+    /// Returns an `AsyncStream` that emits the current state immediately and on
+    /// every subsequent mutation. Used by `SidebarTreeViewModel` to derive
+    /// `selectedNode` from the active tab (ADR-0070).
+    func stateStream() -> AsyncStream<OpenTabsSnapshot>
 }
 
 private struct UnimplementedOpenTabsPort: OpenTabsPort {
     func openTab(_ tab: DocumentTab) async {
         preconditionFailure("OpenTabsPort not injected — wire a real implementation at the composition root")
     }
+
+    func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+        AsyncStream { _ in }
+    }
 }
 
 private struct NoOpOpenTabsPort: OpenTabsPort {
     func openTab(_ tab: DocumentTab) async {}
+
+    func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+        AsyncStream { _ in }
+    }
 }
 
 extension DependencyValues {
@@ -124,14 +138,52 @@ public final class SidebarTreeViewModel {
     /// Subscribes to the `ClusterStripActor` state stream and keeps
     /// `activeClusterName` / `activeClusterId` up to date.
     ///
+    /// Also subscribes to `OpenTabsPort.stateStream()` so `selectedNode`
+    /// is derived from the active tab — preventing sidebar–tab desync when
+    /// tabs are opened or closed from outside the sidebar (ADR-0070).
+    ///
     /// Call once from a `.task {}` modifier on the owning view.
     public func start() async {
-        log.info("SidebarTreeViewModel.start — subscribing to cluster strip")
+        log.info("SidebarTreeViewModel.start — subscribing to cluster strip + open tabs")
+        async let _ = subscribeToOpenTabs()
         for await snapshot in clusterStrip.stateStream() {
             apply(snapshot: snapshot)
             if let cid = snapshot.activeClusterId {
                 await startCRDWatch(clusterId: cid)
             }
+        }
+    }
+
+    /// Subscribes to `OpenTabsPort.stateStream()` and keeps `selectedNode`
+    /// mirrored from `activeTabId` — implementing the derived-selection
+    /// invariant from ADR-0070.
+    ///
+    /// Also expands the parent group node when the derived leaf is inside a
+    /// collapsed section, so the highlighted row is visible in the `OutlineGroup`
+    /// (SwiftUI's OutlineGroup manages its own expansion state; the view model
+    /// tracks `expandedGroups` and `SidebarTreeView` must observe it to keep
+    /// the disclosure triangles consistent with the selection).
+    private func subscribeToOpenTabs() async {
+        for await snapshot in openTabs.stateStream() {
+            guard let activeId = snapshot.activeTabId,
+                  let activeTab = snapshot.tabs.first(where: { $0.id == activeId })
+            else { continue }
+            guard let derived = SidebarNode.from(documentTab: activeTab) else { continue }
+            if derived != selectedNode {
+                selectedNode = derived
+                expandParentIfNeeded(for: derived)
+                log.debug("selectedNode derived from activeTab=\(activeTab.title)")
+            }
+        }
+    }
+
+    /// Ensures the parent group for `node` is marked expanded so the row is
+    /// visible when the OutlineGroup re-renders. Only expands — never collapses —
+    /// to avoid disrupting an operator who has manually collapsed a section.
+    private func expandParentIfNeeded(for node: SidebarNode) {
+        let parent = SidebarNode.parentGroup(of: node)
+        if let parent, !expandedGroups.contains(parent) {
+            expandedGroups.insert(parent)
         }
     }
 

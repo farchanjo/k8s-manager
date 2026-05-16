@@ -273,6 +273,101 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
     /// `true` when the node has children (i.e. renders a disclosure triangle).
     public var isExpandable: Bool { children != nil }
 
+    // MARK: - Inverse tab mapping (ADR-0070)
+
+    /// Derives the sidebar leaf node that corresponds to `tab`, or `nil` when
+    /// the tab has no direct sidebar representation (detail views, YAML editors,
+    /// log streams, exec sessions, port-forwards, etc.).
+    ///
+    /// Used by `SidebarTreeViewModel.subscribeToOpenTabs()` to keep
+    /// `selectedNode` in sync with the active tab (ADR-0070).
+    public static func from(documentTab tab: DocumentTab) -> SidebarNode? {
+        switch tab {
+        case .overview:             return .overview
+        case .applications:         return .applications
+        case .nodes:                return .nodes
+        case .namespaces:           return .namespaces
+        case .events:               return .events
+        case .securityOverview:     return .securityOverviewEntry
+        case .securityImages:       return .securityImagesEntry
+        case .securityResources:    return .securityResourcesEntry
+        case .securityRoles:        return .securityRolesEntry
+        case .apiResources:         return .apiResources
+        case .applyYAML:            return .applyYAML
+        case .customResource(_, let gvr):
+            return .customResourceKind(gvr)
+        case .resourceList(_, let kind, _):
+            return sidebarNode(for: kind)
+        case .helmRelease:
+            return .helmReleases
+        // Tabs with no sidebar leaf: detail, editor, logs, exec, debug, portForward, etc.
+        case .welcome, .resourceDetail, .yamlEditor,
+             .logs, .exec, .nodeDebug, .portForward, .diagnostics:
+            return nil
+        }
+    }
+
+    /// Maps a `ResourceKind` back to its sidebar leaf node, searching all
+    /// standard family groups. Returns `nil` for unknown / dynamic kinds.
+    private static func sidebarNode(for kind: ResourceKind) -> SidebarNode? {
+        let workloadKinds = SidebarTree.workloadChildren.compactMap {
+            if case .workloadKind(let k) = $0 { return (k, $0) } else { return nil }
+        }
+        if let match = workloadKinds.first(where: { $0.0 == kind }) { return match.1 }
+
+        let configKinds = SidebarTree.configChildren.compactMap {
+            if case .configKind(let k) = $0 { return (k, $0) } else { return nil }
+        }
+        if let match = configKinds.first(where: { $0.0 == kind }) { return match.1 }
+
+        let networkKinds = SidebarTree.networkChildren.compactMap {
+            if case .networkKind(let k) = $0 { return (k, $0) } else { return nil }
+        }
+        if let match = networkKinds.first(where: { $0.0 == kind }) { return match.1 }
+
+        let storageKinds = SidebarTree.storageChildren.compactMap {
+            if case .storageKind(let k) = $0 { return (k, $0) } else { return nil }
+        }
+        if let match = storageKinds.first(where: { $0.0 == kind }) { return match.1 }
+
+        let rbacKinds = SidebarTree.accessControlChildren.compactMap {
+            if case .rbacKind(let k) = $0 { return (k, $0) } else { return nil }
+        }
+        if let match = rbacKinds.first(where: { $0.0 == kind }) { return match.1 }
+
+        // helmRelease kind maps to the helm releases sidebar entry
+        if kind == .helmRelease { return .helmReleases }
+
+        return nil
+    }
+
+    // MARK: - Parent group resolution (ADR-0070)
+
+    /// Returns the expandable group node that directly contains `node`, or `nil`
+    /// when `node` is a top-level leaf (no disclosure parent).
+    ///
+    /// Used by `SidebarTreeViewModel.subscribeToOpenTabs()` to expand the parent
+    /// group automatically when the active tab drives a hidden leaf into selection —
+    /// ensuring the highlighted row is visible in `OutlineGroup`.
+    public static func parentGroup(of node: SidebarNode) -> SidebarNode? {
+        switch node {
+        case .workloadKind:          return .workloads
+        case .configKind:            return .config
+        case .networkKind:           return .network
+        case .storageKind:           return .storage
+        case .rbacKind:              return .accessControl
+        case .helmCharts, .helmReleases: return .helm
+        case .securityOverviewEntry,
+             .securityImagesEntry,
+             .securityResourcesEntry,
+             .securityRolesEntry:    return .securityCenter
+        case .apiResources, .applyYAML: return .clusterOperations
+        case .customResourceKind:    return .customResources
+        case .customResourceGroup:   return .customResources
+        default:                     return nil
+        }
+    }
+
     // MARK: - Tab mapping
 
     /// Maps this sidebar node to the `DocumentTab` that should be opened when activated.
