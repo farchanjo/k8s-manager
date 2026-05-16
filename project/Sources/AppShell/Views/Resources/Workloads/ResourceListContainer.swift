@@ -60,15 +60,21 @@ public struct ResourceListContainer<Content: View>: View {
             countBadge
             Spacer()
             searchField
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                refreshButton
+            // Fixed-frame trailing slot prevents the toolbar from shrinking
+            // when `isLoading` toggles (otherwise the title + count + search
+            // shift right/left on every load → "bar sumindo e aparecendo").
+            ZStack {
+                if isLoading {
+                    ProgressView().controlSize(.small)
+                } else {
+                    refreshButton
+                }
             }
+            .frame(width: 20, height: 20)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .frame(minHeight: 36)
     }
 
     @ViewBuilder

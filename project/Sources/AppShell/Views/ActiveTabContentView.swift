@@ -45,6 +45,11 @@ public struct ActiveTabContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .environment(\.onResourceSelect) { ref in
+            // Child list views call this on row selection changes; we store
+            // the ref locally so the inspector drawer below can present it.
+            self.selectedRef = ref
+        }
         .inspector(isPresented: Binding(
             get: { self.selectedRef != nil },
             set: { presented in if !presented { self.selectedRef = nil } }

@@ -60,25 +60,38 @@ public final class DaemonSetsListViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var listPort
 
+    @ObservationIgnored
+    @Dependency(\.namespaceFilter) private var namespaceFilter
+
     public init() {}
 
     public func start(clusterId: ClusterId, namespace: String?) async {
-        self.namespace = namespace
+        self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
         await reload(clusterId: clusterId)
+        for await snapshot in namespaceFilter.stateStream(for: clusterId) {
+            if snapshot.namespace == self.namespace { continue }
+            self.namespace = snapshot.namespace
+            await reload(clusterId: clusterId)
+        }
     }
 
     public func reload(clusterId: ClusterId) async {
-        loadState = .loading
+        let port = listPort
+        let ns = namespace
         let gvk = GroupVersionKind(group: "apps", version: "v1", kind: "DaemonSet")
         log.info("daemonsets reload cluster=\(clusterId.rawValue)")
-        do {
-            let items = try await listPort.list(gvk: gvk, namespace: namespace, clusterId: clusterId)
-            rows = items.map(Self.project)
-            loadState = .success(rows.count)
-        } catch {
-            log.error("daemonsets load failed — \(error)")
-            loadState = .failure(error)
-        }
+        await AsyncLoader.run(
+            setLoading: { self.loadState = .loading },
+            operation: { try await port.list(gvk: gvk, namespace: ns, clusterId: clusterId) },
+            onSuccess: { items in
+                self.rows = items.map(Self.project)
+                self.loadState = .success(self.rows.count)
+            },
+            onFailure: { error in
+                log.error("daemonsets load failed — \(error)")
+                self.loadState = .failure(error)
+            }
+        )
     }
 
     public func confirmDelete(ids: Set<String>) {

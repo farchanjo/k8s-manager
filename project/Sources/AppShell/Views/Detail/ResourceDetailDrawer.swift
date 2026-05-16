@@ -49,6 +49,51 @@ public struct ResourceDetailDrawer: View {
     // MARK: Body
 
     public var body: some View {
+        Group {
+            if isInColdLoad {
+                coldLoadSkeleton
+            } else {
+                loadedContent
+            }
+        }
+        .frame(width: 480)
+        .background(.regularMaterial)
+        .task(id: ref) {
+            viewModel.onOpenTab = onOpenTab
+            viewModel.onClose = onDismiss
+            await viewModel.start(clusterId: clusterId, ref: ref)
+        }
+    }
+
+    /// True while the VM is loading and has not yet populated any of the
+    /// drawer's main sections (ADR-0031 §"Skeleton loaders — Detail panel").
+    private var isInColdLoad: Bool {
+        viewModel.isLoading
+            && viewModel.properties.isEmpty
+            && viewModel.containers.isEmpty
+            && viewModel.events.isEmpty
+    }
+
+    private var coldLoadSkeleton: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            DetailHeaderSkeleton()
+            sectionSkeleton(height: 96)
+            sectionSkeleton(height: 140)
+            sectionSkeleton(height: 80)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func sectionSkeleton(height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.primary.opacity(0.06))
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .shimmering()
+    }
+
+    private var loadedContent: some View {
         VStack(spacing: 0) {
             DetailHeader(
                 kind: ref.kind.kind,
@@ -94,13 +139,6 @@ public struct ResourceDetailDrawer: View {
                 }
                 .padding(16)
             }
-        }
-        .frame(width: 480)
-        .background(.regularMaterial)
-        .task(id: ref) {
-            viewModel.onOpenTab = onOpenTab
-            viewModel.onClose = onDismiss
-            await viewModel.start(clusterId: clusterId, ref: ref)
         }
     }
 }

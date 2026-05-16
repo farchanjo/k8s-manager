@@ -40,29 +40,44 @@ public struct PodsListView: View {
         ) {
             podTable
         }
-        .task { await viewModel.start(clusterId: clusterId, namespace: namespace) }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NamespaceFilterPicker(selection: Binding(
-                    get: { viewModel.namespace },
-                    set: { ns in
-                        viewModel.namespace = ns
-                        Task { await viewModel.reload(clusterId: clusterId) }
-                    }
-                ))
-            }
+        .task(id: clusterId) {
+            await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
     }
 
     // MARK: Private
 
+    private var emptyStateMessage: String {
+        if !viewModel.searchText.isEmpty {
+            return "No pods match \"\(viewModel.searchText)\"."
+        }
+        if let ns = viewModel.namespace {
+            return "Namespace \"\(ns)\" has no pods."
+        }
+        return "This cluster has no pods."
+    }
+
+    private var emptyStateSystemImage: String { "shippingbox" }
+
     @ViewBuilder
     private var podTable: some View {
         switch viewModel.loadState {
-        case .idle, .loading where viewModel.rows.isEmpty:
-            loadingPlaceholder
+        case .idle where viewModel.rows.isEmpty,
+             .loading where viewModel.rows.isEmpty:
+            WorkloadListSkeleton()
         case .failure(let error):
-            errorView(error)
+            ErrorStateView(
+                title: "Failed to load Pods",
+                error: error,
+                retryable: true,
+                onRetry: { Task { await viewModel.reload(clusterId: clusterId) } }
+            )
+        case .success where viewModel.filteredRows.isEmpty:
+            EmptyStateView(
+                title: "No Pods",
+                message: emptyStateMessage,
+                systemImage: emptyStateSystemImage
+            )
         default:
             podTableContent
         }
@@ -111,29 +126,4 @@ public struct PodsListView: View {
         }
     }
 
-    private var loadingPlaceholder: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Loading Pods…")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func errorView(_ error: Error) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.largeTitle)
-                .foregroundStyle(.orange)
-            Text(error.localizedDescription)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await viewModel.reload(clusterId: clusterId) }
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

@@ -164,10 +164,16 @@ public protocol KubernetesSecurityListPort: Sendable {
     func fetchSecuritySnapshot(clusterId: ClusterId) async throws -> SecuritySnapshot
 }
 
-// MARK: - Unimplemented default
+// MARK: - Default port (empty snapshot)
 
+/// Safe no-op default for ``KubernetesSecurityListPort``.
+///
+/// Returns an empty ``SecuritySnapshot`` (score = 100, no findings) so the
+/// Security Center can render without crashing while a real adapter — querying
+/// pods, services, RBAC, and PSS labels via ``KubernetesResourceListPort`` —
+/// is still pending. Replace at the composition root once that adapter ships.
 private struct UnimplementedSecurityListPort: KubernetesSecurityListPort {
     func fetchSecuritySnapshot(clusterId: ClusterId) async throws -> SecuritySnapshot {
-        preconditionFailure("KubernetesSecurityListPort not injected — use SecurityOverviewViewModel(listPort:)")
+        SecuritySnapshot()
     }
 }

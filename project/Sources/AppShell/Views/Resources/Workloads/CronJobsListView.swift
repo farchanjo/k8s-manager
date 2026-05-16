@@ -34,27 +34,42 @@ public struct CronJobsListView: View {
         ) {
             tableContent
         }
-        .task { await viewModel.start(clusterId: clusterId, namespace: namespace) }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NamespaceFilterPicker(selection: Binding(
-                    get: { viewModel.namespace },
-                    set: { ns in
-                        viewModel.namespace = ns
-                        Task { await viewModel.reload(clusterId: clusterId) }
-                    }
-                ))
-            }
+        .task(id: clusterId) {
+            await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
     }
+
+    private var emptyStateMessage: String {
+        if !viewModel.searchText.isEmpty {
+            return "No cronjobs match \"\(viewModel.searchText)\"."
+        }
+        if let ns = viewModel.namespace {
+            return "Namespace \"\(ns)\" has no cronjobs."
+        }
+        return "This cluster has no cronjobs."
+    }
+
+    private var emptyStateSystemImage: String { "clock.arrow.circlepath" }
 
     @ViewBuilder
     private var tableContent: some View {
         switch viewModel.loadState {
-        case .idle, .loading where viewModel.rows.isEmpty:
-            ProgressView("Loading CronJobs…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .idle where viewModel.rows.isEmpty,
+             .loading where viewModel.rows.isEmpty:
+            WorkloadListSkeleton()
         case .failure(let error):
-            errorView(error)
+            ErrorStateView(
+                title: "Failed to load CronJobs",
+                error: error,
+                retryable: true,
+                onRetry: { Task { await viewModel.reload(clusterId: clusterId) } }
+            )
+        case .success where viewModel.filteredRows.isEmpty:
+            EmptyStateView(
+                title: "No CronJobs",
+                message: emptyStateMessage,
+                systemImage: emptyStateSystemImage
+            )
         default:
             cronJobsTable
         }
@@ -85,13 +100,4 @@ public struct CronJobsListView: View {
         }
     }
 
-    private func errorView(_ error: Error) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.orange)
-            Text(error.localizedDescription).multilineTextAlignment(.center)
-            Button("Retry") { Task { await viewModel.reload(clusterId: clusterId) } }
-                .buttonStyle(.borderedProminent)
-        }
-        .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

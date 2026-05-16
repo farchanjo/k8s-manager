@@ -13,15 +13,16 @@ import SharedKernel
 private let log = Logger(label: "k8smgr.app_shell.sidebar_tree")
 
 // MARK: - Dependency keys (fallback if parallel agent has not wired these yet)
+//
+// `ClusterStripDependencyKey` lives in `Actors/ClusterStripActor.swift` so it
+// is public and shared with `ClusterStripView`/`ClusterStripViewModel` and the
+// composition root. Keeping it in one place prevents the two-actor split bug
+// where the cluster strip would broadcast to its own actor and the sidebar
+// would silently observe a different one.
 
-private enum OpenTabsDependencyKey: DependencyKey {
-    static let liveValue: any OpenTabsPort = UnimplementedOpenTabsPort()
-    static let testValue: any OpenTabsPort = NoOpOpenTabsPort()
-}
-
-private enum ClusterStripDependencyKey: DependencyKey {
-    static let liveValue: ClusterStripActor = ClusterStripActor()
-    static let testValue: ClusterStripActor = ClusterStripActor()
+public enum OpenTabsDependencyKey: DependencyKey {
+    public static let liveValue: any OpenTabsPort = UnimplementedOpenTabsPort()
+    public static let testValue: any OpenTabsPort = NoOpOpenTabsPort()
 }
 
 // MARK: - OpenTabsPort
@@ -51,15 +52,9 @@ extension DependencyValues {
     ///
     /// Wire the live `OpenTabsActor` at the composition root.
     /// Tests may supply `NoOpOpenTabsPort` or a spy double via `withDependencies`.
-    var openTabs: any OpenTabsPort {
+    public var openTabs: any OpenTabsPort {
         get { self[OpenTabsDependencyKey.self] }
         set { self[OpenTabsDependencyKey.self] = newValue }
-    }
-
-    /// Access key for the `ClusterStripActor`.
-    var clusterStrip: ClusterStripActor {
-        get { self[ClusterStripDependencyKey.self] }
-        set { self[ClusterStripDependencyKey.self] = newValue }
     }
 }
 
@@ -84,8 +79,16 @@ public final class SidebarTreeViewModel {
     /// Stable identifier of the active cluster.
     public var activeClusterId: ClusterId?
 
+    /// Authentication provider of the active cluster (ADR-0051 §"Per-cluster
+    /// sidebar tree" — drives the provider section header).
+    public var activeProviderKind: ClusterProviderKind?
+
     /// Whether the active cluster's connection is established.
     public var isConnected: Bool = false
+
+    /// `true` until the first `ClusterStripActor` snapshot arrives. Drives
+    /// the cold-load skeleton (ADR-0031 §"Skeleton loaders — Sidebar").
+    public var hasReceivedSnapshot: Bool = false
 
     /// The sidebar node currently selected (drives `List` highlight).
     public var selectedNode: SidebarNode?
@@ -187,13 +190,17 @@ public final class SidebarTreeViewModel {
     // MARK: - Private
 
     private func apply(snapshot: ClusterStripSnapshot) {
+        hasReceivedSnapshot = true
         activeClusterId = snapshot.activeClusterId
         if let cid = snapshot.activeClusterId,
            let pin = snapshot.pins.first(where: { $0.clusterId == cid }) {
             activeClusterName = pin.displayName
+            activeProviderKind = pin.providerKind
             isConnected = true
         } else {
-            activeClusterName = snapshot.pins.first?.displayName
+            let fallbackPin = snapshot.pins.first
+            activeClusterName = fallbackPin?.displayName
+            activeProviderKind = fallbackPin?.providerKind
             isConnected = false
         }
     }

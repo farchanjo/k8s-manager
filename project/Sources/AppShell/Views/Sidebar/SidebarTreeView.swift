@@ -42,11 +42,23 @@ public struct SidebarTreeView: View {
 
     @ViewBuilder
     private var clusterContent: some View {
-        if let name = viewModel.activeClusterName {
+        if !viewModel.hasReceivedSnapshot {
+            SidebarSkeleton()
+                .listRowBackground(Color.clear)
+        } else if let name = viewModel.activeClusterName {
             Section {
                 treeOutline
             } header: {
-                ClusterHeaderRow(name: name, isConnected: viewModel.isConnected)
+                VStack(alignment: .leading, spacing: 2) {
+                    if let provider = viewModel.activeProviderKind {
+                        Text(provider.displayLabel)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.tertiary)
+                            .textCase(.uppercase)
+                    }
+                    ClusterHeaderRow(name: name, isConnected: viewModel.isConnected)
+                }
             }
         } else {
             emptyState

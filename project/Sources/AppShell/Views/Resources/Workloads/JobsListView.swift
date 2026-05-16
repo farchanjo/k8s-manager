@@ -34,27 +34,42 @@ public struct JobsListView: View {
         ) {
             tableContent
         }
-        .task { await viewModel.start(clusterId: clusterId, namespace: namespace) }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NamespaceFilterPicker(selection: Binding(
-                    get: { viewModel.namespace },
-                    set: { ns in
-                        viewModel.namespace = ns
-                        Task { await viewModel.reload(clusterId: clusterId) }
-                    }
-                ))
-            }
+        .task(id: clusterId) {
+            await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
     }
+
+    private var emptyStateMessage: String {
+        if !viewModel.searchText.isEmpty {
+            return "No jobs match \"\(viewModel.searchText)\"."
+        }
+        if let ns = viewModel.namespace {
+            return "Namespace \"\(ns)\" has no jobs."
+        }
+        return "This cluster has no jobs."
+    }
+
+    private var emptyStateSystemImage: String { "checkmark.circle" }
 
     @ViewBuilder
     private var tableContent: some View {
         switch viewModel.loadState {
-        case .idle, .loading where viewModel.rows.isEmpty:
-            ProgressView("Loading Jobs…").frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .idle where viewModel.rows.isEmpty,
+             .loading where viewModel.rows.isEmpty:
+            WorkloadListSkeleton()
         case .failure(let error):
-            errorView(error)
+            ErrorStateView(
+                title: "Failed to load Jobs",
+                error: error,
+                retryable: true,
+                onRetry: { Task { await viewModel.reload(clusterId: clusterId) } }
+            )
+        case .success where viewModel.filteredRows.isEmpty:
+            EmptyStateView(
+                title: "No Jobs",
+                message: emptyStateMessage,
+                systemImage: emptyStateSystemImage
+            )
         default:
             jobsTable
         }
@@ -81,13 +96,4 @@ public struct JobsListView: View {
         }
     }
 
-    private func errorView(_ error: Error) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.orange)
-            Text(error.localizedDescription).multilineTextAlignment(.center)
-            Button("Retry") { Task { await viewModel.reload(clusterId: clusterId) } }
-                .buttonStyle(.borderedProminent)
-        }
-        .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

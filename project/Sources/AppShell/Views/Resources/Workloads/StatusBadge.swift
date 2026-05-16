@@ -112,12 +112,17 @@ public struct StatusBadge: View {
 
 /// Toolbar picker for namespace filtering.
 ///
-/// Bound to an optional `String?`; `nil` means "all namespaces".
+/// Bound to an optional `String?`; `nil` means "all namespaces". When the
+/// caller supplies a non-empty `namespaces` list (typically loaded from the
+/// active cluster), the picker shows every namespace the cluster reports.
+/// When the list is empty it falls back to a hard-coded quick-pick set so
+/// previews/tests still render.
 public struct NamespaceFilterPicker: View {
 
     @Binding private var selection: String?
+    private let namespaces: [String]
 
-    /// Common namespaces offered as quick picks.
+    /// Quick-pick namespaces used as a fallback when no dynamic list is supplied.
     private static let quickNamespaces: [String] = [
         "default",
         "kube-system",
@@ -125,8 +130,9 @@ public struct NamespaceFilterPicker: View {
         "kube-node-lease",
     ]
 
-    public init(selection: Binding<String?>) {
+    public init(selection: Binding<String?>, namespaces: [String] = []) {
         self._selection = selection
+        self.namespaces = namespaces
     }
 
     public var body: some View {
@@ -137,12 +143,18 @@ public struct NamespaceFilterPicker: View {
             Picker("Namespace", selection: $selection) {
                 Text("All namespaces").tag(String?.none)
                 Divider()
-                ForEach(Self.quickNamespaces, id: \.self) { ns in
+                ForEach(displayNamespaces, id: \.self) { ns in
                     Text(ns).tag(String?.some(ns))
                 }
             }
             .pickerStyle(.menu)
-            .frame(minWidth: 140)
+            .frame(minWidth: 160)
         }
+    }
+
+    /// Resolves the list shown in the menu, sorted and deduplicated.
+    private var displayNamespaces: [String] {
+        let raw = namespaces.isEmpty ? Self.quickNamespaces : namespaces
+        return Array(Set(raw)).sorted()
     }
 }

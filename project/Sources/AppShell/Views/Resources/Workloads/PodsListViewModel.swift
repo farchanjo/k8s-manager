@@ -119,6 +119,9 @@ public final class PodsListViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var listPort
 
+    @ObservationIgnored
+    @Dependency(\.namespaceFilter) private var namespaceFilter
+
     // MARK: Init
 
     public init() {}
@@ -126,25 +129,37 @@ public final class PodsListViewModel {
     // MARK: Intents
 
     /// Begins loading pods for the given cluster and namespace.
+    /// Subscribes to the global ``NamespaceFilterActor`` so every change to
+    /// the toolbar picker re-fetches pods for the new namespace.
     public func start(clusterId: ClusterId, namespace: String?) async {
-        self.namespace = namespace
+        self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
         await reload(clusterId: clusterId)
+        for await snapshot in namespaceFilter.stateStream(for: clusterId) {
+            if snapshot.namespace == self.namespace { continue }
+            self.namespace = snapshot.namespace
+            await reload(clusterId: clusterId)
+        }
     }
 
     /// Re-fetches pods with the current namespace filter.
     public func reload(clusterId: ClusterId) async {
-        loadState = .loading
+        let port = listPort
+        let ns = namespace
         let gvk = GroupVersionKind.core("Pod")
-        log.info("pods reload cluster=\(clusterId.rawValue) namespace=\(namespace ?? "<all>")")
-        do {
-            let items = try await listPort.list(gvk: gvk, namespace: namespace, clusterId: clusterId)
-            rows = items.map(Self.project)
-            loadState = .success(rows.count)
-            log.info("pods loaded count=\(rows.count)")
-        } catch {
-            log.error("pods load failed — \(error)")
-            loadState = .failure(error)
-        }
+        log.info("pods reload cluster=\(clusterId.rawValue) namespace=\(ns ?? "<all>")")
+        await AsyncLoader.run(
+            setLoading: { self.loadState = .loading },
+            operation: { try await port.list(gvk: gvk, namespace: ns, clusterId: clusterId) },
+            onSuccess: { items in
+                self.rows = items.map(Self.project)
+                self.loadState = .success(self.rows.count)
+                log.info("pods loaded count=\(self.rows.count)")
+            },
+            onFailure: { error in
+                log.error("pods load failed — \(error)")
+                self.loadState = .failure(error)
+            }
+        )
     }
 
     /// Confirms and executes deletion for the given row IDs (stub — Onda 3).

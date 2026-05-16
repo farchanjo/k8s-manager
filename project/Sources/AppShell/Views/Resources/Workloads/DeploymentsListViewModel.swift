@@ -51,6 +51,11 @@ public final class DeploymentsListViewModel {
     public var loadState: AsyncResource<Int> = .idle
     public var searchText: String = ""
 
+    /// Namespaces visible in the active cluster, used to populate the
+    /// `NamespaceFilterPicker` dropdown. Loaded once per `start(...)` and
+    /// re-used across reloads to avoid hitting the apiserver each refresh.
+    public var availableNamespaces: [String] = []
+
     public var filteredRows: [DeploymentRow] {
         guard !searchText.isEmpty else { return rows }
         return rows.filter {
@@ -62,25 +67,64 @@ public final class DeploymentsListViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var listPort
 
+    @ObservationIgnored
+    @Dependency(\.namespaceFilter) private var namespaceFilter
+
     public init() {}
 
+    /// Starts the list. Subscribes to the global ``NamespaceFilterActor`` so
+    /// every change to the toolbar picker re-fetches deployments for the new
+    /// namespace. The subscription owns the long-lived `for await` loop;
+    /// SwiftUI cancels it automatically when the view disappears because
+    /// `start` is invoked from `.task`.
     public func start(clusterId: ClusterId, namespace: String?) async {
-        self.namespace = namespace
-        await reload(clusterId: clusterId)
+        // Seed initial namespace from the global filter (falls back to the
+        // optional init param when the actor has nothing for this cluster).
+        self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
+        async let namespacesTask: Void = loadNamespaces(clusterId: clusterId)
+        async let reloadTask: Void = reload(clusterId: clusterId)
+        _ = await (namespacesTask, reloadTask)
+        // Track future filter changes for the lifetime of the view.
+        for await snapshot in namespaceFilter.stateStream(for: clusterId) {
+            if snapshot.namespace == self.namespace { continue }
+            self.namespace = snapshot.namespace
+            await reload(clusterId: clusterId)
+        }
+    }
+
+    /// Fetches the cluster's namespace list to populate the toolbar filter.
+    ///
+    /// Errors are swallowed (logged) — the dropdown silently falls back to
+    /// its quick-pick set so the list view never becomes unusable when the
+    /// service account lacks namespace list permission.
+    public func loadNamespaces(clusterId: ClusterId) async {
+        let nsGvk = GroupVersionKind.core("Namespace")
+        do {
+            let items = try await listPort.list(gvk: nsGvk, namespace: nil, clusterId: clusterId)
+            availableNamespaces = items.map(\.name).sorted()
+        } catch {
+            log.warning("namespaces load failed — \(error)")
+        }
     }
 
     public func reload(clusterId: ClusterId) async {
-        loadState = .loading
+        let port = listPort
+        let ns = namespace
         let gvk = GroupVersionKind(group: "apps", version: "v1", kind: "Deployment")
-        log.info("deployments reload cluster=\(clusterId.rawValue)")
-        do {
-            let items = try await listPort.list(gvk: gvk, namespace: namespace, clusterId: clusterId)
-            rows = items.map(Self.project)
-            loadState = .success(rows.count)
-        } catch {
-            log.error("deployments load failed — \(error)")
-            loadState = .failure(error)
-        }
+        log.info("deployments reload cluster=\(clusterId.rawValue) namespace=\(ns ?? "<all>")")
+        await AsyncLoader.run(
+            setLoading: { self.loadState = .loading },
+            operation: { try await port.list(gvk: gvk, namespace: ns, clusterId: clusterId) },
+            onSuccess: { items in
+                self.rows = items.map(Self.project)
+                self.loadState = .success(self.rows.count)
+                log.info("deployments loaded count=\(self.rows.count) namespace=\(ns ?? "<all>")")
+            },
+            onFailure: { error in
+                log.error("deployments load failed — \(error)")
+                self.loadState = .failure(error)
+            }
+        )
     }
 
     public func confirmDelete(ids: Set<String>) {
