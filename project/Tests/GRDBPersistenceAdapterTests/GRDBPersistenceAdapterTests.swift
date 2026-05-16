@@ -29,7 +29,8 @@ final class GRDBPersistenceAdapterTests: XCTestCase {
             chatRepository: GRDBChatRepository(db: queue),
             providerRepository: GRDBProviderRepository(db: queue),
             clusterMetadataStore: GRDBClusterMetadataStore(db: queue),
-            auditChainStore: GRDBAuditChainStore(db: queue, keyProvider: { key })
+            auditChainStore: GRDBAuditChainStore(db: queue, keyProvider: { key }),
+            terminalRepository: GRDBTerminalRepository(db: queue)
         )
     }
 

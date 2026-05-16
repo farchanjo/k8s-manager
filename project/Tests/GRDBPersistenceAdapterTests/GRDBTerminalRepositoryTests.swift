@@ -113,8 +113,8 @@ final class GRDBTerminalRepositoryTests: XCTestCase {
     // MARK: - 6. loadAll returns sessions ordered by created_at
 
     func test_loadAll_returns_sessions_in_created_at_order() async throws {
-        let first = makeSession(createdAt: "2024-01-01T00:00:00Z", status: .closed)
-        let second = makeSession(createdAt: "2024-06-01T00:00:00Z", status: .closed)
+        let first = makeSession(status: .closed, createdAt: "2024-01-01T00:00:00Z")
+        let second = makeSession(status: .closed, createdAt: "2024-06-01T00:00:00Z")
         // Insert second first to verify ordering is by column, not insertion order
         try await repo.save(second)
         try await repo.save(first)
