@@ -759,6 +759,20 @@ let package = Package(
             path: "Tests/ClusterConnectivityIntegrationTests",
             swiftSettings: strictConcurrencySettings
         ),
+
+        // ── Adapter test targets ──────────────────────────────────────────────
+
+        .testTarget(
+            name: "AnthropicAdapterTests",
+            dependencies: [
+                "AnthropicAdapter",
+                "LLMProvider",
+                .product(name: "SwiftAnthropic", package: "SwiftAnthropic"),
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/AnthropicAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
