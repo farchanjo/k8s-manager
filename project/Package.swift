@@ -313,6 +313,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/AppShell",
+            resources: [.process("Resources/Localizable.xcstrings")],
             swiftSettings: strictConcurrencySettings
         ),
 
