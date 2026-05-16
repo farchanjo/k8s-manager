@@ -63,7 +63,15 @@ public final class CronJobsListViewModel {
     @ObservationIgnored
     @Dependency(\.namespaceFilter) private var namespaceFilter
 
-    public init() {}
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port for failure-mode toasts (ADR-0041).
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     public func start(clusterId: ClusterId, namespace: String?) async {
         self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
@@ -90,7 +98,20 @@ public final class CronJobsListViewModel {
             onFailure: { error in
                 log.error("cronjobs load failed — \(error)")
                 self.loadState = .failure(error)
+                Task { await self.emitMappedToast(for: error) }
             }
+        )
+    }
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
         )
     }
 

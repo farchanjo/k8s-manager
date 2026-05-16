@@ -57,6 +57,11 @@ public struct ResourceRef: Hashable, Sendable, Codable {
     }
 }
 
+/// Unambiguous alias for `ResourceRef` when both AppShell and ResourceBrowser
+/// are imported in the same file. Tests may use `EditorResourceRef` to refer
+/// to the AppShell domain model without hitting the module-name shadow.
+public typealias EditorResourceRef = ResourceRef
+
 // MARK: - EventScope
 
 /// Scope filter applied to the events tab.

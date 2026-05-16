@@ -44,9 +44,18 @@ public final class ApplicationsViewModel {
     @ObservationIgnored
     @Dependency(\.openTabs) private var openTabs
 
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
     // MARK: - Init
 
-    public init() {}
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port used to surface mapped failure-mode toasts (ADR-0041).
+    ///   Defaults to `NoOpToastEmitter` in preview and test contexts.
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     // MARK: - Intents
 
@@ -67,6 +76,7 @@ public final class ApplicationsViewModel {
         } catch {
             log.error("start FAILED \(error)")
             viewState = .failure(error)
+            await emitMappedToast(for: error)
         }
     }
 
@@ -116,6 +126,18 @@ public final class ApplicationsViewModel {
     }
 
     // MARK: - Private
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
+        )
+    }
 
     private func buildState(from releases: [Release]) -> ApplicationsViewState {
         // Exclude superseded revisions — keep only the latest per (name, namespace).

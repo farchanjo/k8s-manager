@@ -66,9 +66,18 @@ public final class SecretsListViewModel {
     @ObservationIgnored
     @Dependency(\.namespaceFilter) private var namespaceFilter
 
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
     // MARK: Init
 
-    public init() {}
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port for failure-mode toasts (ADR-0041).
+    ///   Defaults to `NoOpToastEmitter` in preview and test contexts.
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     // MARK: Intents
 
@@ -114,7 +123,20 @@ public final class SecretsListViewModel {
             loadState = .success(rows.count)
         } catch {
             loadState = .failure(error)
+            await emitMappedToast(for: error)
         }
+    }
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
+        )
     }
 }
 
