@@ -160,10 +160,23 @@ public struct AppShellView: View {
     /// header can render the global namespace picker for the right cluster.
     @State private var activeClusterId: ClusterId?
 
+    /// Cluster-strip visibility per ADR-0072 §"Change 4". Persisted via
+    /// `@AppStorage` so the operator's preference survives relaunches. The
+    /// canonical home for this flag is `WindowLayout.mainWindow
+    /// .clusterStripVisible`; once the WindowLayout persistence pipeline is
+    /// wired end-to-end the `@AppStorage` shim is replaced by reading the
+    /// aggregate. The shim defaults to `true` to match the aggregate default.
+    @AppStorage("appShell.clusterStripVisible") private var clusterStripVisible = true
+
     public var body: some View {
         HStack(spacing: 0) {
-            // Fixed-width cluster strip (ADR-0051). Always visible; not collapsible.
-            ClusterStripView()
+            // Cluster strip (ADR-0051) — operator-toggleable per ADR-0072.
+            // Default visible so the one-click cluster-switch UX is preserved
+            // for existing operators; collapsible via the window toolbar
+            // button (`Cmd-Shift-K` shortcut wired in K8sManagerCommands).
+            if clusterStripVisible {
+                ClusterStripView()
+            }
 
             // NavigationSplitView: hierarchical sidebar tree | canvas (ADR-0050/0051)
             NavigationSplitView {
@@ -190,6 +203,23 @@ public struct AppShellView: View {
                     if let historyActor = deps.navigationHistoryActor {
                         NavigationHistoryToolbar(historyActor: historyActor)
                     }
+                }
+                // Cluster-strip toggle (ADR-0072 §"Change 4"). Sits between
+                // the nav arrows and the trailing chrome so the operator can
+                // reclaim ~56 pt of horizontal canvas width when needed.
+                ToolbarItem(placement: .navigation) {
+                    Button {
+                        clusterStripVisible.toggle()
+                    } label: {
+                        Image(systemName: clusterStripVisible
+                            ? "rectangle.lefthalf.inset.filled"
+                            : "rectangle.lefthalf.inset.filled.arrow.left")
+                    }
+                    .help(clusterStripVisible ? "Hide cluster strip" : "Show cluster strip")
+                    .accessibilityLabel(clusterStripVisible
+                        ? "Hide cluster strip"
+                        : "Show cluster strip")
+                    .accessibilityIdentifier("AppShell.ClusterStripToggle")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     TopRightChrome(activeClusterId: activeClusterId)

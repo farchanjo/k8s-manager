@@ -62,11 +62,18 @@ public struct SidebarCanvasView: View {
         // The legacy `headerBar` (back/forward arrows) has been promoted to the
         // window toolbar `.navigation` slot per ADR-0072 §"Change 2" + ADR-0065
         // Amendment 1, eliminating one full horizontal band from the canvas.
+        //
+        // Docked panes (terminal + YAML editor) now float as a `.overlay
+        // (alignment: .bottom)` over `activeContent` per ADR-0072 §"Change 5"
+        // + ADR-0057/0064 Amendment 1. They no longer claim canvas height via
+        // VStack — the content area stays a single continuous region.
         VStack(spacing: 0) {
             tabBarRow
             Divider()
             activeContent
-            dockedPaneRegion
+                .overlay(alignment: .bottom) {
+                    dockedPaneRegion
+                }
         }
         .task {
             guard let actor = openTabsActor else { return }

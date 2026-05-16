@@ -29,6 +29,11 @@ public struct MainWindowState: Sendable, Codable {
     public var sidebarVisible: Bool
     public var inspectorVisible: Bool
     public var statusBarVisible: Bool
+    /// Cluster strip (vertical avatar column, ADR-0051) visibility — toggleable
+    /// per ADR-0072 §"Change 4". Defaults to `true` on a fresh install or
+    /// schema migration so the operator's existing one-click cluster-switch
+    /// muscle memory keeps working until they explicitly hide the strip.
+    public var clusterStripVisible: Bool
     public var frame: WindowFrame?
 
     public static let defaults = MainWindowState(
@@ -38,6 +43,7 @@ public struct MainWindowState: Sendable, Codable {
         sidebarVisible: true,
         inspectorVisible: false,
         statusBarVisible: true,
+        clusterStripVisible: true,
         frame: nil
     )
 
@@ -48,6 +54,7 @@ public struct MainWindowState: Sendable, Codable {
         sidebarVisible: Bool = true,
         inspectorVisible: Bool = false,
         statusBarVisible: Bool = true,
+        clusterStripVisible: Bool = true,
         frame: WindowFrame? = nil
     ) {
         self.sidebarColumnWidth = sidebarColumnWidth
@@ -56,7 +63,23 @@ public struct MainWindowState: Sendable, Codable {
         self.sidebarVisible = sidebarVisible
         self.inspectorVisible = inspectorVisible
         self.statusBarVisible = statusBarVisible
+        self.clusterStripVisible = clusterStripVisible
         self.frame = frame
+    }
+
+    /// Codable migration shim — when an older persisted JSON lacks
+    /// `clusterStripVisible`, decode it as `true` so the strip remains
+    /// visible until the operator explicitly toggles it.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.sidebarColumnWidth = try c.decode(Int.self, forKey: .sidebarColumnWidth)
+        self.contentColumnWidth = try c.decode(Int.self, forKey: .contentColumnWidth)
+        self.detailWidthMinimum = try c.decode(Int.self, forKey: .detailWidthMinimum)
+        self.sidebarVisible = try c.decode(Bool.self, forKey: .sidebarVisible)
+        self.inspectorVisible = try c.decode(Bool.self, forKey: .inspectorVisible)
+        self.statusBarVisible = try c.decode(Bool.self, forKey: .statusBarVisible)
+        self.clusterStripVisible = try c.decodeIfPresent(Bool.self, forKey: .clusterStripVisible) ?? true
+        self.frame = try c.decodeIfPresent(WindowFrame.self, forKey: .frame)
     }
 }
 
