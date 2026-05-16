@@ -100,6 +100,9 @@ public struct PodsListView: View {
             Button("Edit YAML") {}
             Button("Logs") {}
             Button("Shell") {}
+            Button("Port Forward") {
+                viewModel.portForwardRequested(ids: ids)
+            }
             Button("Describe") {}
             Divider()
             Button("Delete", role: .destructive) {
