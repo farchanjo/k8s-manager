@@ -97,8 +97,8 @@ final class CommandPaletteViewModelTests: XCTestCase {
         let vm = CommandPaletteViewModel(catalog: catalog)
         vm.open()
         XCTAssertTrue(vm.isVisible)
-        vm.selectedIndex = 0
-        vm.executeSelected()
+        // selectAndExecute(index:) both sets selectedIndex and calls executeSelected.
+        vm.selectAndExecute(index: 0)
         XCTAssertFalse(vm.isVisible, "Palette must be dismissed after executeSelected()")
         XCTAssertTrue(actionCalled, "Command action must be invoked by executeSelected()")
     }
