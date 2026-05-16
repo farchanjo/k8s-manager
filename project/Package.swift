@@ -694,6 +694,9 @@ let package = Package(
             dependencies: [
                 "AppShell",
                 "ClusterConnectivity",
+                "ClusterIntelligence",
+                "ResourceBrowser",
+                "LLMProvider",
                 "SharedKernel",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
