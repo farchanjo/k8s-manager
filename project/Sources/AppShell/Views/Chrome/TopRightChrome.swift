@@ -1,14 +1,18 @@
 // Views/Chrome/TopRightChrome.swift — app_shell bounded context
 // DDD role: Composite view — top-right chrome area (ADR-0051)
 // ADR ref: ADR-0051 (top-right chrome), ADR-0034 (state-driven realtime UI)
+// ADR ref: ADR-0069 (global namespace pill in top-right chrome)
 
+import SharedKernel
 import SwiftUI
 
 // MARK: - TopRightChrome
 
-/// Horizontal strip of three chrome controls placed at the top-right of the window.
+/// Horizontal strip of chrome controls placed at the top-right of the window.
 ///
-/// Contains:
+/// Contains (left to right):
+/// - `GlobalNamespacePill` — cluster-scoped namespace filter pill (ADR-0069),
+///   rendered only when `activeClusterId != nil`.
 /// - `AssistantToggleButton` — opens/closes the assistant slide-out panel.
 /// - `NotificationsButton` — opens `NotificationsPopover` with toast history.
 /// - `UserMenuButton` — opens `UserMenuPopover` with account actions.
@@ -18,14 +22,30 @@ import SwiftUI
 @MainActor
 public struct TopRightChrome: View {
 
+    /// Active cluster identifier forwarded from the composition root.
+    ///
+    /// When non-nil, `GlobalNamespacePill` is rendered to the left of the
+    /// assistant button. A `Color.clear` placeholder preserves layout width
+    /// when no cluster is active.
+    public let activeClusterId: ClusterId?
+
     @State private var viewModel = TopRightChromeViewModel()
     @State private var showUserMenu: Bool = false
     @Environment(\.appShellDependencies) private var deps
 
-    public init() {}
+    public init(activeClusterId: ClusterId? = nil) {
+        self.activeClusterId = activeClusterId
+    }
 
     public var body: some View {
         HStack(spacing: 12) {
+            // Namespace pill — renders when a cluster is active (ADR-0069).
+            if let clusterId = activeClusterId {
+                GlobalNamespacePill(clusterId: clusterId)
+            } else {
+                Color.clear.frame(width: 200, height: 26)
+            }
+
             AssistantToggleButton(isOpen: viewModel.assistantPanelOpen) {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     viewModel.toggleAssistant()

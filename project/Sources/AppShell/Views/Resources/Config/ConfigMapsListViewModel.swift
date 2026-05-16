@@ -1,6 +1,7 @@
 // Views/Resources/Config/ConfigMapsListViewModel.swift — app_shell bounded context
 // DDD role: ViewModel (read model projection)
 // ADR ref: ADR-0050 (resource navigation taxonomy), ADR-0034 (state-driven UI)
+// ADR ref: ADR-0069 (global namespace pill — actor subscription pattern)
 
 import Foundation
 import Observation
@@ -56,16 +57,25 @@ public final class ConfigMapsListViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var resourceList
 
+    @ObservationIgnored
+    @Dependency(\.namespaceFilter) private var namespaceFilter
+
     // MARK: Init
 
     public init() {}
 
     // MARK: Intents
 
-    /// Starts loading ConfigMaps for the given cluster and optional namespace.
+    /// Starts loading ConfigMaps and subscribes to the global namespace filter
+    /// so any chrome pill selection immediately re-fetches the list.
     public func start(clusterId: ClusterId, namespace: String?) async {
-        self.namespace = namespace
+        self.namespace = await namespaceFilter.current(for: clusterId) ?? namespace
         await fetchRows(clusterId: clusterId)
+        for await snapshot in namespaceFilter.stateStream(for: clusterId) {
+            if snapshot.namespace == self.namespace { continue }
+            self.namespace = snapshot.namespace
+            await fetchRows(clusterId: clusterId)
+        }
     }
 
     /// Reloads using the last known cluster id stored in the most recent row.

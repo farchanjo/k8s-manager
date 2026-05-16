@@ -108,23 +108,10 @@ public struct SecretsListView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            namespacePicker
-        }
-        ToolbarItem(placement: .primaryAction) {
             Button { Task { await viewModel.reload(clusterId: clusterId) } } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
         }
-    }
-
-    private var namespacePicker: some View {
-        TextField("Namespace", text: Binding(
-            get: { viewModel.namespace ?? "" },
-            set: { viewModel.namespace = $0.isEmpty ? nil : $0 }
-        ))
-        .textFieldStyle(.roundedBorder)
-        .frame(minWidth: 120, maxWidth: 180)
-        .onSubmit { Task { await viewModel.reload(clusterId: clusterId) } }
     }
 }
 

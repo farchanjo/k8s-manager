@@ -90,11 +90,11 @@ public struct SidebarCanvasView: View {
 
     // MARK: Private
 
-    /// Header strip is always rendered so the SwiftUI view tree above the
-    /// tab bar stays structurally stable. The namespace picker appears only
-    /// when there is an active cluster; otherwise the strip occupies the
-    /// same space with an invisible placeholder, preventing the tab bar from
-    /// jumping vertically each time `ClusterStripActor` re-emits a snapshot.
+    /// Header strip renders the back/forward navigation arrows (ADR-0065).
+    ///
+    /// The namespace picker has moved to the top-right chrome pill
+    /// (ADR-0069 supersedes ADR-0053). The strip height is kept constant so
+    /// the tab bar never jumps when `activeClusterId` changes.
     private var headerBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -104,11 +104,6 @@ public struct SidebarCanvasView: View {
                         .padding(.leading, 4)
                 }
                 Spacer()
-                if let clusterId = activeClusterId {
-                    GlobalNamespacePicker(clusterId: clusterId)
-                } else {
-                    Color.clear.frame(width: 160, height: 28)
-                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
