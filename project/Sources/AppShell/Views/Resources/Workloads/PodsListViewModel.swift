@@ -1,0 +1,181 @@
+// Views/Resources/Workloads/PodsListViewModel.swift — app_shell bounded context
+// DDD role: ViewModel — Pods resource list
+// ADR ref: ADR-0050 (Onda 2 resource list views)
+
+import Foundation
+import Observation
+import Dependencies
+import Logging
+import ResourceBrowser
+import SharedKernel
+
+private let log = Logger(label: "k8smgr.app_shell.pods_list")
+
+// MARK: - PodPhase
+
+/// Kubernetes Pod phase as a closed Swift enum.
+public enum PodPhase: String, Sendable, Hashable, CaseIterable {
+    case pending   = "Pending"
+    case running   = "Running"
+    case succeeded = "Succeeded"
+    case failed    = "Failed"
+    case unknown   = "Unknown"
+
+    /// Parses a raw phase string from the Kubernetes API.
+    public static func from(raw: String) -> PodPhase {
+        PodPhase(rawValue: raw) ?? .unknown
+    }
+
+    /// Visual accent color per phase (maps to `WorkloadStatus`).
+    public var workloadStatus: WorkloadStatus {
+        switch self {
+        case .pending:   return .pending
+        case .running:   return .running
+        case .succeeded: return .succeeded
+        case .failed:    return .failed
+        case .unknown:   return .unknown
+        }
+    }
+}
+
+// MARK: - PodRow
+
+/// Table row projection for a single Kubernetes Pod.
+public struct PodRow: Identifiable, Hashable, Sendable {
+    /// Kubernetes object UID — stable across watch events.
+    public let id: String
+    public let name: String
+    public let namespace: String
+    public let phase: PodPhase
+    public let readyContainers: Int
+    public let totalContainers: Int
+    public let restartCount: Int
+    /// CPU usage string (e.g. `"12m"`). `nil` when metrics unavailable.
+    public let cpuUsage: String?
+    /// Memory usage string (e.g. `"128Mi"`). `nil` when metrics unavailable.
+    public let memUsage: String?
+    public let nodeName: String
+    /// Human-readable age (e.g. `"5d"`, `"3h"`, `"12m"`).
+    public let age: String
+
+    public init(
+        id: String,
+        name: String,
+        namespace: String,
+        phase: PodPhase,
+        readyContainers: Int,
+        totalContainers: Int,
+        restartCount: Int,
+        cpuUsage: String?,
+        memUsage: String?,
+        nodeName: String,
+        age: String
+    ) {
+        self.id = id
+        self.name = name
+        self.namespace = namespace
+        self.phase = phase
+        self.readyContainers = readyContainers
+        self.totalContainers = totalContainers
+        self.restartCount = restartCount
+        self.cpuUsage = cpuUsage
+        self.memUsage = memUsage
+        self.nodeName = nodeName
+        self.age = age
+    }
+}
+
+// MARK: - PodsListViewModel
+
+/// View model for the Pods resource list view.
+///
+/// Fetches pods via `KubernetesResourceListPort` and projects them into
+/// `PodRow` values for display in a `SwiftUI.Table`. Metrics columns
+/// (CPU / Memory) show "—" until Prometheus integration lands in a later wave.
+@Observable
+@MainActor
+public final class PodsListViewModel {
+
+    // MARK: Published state
+
+    public var rows: [PodRow] = []
+    public var selectedId: String?
+    public var namespace: String?
+    public var loadState: AsyncResource<Int> = .idle
+    public var searchText: String = ""
+
+    // MARK: Computed
+
+    public var filteredRows: [PodRow] {
+        guard !searchText.isEmpty else { return rows }
+        return rows.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.namespace.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    // MARK: Dependencies
+
+    @ObservationIgnored
+    @Dependency(\.kubernetesResourceList) private var listPort
+
+    // MARK: Init
+
+    public init() {}
+
+    // MARK: Intents
+
+    /// Begins loading pods for the given cluster and namespace.
+    public func start(clusterId: ClusterId, namespace: String?) async {
+        self.namespace = namespace
+        await reload(clusterId: clusterId)
+    }
+
+    /// Re-fetches pods with the current namespace filter.
+    public func reload(clusterId: ClusterId) async {
+        loadState = .loading
+        let gvk = GroupVersionKind.core("Pod")
+        log.info("pods reload cluster=\(clusterId.rawValue) namespace=\(namespace ?? "<all>")")
+        do {
+            let items = try await listPort.list(gvk: gvk, namespace: namespace, clusterId: clusterId)
+            rows = items.map(Self.project)
+            loadState = .success(rows.count)
+            log.info("pods loaded count=\(rows.count)")
+        } catch {
+            log.error("pods load failed — \(error)")
+            loadState = .failure(error)
+        }
+    }
+
+    /// Confirms and executes deletion for the given row IDs (stub — Onda 3).
+    public func confirmDelete(ids: Set<String>) {
+        log.info("delete requested ids=\(ids.count) (stub)")
+    }
+
+    // MARK: Private projection
+
+    private static func project(_ item: ResourceListItem) -> PodRow {
+        PodRow(
+            id: item.uid,
+            name: item.name,
+            namespace: item.namespace ?? "",
+            phase: PodPhase.from(raw: item.status),
+            readyContainers: 0,
+            totalContainers: 1,
+            restartCount: 0,
+            cpuUsage: nil,
+            memUsage: nil,
+            nodeName: item.annotations["spec.nodeName"] ?? "—",
+            age: ageString(seconds: item.ageSeconds)
+        )
+    }
+
+    static func ageString(seconds: Int) -> String {
+        switch seconds {
+        case ..<60:    return "\(seconds)s"
+        case ..<3600:  return "\(seconds / 60)m"
+        case ..<86400: return "\(seconds / 3600)h"
+        default:       return "\(seconds / 86400)d"
+        }
+    }
+}
