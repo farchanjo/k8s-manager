@@ -154,7 +154,10 @@ private struct VolumeSnapshotRow: View {
                 }
             }
             Spacer()
-            StatusBadge(raw: item.status)
+            StatusChip(
+                variant: StatusChipSemantic.chipVariant(forRawStatus: item.status),
+                label: item.status
+            )
             Text(ageLabel(item.ageSeconds)).font(.caption2).foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)

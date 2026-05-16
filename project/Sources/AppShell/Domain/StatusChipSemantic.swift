@@ -189,6 +189,32 @@ public enum StatusChipSemantic {
         }
     }
 
+    // MARK: Generic resource status
+
+    /// Maps a raw Kubernetes status string to a ``StatusChipVariant``.
+    ///
+    /// Covers common resource-phase and condition strings used across all list views.
+    /// Unknown or unrecognised strings map to `.warning`.
+    ///
+    /// - Parameter raw: Status string from the API server (case-insensitive).
+    public static func chipVariant(forRawStatus raw: String) -> StatusChipVariant {
+        switch raw.lowercased() {
+        case "running", "ready", "healthy", "active", "succeeded", "complete",
+             "completed", "bound", "available", "approved", "established":
+            return .success
+        case "pending", "waiting", "terminating", "suspended", "degraded",
+             "not ready", "notready", "warning":
+            return .warning
+        case "failed", "error", "crashloopbackoff", "oomkilled", "denied",
+             "not approved", "lost":
+            return .error
+        case "unknown":
+            return .neutral
+        default:
+            return .warning
+        }
+    }
+
     // MARK: Worst-chip compaction
 
     /// Selects the single highest-severity chip from a collection for list-row compaction.

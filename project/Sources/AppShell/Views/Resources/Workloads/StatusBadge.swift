@@ -78,10 +78,14 @@ public enum WorkloadStatus: String, Sendable, Hashable {
 // MARK: - StatusBadge
 
 /// Pill badge rendering a ``WorkloadStatus`` with color + icon.
+///
+/// - Deprecated: Use ``StatusChip`` with ``StatusChipSemantic`` instead (ADR-0062).
+@available(*, deprecated, message: "Use StatusChip + StatusChipSemantic (ADR-0062)", renamed: "StatusChip")
 public struct StatusBadge: View {
 
     private let status: WorkloadStatus
 
+    @available(*, deprecated, message: "Use StatusChip + StatusChipSemantic (ADR-0062)", renamed: "StatusChip.init(variant:label:)")
     public init(status: WorkloadStatus) {
         self.status = status
     }
@@ -89,6 +93,7 @@ public struct StatusBadge: View {
     /// Convenience initialiser that parses a raw string.
     ///
     /// - Parameter raw: Kubernetes phase string (e.g. `"Running"`, `"Pending"`).
+    @available(*, deprecated, message: "Use StatusChip + StatusChipSemantic (ADR-0062)", renamed: "StatusChip.init(variant:label:)")
     public init(raw: String) {
         self.status = WorkloadStatus.from(raw: raw)
     }

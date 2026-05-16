@@ -88,7 +88,8 @@ public struct PodsListView: View {
             TableColumn("Name", value: \.name)
             TableColumn("Namespace", value: \.namespace)
             TableColumn("Status") { row in
-                StatusBadge(status: row.phase.workloadStatus)
+                let chip = StatusChipSemantic.podPhaseChip(phase: row.phase.rawValue)
+                StatusChip(variant: chip.variant, label: chip.label, tooltip: chip.tooltip)
             }
             TableColumn("Ready") { row in
                 Text("\(row.readyContainers)/\(row.totalContainers)")
