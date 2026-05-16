@@ -840,6 +840,18 @@ let package = Package(
         ),
 
         .testTarget(
+            name: "AWSExecCredentialAdapterTests",
+            dependencies: [
+                "AWSExecCredentialAdapter",
+                "ClusterConnectivity",
+                .product(name: "SotoSTS", package: "soto"),
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/AWSExecCredentialAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
             name: "KubeconfigContextNavigationAdapterTests",
             dependencies: [
                 "KubeconfigContextNavigationAdapter",
