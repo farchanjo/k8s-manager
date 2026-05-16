@@ -2,7 +2,7 @@
 
 - Status — Accepted (ratified 2026-05-15)
 - Extended by — ADR-0025, ADR-0029
-- Refined by — ADR-0035, ADR-0037
+- Refined by — ADR-0035, ADR-0037, ADR-0050 (OpenTabsActor added to actor ownership map)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
@@ -32,6 +32,16 @@
 > method calls on its `ClusterSessionActor`. Sub-tasks are orchestrated via `withThrowingTaskGroup`
 > so that actor cancellation tears down all child tasks in order without violating the
 > `Task.detached` ban.
+
+> **Extension note (2026-05-16).** ADR-0050 adds two actors to the ownership map: `OpenTabsActor` —
+> owns the ordered list of open `DocumentTab` values across all clusters; owns the watcher-task
+> registry keyed by `tabId`; exposes `AsyncStream<[DocumentTab]>` to the tab bar view model;
+> persists tab state to the filesystem on every mutation. `ClusterStripActor` — owns the ordered
+> list of `ClusterStripPin` values; exposes `AsyncStream<[ClusterStripPin]>` to the cluster strip
+> view; persists pin order to `workspace/cluster-strip-pins.json`. Both actors are application-scope
+> singletons (one per app instance, not per cluster). The sidebar tree is a read-only SwiftUI
+> projection of both actors' state and must not call any mutating methods directly; it issues
+> commands (e.g. `openTab`, `pinCluster`) to the respective actor.
 
 ## Context and problem statement
 

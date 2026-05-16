@@ -1,7 +1,7 @@
 # ADR-0036 — Watch stream lifecycle: LIST/WATCH, bookmarks, 410-Gone recovery, and fan-out budget
 
 - Status — Accepted (ratified 2026-05-15)
-- Refined by — ADR-0041
+- Refined by — ADR-0041, ADR-0050 (tab-owned watch lifecycle invariant)
 - Date — 2026-05-15
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
@@ -305,3 +305,36 @@ The following tests must pass before this ADR is considered implemented:
   <https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks>
 - client-go informer reference implementation:
   <https://github.com/kubernetes/client-go/blob/main/tools/cache/listwatch.go>
+
+---
+
+## Addendum — Tab-owned watch lifecycle invariant (2026-05-16, ADR-0050 refinement)
+
+ADR-0050 introduces the multi-document tab system and establishes that **tabs are the authoritative
+owners of Kubernetes watch streams**. This addendum records the watch lifecycle implication:
+
+**Tab open starts a watch.** When `OpenTabsActor` processes an `openTab` command for a
+`resourceList` or `resourceDetail` tab, it calls `WatchPort.watch(gvr:namespace:resourceVersion:)`
+(or the typed equivalent for standard kinds) on the cluster's `ClusterSessionActor`. The resulting
+`Task` is stored in the tab's watcher registry keyed by `tabId`. The watch lifecycle follows all
+rules in this ADR: LIST first, WATCH with bookmark tracking, 410-Gone recovery, and exponential
+backoff.
+
+**Tab close cancels the watch.** When `OpenTabsActor` processes a `closeTab` command, it retrieves
+the watcher `Task` for the `tabId` and calls `task.cancel()`. Swift structured concurrency
+propagates cancellation to the `WatchPort` adapter, which exits the `for try await` loop on the
+`AsyncThrowingStream`, performs cleanup (no lingering HTTP/2 stream), and does NOT re-establish a
+new watch. The tab is removed from the watcher registry.
+
+**Sidebar tree selection MUST NOT start a watch.** A sidebar tree node click that brings an existing
+tab to focus issues only a `focusTab` command to `OpenTabsActor`. No new watch is started. If no tab
+exists for the selected (clusterId, tabKind, namespace, kindName), a new tab is opened and the watch
+starts per the above rule.
+
+**Fan-out budget interaction.** Tabs contribute directly to the concurrent watch stream count
+tracked by `ClusterSessionActor`. Each open `resourceList` or `resourceDetail` tab consumes one
+watch stream slot. The LRU eviction policy defined in this ADR applies to tabs: if opening a new
+tab's watch would exceed the `watchBudget`, the LRU watch (tab) is evicted. The evicted tab receives
+a `watchEvicted` state update; it transitions to a paused state and the tab chip shows a refresh
+icon. The operator can manually resume the watch by clicking the refresh icon, which re-opens the
+watch using the current resource version.
