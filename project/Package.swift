@@ -405,6 +405,7 @@ let package = Package(
             name: "MCPSwiftSDKAdapter",
             dependencies: [
                 "ClusterIntelligence",
+                "ResourceBrowser",
                 .product(name: "MCP", package: "swift-sdk"),
                 .product(name: "Logging", package: "swift-log"),
             ],
@@ -550,6 +551,8 @@ let package = Package(
                 "WebSocketExecAdapter",
                 "WebSocketPortForwardAdapter",
                 "CodeEditorAdapter",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/K8sManagerApp",
@@ -726,6 +729,28 @@ let package = Package(
             swiftSettings: strictConcurrencySettings
         ),
 
+
+        .testTarget(
+            name: "WebSocketExecAdapterTests",
+            dependencies: [
+                "WebSocketExecAdapter",
+                "TerminalSession",
+                "SharedKernel",
+            ],
+            path: "Tests/WebSocketExecAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "WebSocketPortForwardAdapterTests",
+            dependencies: [
+                "WebSocketPortForwardAdapter",
+                "PortForwarding",
+            ],
+            path: "Tests/WebSocketPortForwardAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
         .testTarget(
             name: "YamsKubeconfigAdapterTests",
             dependencies: [
@@ -771,6 +796,18 @@ let package = Package(
                 .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
             ],
             path: "Tests/AnthropicAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "MCPSwiftSDKAdapterTests",
+            dependencies: [
+                "MCPSwiftSDKAdapter",
+                "ClusterIntelligence",
+                "ResourceBrowser",
+                "SharedKernel",
+            ],
+            path: "Tests/MCPSwiftSDKAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
     ],
