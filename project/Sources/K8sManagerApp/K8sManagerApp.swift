@@ -116,16 +116,23 @@ private extension K8sManagerApp {
         let (chatRepo, providerRepo, clusterStore, auditChain) = wirePersistence(
             db: db, keyManager: keyManager
         )
-        let (loader, kubeApi, resourceList) = wireKubernetes()
+        let (loader, kubeApi, resourceList, discoveryAdapter) = wireKubernetes()
         let contextRepo = KubeconfigContextRepository(loader: loader, metadataStore: clusterStore)
         let activeContextWatch = KubeconfigActiveContextWatch(repository: contextRepo, loader: loader)
         let sidebarReadModel = KubeconfigSidebarReadModel(repository: contextRepo, watch: activeContextWatch)
+        let domainEventBus = DomainEventBus()
 
         prepareDependencies { values in
+            // Domain event bus (ADR-0040)
+            values.domainEventBus = domainEventBus
+
             // Connectivity
             values.kubeconfigLoader = loader
             values.kubernetesApi = kubeApi
             values.kubernetesResourceList = resourceList
+
+            // Metrics — discovery adapter resolves Prometheus endpoints via k8s Services
+            values.endpointDiscovery = discoveryAdapter
 
             // Persistence
             values.chatRepository = chatRepo
@@ -141,15 +148,20 @@ private extension K8sManagerApp {
             // Keychain
             values.keychainAccess = keychain
 
-            // Metrics — PrometheusEndpoint is passed per-query; singleton client here
-            values.prometheusQuery = PrometheusHTTPClient(httpClient: .shared)
+            // Metrics — PrometheusEndpoint is passed per-query; singleton client here.
+            // SharedNetworking.httpClient is the shared pool (ADR-0007).
+            values.prometheusQuery = PrometheusHTTPClient(httpClient: SharedNetworking.httpClient)
 
-            // Port-forward — placeholder URL; real URL is resolved per-session
-            // by the connection lifecycle manager (subsequent round, ADR-0007).
+            // Port-forward and pod exec — placeholder base URL; resolved per-session
+            // by the connection lifecycle manager (ADR-0007 / ADR-0017).
             let placeholderURL = URL(string: "https://kubernetes.default.svc")!
             values.portForwardChannel = WebSocketPortForwardAdapter(
                 urlSession: .shared,
                 baseURL: placeholderURL
+            )
+            values.podExec = WebSocketExecAdapter(
+                urlSession: .shared,
+                apiServerBase: placeholderURL
             )
         }
     }
@@ -200,13 +212,28 @@ private extension K8sManagerApp {
         }
     }
 
-    /// Builds the kubeconfig loader, API adapter, and resource-list adapter.
+    /// Builds the kubeconfig loader, API adapter, resource-list adapter, and
+    /// Prometheus discovery adapter.
     nonisolated static func wireKubernetes() -> (
-        YamsKubeconfigLoader, SwiftkubeApiAdapter, SwiftkubeResourceListAdapter
+        YamsKubeconfigLoader,
+        SwiftkubeApiAdapter,
+        SwiftkubeResourceListAdapter,
+        SwiftkubePrometheusDiscoveryAdapter
     ) {
         let loader = YamsKubeconfigLoader()
         let resolver = buildResolver(using: loader)
-        return (loader, SwiftkubeApiAdapter(resolver: resolver), SwiftkubeResourceListAdapter(resolver: resolver))
+        // Discovery adapter uses a UUID-keyed resolver. The UUID corresponds
+        // to PrometheusEndpoint.kubernetesContextId, which originates from
+        // the cluster context import and is stored as a stable UUIDv7.
+        let discoveryResolver: SwiftkubePrometheusDiscoveryAdapter.ClusterResolver = {
+            uuid in try await resolver(ClusterId(uuid.uuidString))
+        }
+        return (
+            loader,
+            SwiftkubeApiAdapter(resolver: resolver),
+            SwiftkubeResourceListAdapter(resolver: resolver),
+            SwiftkubePrometheusDiscoveryAdapter(resolver: discoveryResolver)
+        )
     }
 }
 
@@ -216,11 +243,11 @@ private extension K8sManagerApp {
 
     /// Wires adapters requiring async construction.
     ///
-    /// Registers: `MCPInProcessTransport`, LLM adapter (when Anthropic key present).
+    /// Registers: `MCPInProcessTransport`, `LLMProviderRouter` for all provider kinds.
     nonisolated static func wireAsync() {
         Task.detached(priority: .userInitiated) {
             await wireMCP()
-            await wireLLMIfKeyPresent()
+            await wireLLM()
         }
     }
 
@@ -236,22 +263,56 @@ private extension K8sManagerApp {
         }
     }
 
-    /// Reads an Anthropic API key from Keychain and registers
-    /// `AnthropicStreamingAdapter` as `\.llmStreaming` when found.
-    nonisolated static func wireLLMIfKeyPresent() async {
+    /// Builds the factory map and registers `LLMProviderRouter` as `\.llmStreaming`.
+    ///
+    /// Each factory reads the API key from Keychain using the profile's `keyAlias`
+    /// and constructs the matching streaming adapter.
+    nonisolated static func wireLLM() async {
         @Dependency(\.keychainAccess) var keychain
+        @Dependency(\.llmProviderRegistry) var registry
+
+        let factories: [ProviderKind: @Sendable (ProviderProfile) throws -> any LLMStreamingPort] = [
+            .anthropic: { profile in
+                let key = try await Self.readKey(alias: profile.keyAlias, keychain: keychain)
+                return AnthropicStreamingAdapter(apiKey: key, model: profile.modelId)
+            },
+            .openai: { profile in
+                let key = try await Self.readKey(alias: profile.keyAlias, keychain: keychain)
+                return OpenAIStreamingAdapter(apiKey: key, model: profile.modelId)
+            },
+            .openaiCompatible: { profile in
+                let key = try? await Self.readKey(alias: profile.keyAlias, keychain: keychain)
+                return try OpenAICompatibleStreamingAdapter(
+                    apiKey: key,
+                    host: profile.baseURL?.host ?? "localhost",
+                    port: profile.baseURL?.port,
+                    scheme: profile.baseURL?.scheme ?? "http",
+                    model: profile.modelId
+                )
+            },
+        ]
+
+        let router = LLMProviderRouter(registry: registry, factories: factories)
+        prepareDependencies { $0.llmStreaming = router }
+    }
+
+    /// Reads a Keychain secret by alias and returns it as a UTF-8 string.
+    ///
+    /// - Throws: `LLMStreamingError.keyNotFound` when the entry is absent or unreadable.
+    nonisolated static func readKey(
+        alias: String,
+        keychain: any KeychainAccessPort
+    ) async throws -> String {
         let entry = KeychainEntry(
             namespace: .llm,
-            account: "anthropic-default",
-            label: "Anthropic API Key"
+            account: alias,
+            label: "\(alias) API Key"
         )
-        guard
-            let keyData = try? await keychain.readSecret(for: entry),
-            let apiKey = String(data: keyData, encoding: .utf8),
-            !apiKey.isEmpty
-        else { return }
-        let adapter = AnthropicStreamingAdapter(apiKey: apiKey, model: "claude-sonnet-4-6")
-        prepareDependencies { $0.llmStreaming = adapter }
+        let data = try await keychain.readSecret(for: entry)
+        guard let key = String(data: data, encoding: .utf8), !key.isEmpty else {
+            throw LLMStreamingError.keyNotFound(alias: alias)
+        }
+        return key
     }
 }
 
@@ -332,10 +393,24 @@ private final class _SyncBox<T: Sendable>: @unchecked Sendable {
 // MARK: - App activation delegate
 
 /// Promotes a `swift run` invocation (no bundle, no Info.plist) into a
-/// regular foreground macOS app.
+/// regular foreground macOS app and handles graceful shutdown.
 final class AppActivationDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    /// Shuts down the shared networking stack (ADR-0007) before the process exits.
+    ///
+    /// `applicationWillTerminate` is called synchronously on the main thread.
+    /// A detached `Task` drives the async shutdown; the semaphore ensures the
+    /// NIO threads are drained before `applicationWillTerminate` returns.
+    func applicationWillTerminate(_ notification: Notification) {
+        let semaphore = DispatchSemaphore(value: 0)
+        Task.detached {
+            try? await SharedNetworking.shutdown()
+            semaphore.signal()
+        }
+        semaphore.wait()
     }
 }
