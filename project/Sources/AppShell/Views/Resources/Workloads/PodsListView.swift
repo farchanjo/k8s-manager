@@ -40,6 +40,10 @@ public struct PodsListView: View {
         ) {
             podTable
         }
+        // Explicit full-panel frame before the overlay guarantees the FAB
+        // anchor does not follow the Table's variable intrinsic height during
+        // the skeleton→data transition (ADR-0066 §"Positioning").
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .bottomTrailing) {
             ResourceListFAB(
                 kind: "Pod",
