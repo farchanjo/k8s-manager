@@ -131,24 +131,32 @@ public struct DomainToastStack: Sendable, Codable, Identifiable {
         self.queue = queue
     }
 
-    /// Enqueues a toast; evicts the oldest non-pinned toast when the stack is full.
+    /// Enqueues a toast. When the stack is at capacity, the oldest non-pinned
+    /// active toast is displaced into the head of the queue so it can surface
+    /// later when a slot opens. When every active toast is pinned, the incoming
+    /// toast is appended to the queue (preserves arrival order — ADR-0032).
     public mutating func enqueue(_ toast: Toast) {
         if activeToasts.count < maxConcurrent {
             activeToasts.insert(toast, at: 0)
             return
         }
         if let idx = activeToasts.indices.reversed().first(where: { !activeToasts[$0].pinned }) {
-            activeToasts.remove(at: idx)
+            let evicted = activeToasts.remove(at: idx)
+            queue.insert(evicted, at: 0)
             activeToasts.insert(toast, at: 0)
         } else {
             queue.append(toast)
         }
     }
 
-    /// Dismisses a toast by id; promotes the next queued toast if one exists.
+    /// Dismisses a toast by id from either the active or queued band.
+    /// When an active toast is removed, promote the head of the queue (if any)
+    /// so the visible budget remains saturated.
     public mutating func dismiss(id: String) {
+        let wasActive = activeToasts.contains { $0.id == id }
         activeToasts.removeAll { $0.id == id }
-        if !queue.isEmpty, activeToasts.count < maxConcurrent {
+        queue.removeAll { $0.id == id }
+        if wasActive, !queue.isEmpty, activeToasts.count < maxConcurrent {
             activeToasts.insert(queue.removeFirst(), at: 0)
         }
     }
