@@ -152,7 +152,7 @@ public actor OpenTabsActor: OpenTabsPort {
     ///
     /// The stream never finishes unless the actor is deallocated — callers must
     /// `break` or cancel the owning `Task` when the subscription is no longer needed.
-    public func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+    public nonisolated func stateStream() -> AsyncStream<OpenTabsSnapshot> {
         let key = UUID()
         return AsyncStream { continuation in
             Task {

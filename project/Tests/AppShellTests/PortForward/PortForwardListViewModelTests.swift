@@ -22,7 +22,7 @@ final class PortForwardListViewModelTests: XCTestCase {
             $0.portForwardRepository = stubRepo
         } operation: {
             let sut = PortForwardListViewModel()
-            await sut.start(clusterId: ClusterId(rawValue: "test"))
+            await sut.start(clusterId: ClusterId("test"))
             XCTAssertEqual(sut.sessions.count, 1)
             XCTAssertEqual(sut.sessions.first?.localPort, 8080)
             XCTAssertEqual(sut.sessions.first?.remotePort, 80)
@@ -40,10 +40,9 @@ final class PortForwardListViewModelTests: XCTestCase {
         try await withDependencies {
             $0.portForwardRepository = stubRepo
             $0.portForwardLifecycle = stubLifecycle
-            $0.toastEmitter = recordingToast
         } operation: {
-            let sut = PortForwardListViewModel()
-            await sut.start(clusterId: ClusterId(rawValue: "test"))
+            let sut = PortForwardListViewModel(toast: recordingToast)
+            await sut.start(clusterId: ClusterId("test"))
             let row = try XCTUnwrap(sut.sessions.first)
             await sut.stop(row)
 
@@ -82,9 +81,8 @@ final class PortForwardListViewModelTests: XCTestCase {
         try await withDependencies {
             $0.portForwardRepository = stubRepo
             $0.portForwardLifecycle = stubLifecycle
-            $0.toastEmitter = recordingToast
         } operation: {
-            let sut = PortForwardListViewModel()
+            let sut = PortForwardListViewModel(toast: recordingToast)
             let row = PortForwardRow(
                 id: UUID(),
                 targetName: "nginx",
@@ -151,6 +149,25 @@ final class SuggestFreePortTests: XCTestCase {
 }
 
 // MARK: - Test doubles
+
+private struct EmittedToast: Sendable {
+    let severity: ToastDomainSeverity
+}
+
+private actor RecordingToastEmitter: ToastEmitterPort {
+    private(set) var emitted: [EmittedToast] = []
+
+    func emit(
+        title: String,
+        message: String?,
+        severity: ToastDomainSeverity,
+        iconSymbolName: String?,
+        pinned: Bool,
+        action: ToastDomainAction?
+    ) async {
+        emitted.append(EmittedToast(severity: severity))
+    }
+}
 
 private func makeSession(local: Int, remote: Int) -> PortForwardSession {
     PortForwardSession(

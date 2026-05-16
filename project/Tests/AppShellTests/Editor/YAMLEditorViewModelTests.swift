@@ -10,8 +10,8 @@ import SharedKernel
 
 // MARK: - Helpers
 
-private func makePodRef() -> AppShell.ResourceRef {
-    AppShell.ResourceRef(
+private func makePodRef() -> EditorResourceRef {
+    EditorResourceRef(
         kind: ResourceKind(group: "", version: "v1", kind: "Pod"),
         namespace: "default",
         name: "test-pod"
@@ -140,7 +140,7 @@ final class YAMLEditorViewModelTests: XCTestCase {
 
     func test_confirmAndApply_safeLevel_recordsAuditEntry() async throws {
         let auditSpy = SpyMutationAuditPort()
-        let mutationSpy = SpyMutationPort()
+        let mutationSpy = SpyYAMLEditorMutationPort()
 
         try await withDependencies {
             $0.mutationAudit = auditSpy
@@ -168,7 +168,7 @@ final class YAMLEditorViewModelTests: XCTestCase {
 
     func test_confirmAndApply_destructive_withoutToken_isBlocked() async throws {
         let auditSpy = SpyMutationAuditPort()
-        let mutationSpy = SpyMutationPort()
+        let mutationSpy = SpyYAMLEditorMutationPort()
 
         try await withDependencies {
             $0.mutationAudit = auditSpy
@@ -219,7 +219,7 @@ actor SpyMutationAuditPort: MutationAuditPort {
 }
 
 /// Spy mutation port that always returns HTTP 200.
-struct SpyMutationPort: KubernetesResourceMutationPort {
+struct SpyYAMLEditorMutationPort: KubernetesResourceMutationPort {
     func applyYAML(command: ApplyYAML, contextId: UUID) async throws -> Int { 200 }
     func scaleReplicas(command: ScaleReplicas, contextId: UUID) async throws -> Int { 200 }
     func rolloutRestart(command: RolloutRestart, contextId: UUID) async throws -> Int { 200 }

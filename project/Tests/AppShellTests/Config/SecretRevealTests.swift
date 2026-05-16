@@ -6,6 +6,7 @@ import XCTest
 import Dependencies
 @testable import AppShell
 import LocalPersistence
+import ResourceBrowser
 import SharedKernel
 
 // MARK: - DockerConfigJSONParserTests

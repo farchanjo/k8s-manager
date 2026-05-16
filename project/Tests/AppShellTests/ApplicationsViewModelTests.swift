@@ -261,4 +261,8 @@ private final class SpyOpenTabsPort: OpenTabsPort, @unchecked Sendable {
     func openTab(_ tab: DocumentTab) async {
         openedTabs.append(tab)
     }
+
+    nonisolated func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+        AsyncStream { _ in }
+    }
 }
