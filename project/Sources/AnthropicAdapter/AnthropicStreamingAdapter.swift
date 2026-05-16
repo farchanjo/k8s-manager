@@ -175,7 +175,17 @@ extension AnthropicStreamingAdapter {
     }
 
     private static func buildTool(_ tool: ToolDefinition) -> MessageParameter.Tool {
-        .function(name: tool.name, description: tool.description, inputSchema: nil)
+        let schema = decodeJSONSchema(tool.inputJSONSchema)
+        return .function(name: tool.name, description: tool.description, inputSchema: schema)
+    }
+
+    /// Decodes a raw UTF-8 JSON Schema string into a ``JSONSchema`` value.
+    ///
+    /// Returns `nil` on parse failure so callers degrade gracefully (Anthropic
+    /// rejects requests whose tools have structurally invalid schemas).
+    private static func decodeJSONSchema(_ raw: String) -> JSONSchema? {
+        guard let data = raw.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(JSONSchema.self, from: data)
     }
 }
 

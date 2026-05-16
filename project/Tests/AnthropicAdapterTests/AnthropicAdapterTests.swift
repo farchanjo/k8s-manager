@@ -105,6 +105,47 @@ final class AnthropicAdapterTests: XCTestCase {
         XCTAssertEqual(param.messages.count, 1)
     }
 
+    func testBuildParameter_withValidJSONSchema_toolSchemaDecoded() throws {
+        // Verifies that a well-formed JSON Schema string is decoded and forwarded
+        // to the SwiftAnthropic tool parameter by round-tripping through JSONEncoder.
+        let jsonSchema = #"{"type":"object","properties":{"namespace":{"type":"string"}}}"#
+        let tool = ToolDefinition(
+            name: "list_pods",
+            description: "List pods in namespace",
+            inputJSONSchema: jsonSchema
+        )
+        let request = AssistantRequest(
+            messages: [AssistantMessage(role: .user, content: [.text(TextPart(text: "hi"))])],
+            tools: [tool],
+            profileId: UUID()
+        )
+        let param = try AnthropicStreamingAdapter.buildParameter(request: request, model: "claude-sonnet-4-6")
+        // Encode and inspect via JSON to verify the input_schema was forwarded.
+        let encoded = try JSONEncoder().encode(param)
+        let json = try XCTUnwrap(String(data: encoded, encoding: .utf8))
+        XCTAssertTrue(json.contains("input_schema"), "Encoded parameter must contain input_schema key")
+        XCTAssertTrue(json.contains("list_pods"), "Encoded parameter must contain tool name")
+        XCTAssertEqual(param.messages.count, 1)
+    }
+
+    func testBuildParameter_withMalformedJSONSchema_doesNotThrow() throws {
+        // A tool with an unparseable schema degrades gracefully (schema becomes nil)
+        // rather than throwing and aborting the entire request.
+        let tool = ToolDefinition(
+            name: "bad_tool",
+            description: "Tool with malformed schema",
+            inputJSONSchema: "NOT_VALID_JSON"
+        )
+        let request = AssistantRequest(
+            messages: [AssistantMessage(role: .user, content: [.text(TextPart(text: "hi"))])],
+            tools: [tool],
+            profileId: UUID()
+        )
+        XCTAssertNoThrow(
+            try AnthropicStreamingAdapter.buildParameter(request: request, model: "claude-sonnet-4-6")
+        )
+    }
+
     func testBuildParameter_samplingOverride_propagatesMaxTokens() throws {
         let sampling = SamplingConfig(
             temperature: 0.7,
@@ -199,6 +240,66 @@ final class AnthropicAdapterTests: XCTestCase {
             XCTFail("Expected .toolUseFinish")
         }
         XCTAssertTrue(state.toolBlocks.isEmpty, "Buffer should be cleared after stop")
+    }
+
+    func testMapChunk_toolUseDelta_accumulatesBuffer() {
+        var state = StreamState()
+        state.toolBlocks[0] = (callId: "call-2", buffer: "")
+
+        let chunk = makeChunk(
+            type: "content_block_delta",
+            index: 0,
+            delta: makeDelta(type: "input_json_delta", partialJson: #"{"key":"#)
+        )
+        let events = AnthropicStreamingAdapter.mapChunk(chunk, state: &state)
+        XCTAssertEqual(events.count, 1)
+        if case .toolUseDelta(let d) = events[0] {
+            XCTAssertEqual(d.callId, "call-2")
+            XCTAssertEqual(d.jsonChunk, #"{"key":"#)
+        } else {
+            XCTFail("Expected .toolUseDelta")
+        }
+        XCTAssertEqual(state.toolBlocks[0]?.buffer, #"{"key":"#)
+    }
+
+    func testMapChunk_fullToolUseLoop_startDeltaFinish() {
+        // Full tool-use relay: start → delta × 2 → finish
+        var state = StreamState()
+        let startChunk = makeChunk(
+            type: "content_block_start",
+            index: 0,
+            contentBlock: makeContentBlock(type: "tool_use", id: "call-3", name: "exec_cmd")
+        )
+        let delta1 = makeChunk(
+            type: "content_block_delta",
+            index: 0,
+            delta: makeDelta(type: "input_json_delta", partialJson: #"{"cmd":"#)
+        )
+        let delta2 = makeChunk(
+            type: "content_block_delta",
+            index: 0,
+            delta: makeDelta(type: "input_json_delta", partialJson: #""ls"}"#)
+        )
+        let stopChunk = makeChunk(type: "content_block_stop", index: 0)
+
+        let e0 = AnthropicStreamingAdapter.mapChunk(startChunk, state: &state)
+        let e1 = AnthropicStreamingAdapter.mapChunk(delta1, state: &state)
+        let e2 = AnthropicStreamingAdapter.mapChunk(delta2, state: &state)
+        let e3 = AnthropicStreamingAdapter.mapChunk(stopChunk, state: &state)
+
+        guard case .toolUseStart(let s) = e0[0] else { return XCTFail("Expected toolUseStart") }
+        XCTAssertEqual(s.callId, "call-3")
+        XCTAssertEqual(s.name, "exec_cmd")
+
+        guard case .toolUseDelta(let d1) = e1[0] else { return XCTFail("Expected toolUseDelta #1") }
+        XCTAssertEqual(d1.jsonChunk, #"{"cmd":"#)
+
+        guard case .toolUseDelta(let d2) = e2[0] else { return XCTFail("Expected toolUseDelta #2") }
+        XCTAssertEqual(d2.jsonChunk, #""ls"}"#)
+
+        guard case .toolUseFinish(let f) = e3[0] else { return XCTFail("Expected toolUseFinish") }
+        XCTAssertEqual(f.totalArguments, #"{"cmd":"ls"}"#)
+        XCTAssertTrue(state.toolBlocks.isEmpty)
     }
 
     // MARK: Error-path: stream from unconnected adapter errors downstream

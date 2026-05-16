@@ -1,7 +1,7 @@
-// AnthropicAdapter.swift — infrastructure adapter placeholder
-// Implements: LLMProviderPort from LLMProvider
-// Library: jamesrochabrun/SwiftAnthropic@1.8+ (Tier B per ADR-0019)
-// Status: skeleton; port implementations pending domain ports definition.
+// AnthropicAdapter.swift — infrastructure adapter
+// Implements: LLMStreamingPort via AnthropicStreamingAdapter
+// Library: jamesrochabrun/SwiftAnthropic 2.2.2 (Tier B per ADR-0019)
+// ADR ref: ADR-0008 (LLM provider abstraction)
 @preconcurrency import SwiftAnthropic
 import LLMProvider
 import Foundation
@@ -9,11 +9,11 @@ import Foundation
 /// Tier B import boundary — wrap upstream callbacks in actor-isolated state.
 /// See ADR-0019 §"Tier classification" and ADR-0011 concurrency conventions.
 
-/// Namespace marker for the AnthropicAdapter adapter target.
+/// Namespace marker for the AnthropicAdapter infrastructure target.
 ///
-/// Concrete actor types implementing the domain ports land under this enum
-/// in subsequent rounds. This file exists so the target compiles cleanly
-/// under Swift 6 strict concurrency with the imported infrastructure library.
+/// The real implementation lives in ``AnthropicStreamingAdapter`` which
+/// conforms to ``LLMStreamingPort`` and streams Anthropic Messages API
+/// responses as ``AssistantStreamEvent`` values.
 public enum AnthropicAdapter: Sendable {
-    public static let moduleVersion = "0.0.1-skeleton"
+    public static let moduleVersion = "1.0.0"
 }
