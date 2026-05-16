@@ -313,7 +313,7 @@ private extension K8sManagerApp {
         @Dependency(\.keychainAccess) var keychain
         @Dependency(\.llmProviderRegistry) var registry
 
-        let factories: [ProviderKind: @Sendable (ProviderProfile) async throws -> any LLMStreamingPort] = [
+        let factories: [LLMProvider.ProviderKind: @Sendable (ProviderProfile) async throws -> any LLMStreamingPort] = [
             .anthropic: { profile in
                 let key = try await Self.readKey(alias: profile.keyAlias, keychain: keychain)
                 return AnthropicStreamingAdapter(apiKey: key, model: profile.modelId)
