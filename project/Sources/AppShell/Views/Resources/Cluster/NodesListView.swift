@@ -190,7 +190,7 @@ public struct NodesListView: View {
                         .font(.body.monospaced())
                 }
                 TableColumn("Status") { row in
-                    StatusBadge(raw: row.status)
+                    NodeConditionBadge(rawStatus: row.status)
                 }
                 TableColumn("Role") { row in
                     Text(row.role).foregroundStyle(.secondary).font(.callout)
