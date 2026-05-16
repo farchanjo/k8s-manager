@@ -132,6 +132,33 @@ final class SidebarTreeViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - selectedNode set before openTab call
+
+    /// Verifies that `activate(_:)` sets `selectedNode` before dispatching
+    /// `openTab` — ensuring the List highlight updates even if the port is slow.
+    func test_activate_setsSelectedNodeBeforeOpenTab() async throws {
+        let clusterId = ClusterId("test-cluster")
+        let strip = await makeStrip(clusterId: clusterId)
+        let orderedSpy = OrderedCallSpy()
+
+        await withDependencies {
+            $0.clusterStrip = strip
+            $0.openTabs = orderedSpy
+        } operation: {
+            let sut = SidebarTreeViewModel()
+            let startTask = Task { await sut.start() }
+            await Task.yield()
+
+            await sut.activate(.workloadKind(.deployments))
+            startTask.cancel()
+
+            // selectedNode must be set immediately (before openTab's async call returns)
+            XCTAssertEqual(sut.selectedNode, .workloadKind(.deployments))
+            let opened = await orderedSpy.openedTabs
+            XCTAssertEqual(opened.count, 1)
+        }
+    }
+
     // MARK: - No active cluster: activation is a no-op
 
     func test_activate_withNoCluster_isNoOp() async throws {
@@ -172,6 +199,15 @@ private func makeStrip(clusterId: ClusterId) async -> ClusterStripActor {
 
 /// Actor-based spy that records every `openTab(_:)` call.
 private actor SpyOpenTabsPort: OpenTabsPort {
+    private(set) var openedTabs: [DocumentTab] = []
+
+    func openTab(_ tab: DocumentTab) async {
+        openedTabs.append(tab)
+    }
+}
+
+/// Spy that records tabs in insertion order (used to verify ordering guarantees).
+private actor OrderedCallSpy: OpenTabsPort {
     private(set) var openedTabs: [DocumentTab] = []
 
     func openTab(_ tab: DocumentTab) async {

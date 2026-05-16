@@ -73,9 +73,10 @@ public struct SidebarTreeView: View {
         ) { node in
             SidebarRowView(node: node)
                 .tag(node)
-                .onTapGesture {
-                    Task { await viewModel.activate(node) }
-                }
+        }
+        .onChange(of: viewModel.selectedNode) { _, newNode in
+            guard let node = newNode else { return }
+            Task { await viewModel.activate(node) }
         }
     }
 
