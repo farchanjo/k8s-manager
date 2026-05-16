@@ -32,6 +32,8 @@ public enum GRDBPersistenceAdapter: Sendable {
         public let auditChainStore: GRDBAuditChainStore
         /// Repository for terminal session metadata (ADR-0017).
         public let terminalRepository: GRDBTerminalRepository
+        /// Append-only HMAC-gated secret-reveal audit (ADR-0063).
+        public let secretRevealAudit: GRDBSecretRevealAudit
     }
 
     // MARK: - Factory
@@ -55,7 +57,8 @@ public enum GRDBPersistenceAdapter: Sendable {
             providerRepository: GRDBProviderRepository(db: db),
             clusterMetadataStore: GRDBClusterMetadataStore(db: db),
             auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider),
-            terminalRepository: GRDBTerminalRepository(db: db)
+            terminalRepository: GRDBTerminalRepository(db: db),
+            secretRevealAudit: GRDBSecretRevealAudit(db: db, keyProvider: keyProvider)
         )
     }
 }

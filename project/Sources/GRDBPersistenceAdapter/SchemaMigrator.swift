@@ -60,6 +60,7 @@ public enum SchemaMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1_initial_schema", migrate: v1InitialSchema)
         migrator.registerMigration("v2_terminal_session", migrate: v2TerminalSession)
+        migrator.registerMigration("v3_secret_reveal_audit", migrate: v3SecretRevealAudit)
         try migrator.migrate(queue)
         logger.info("SchemaMigrator: all migrations applied")
     }
@@ -75,6 +76,14 @@ public enum SchemaMigrator {
     public static func _runV2(_ db: Database) throws {
         try v1InitialSchema(db)
         try v2TerminalSession(db)
+    }
+
+    /// Exposed for in-memory test helpers that target the `secret_reveal_audit` table.
+    /// Runs v1, v2, and v3 so the schema is fully consistent.
+    public static func _runV3(_ db: Database) throws {
+        try v1InitialSchema(db)
+        try v2TerminalSession(db)
+        try v3SecretRevealAudit(db)
     }
 
     // swiftlint:disable function_body_length
@@ -182,6 +191,7 @@ public enum SchemaMigrator {
 
     // MARK: v2 — terminal_session table (ADR-0017)
 
+    // swiftlint:disable:next function_body_length
     private static func v2TerminalSession(_ db: Database) throws {
         try db.execute(sql: """
             CREATE TABLE IF NOT EXISTS terminal_session (
@@ -203,6 +213,34 @@ public enum SchemaMigrator {
         try db.execute(sql: """
             CREATE INDEX IF NOT EXISTS idx_terminal_session_status
                 ON terminal_session(status)
+            """)
+    }
+
+    // MARK: v3 — secret_reveal_audit table (ADR-0063)
+
+    private static func v3SecretRevealAudit(_ db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS secret_reveal_audit (
+                id TEXT PRIMARY KEY NOT NULL,
+                cluster_id TEXT NOT NULL,
+                namespace TEXT NOT NULL,
+                secret_name TEXT NOT NULL,
+                secret_type TEXT NOT NULL,
+                key_name TEXT NOT NULL,
+                action TEXT NOT NULL,
+                user_identifier TEXT NOT NULL,
+                requested_at TEXT NOT NULL,
+                previous_entry_digest TEXT NOT NULL,
+                entry_digest TEXT NOT NULL
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_secret_reveal_audit_cluster_time
+                ON secret_reveal_audit(cluster_id, requested_at)
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_secret_reveal_audit_secret
+                ON secret_reveal_audit(namespace, secret_name)
             """)
     }
 }

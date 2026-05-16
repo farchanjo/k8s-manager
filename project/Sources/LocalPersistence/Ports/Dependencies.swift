@@ -107,6 +107,23 @@ public extension DependencyValues {
     }
 }
 
+// MARK: - SecretRevealAuditPortKey
+
+/// `DependencyKey` for `SecretRevealAuditPort`.
+public enum SecretRevealAuditPortKey: DependencyKey {
+    public static let liveValue: any SecretRevealAuditPort = UnimplementedSecretRevealAuditPort()
+    public static let testValue: any SecretRevealAuditPort = UnimplementedSecretRevealAuditPort()
+}
+
+public extension DependencyValues {
+    /// The port for appending entries to the HMAC-gated secret-reveal audit
+    /// chain.
+    var secretRevealAudit: any SecretRevealAuditPort {
+        get { self[SecretRevealAuditPortKey.self] }
+        set { self[SecretRevealAuditPortKey.self] = newValue }
+    }
+}
+
 // MARK: - PersistenceActorKey
 
 /// `DependencyKey` for `PersistenceActor`.

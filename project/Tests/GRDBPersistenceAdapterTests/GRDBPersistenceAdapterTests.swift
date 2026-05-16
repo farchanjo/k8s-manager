@@ -21,8 +21,8 @@ final class GRDBPersistenceAdapterTests: XCTestCase {
         let queue = try DatabaseQueue()
         let key = Data(repeating: 0xAB, count: 32)
         var migrator = DatabaseMigrator()
-        migrator.registerMigration("v1_initial_schema") { db in
-            try SchemaMigrator._runV1(db)
+        migrator.registerMigration("v3_all") { db in
+            try SchemaMigrator._runV3(db)
         }
         try migrator.migrate(queue)
         bundle = GRDBPersistenceAdapter.PersistenceBundle(
@@ -30,7 +30,8 @@ final class GRDBPersistenceAdapterTests: XCTestCase {
             providerRepository: GRDBProviderRepository(db: queue),
             clusterMetadataStore: GRDBClusterMetadataStore(db: queue),
             auditChainStore: GRDBAuditChainStore(db: queue, keyProvider: { key }),
-            terminalRepository: GRDBTerminalRepository(db: queue)
+            terminalRepository: GRDBTerminalRepository(db: queue),
+            secretRevealAudit: GRDBSecretRevealAudit(db: queue, keyProvider: { key })
         )
     }
 

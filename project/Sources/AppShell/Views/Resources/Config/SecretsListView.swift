@@ -1,6 +1,6 @@
 // Views/Resources/Config/SecretsListView.swift — app_shell bounded context
 // DDD role: View
-// ADR ref: ADR-0050 (resource navigation taxonomy)
+// ADR ref: ADR-0050 (resource navigation taxonomy), ADR-0063 (secret reveal/hide)
 
 import SwiftUI
 import SharedKernel
@@ -45,7 +45,7 @@ public struct SecretsListView: View {
         }
         .sheet(isPresented: $viewModel.showRevealSheet) {
             if let row = viewModel.revealRow {
-                SecretRevealModal(row: row)
+                SecretRevealSheet(row: row, clusterId: clusterId)
             }
         }
     }
@@ -55,7 +55,7 @@ public struct SecretsListView: View {
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView()
-            Text("Loading Secrets…").font(.callout).foregroundStyle(.secondary)
+            Text("Loading Secrets\u{2026}").font(.callout).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -95,7 +95,7 @@ public struct SecretsListView: View {
         Button("Edit YAML") {}
         Button("Describe") {}
         Divider()
-        Button("Delete…", role: .destructive) { viewModel.requestDelete(row) }
+        Button("Delete\u{2026}", role: .destructive) { viewModel.requestDelete(row) }
     }
 
     @ToolbarContentBuilder
@@ -121,16 +121,29 @@ public struct SecretsListView: View {
     }
 }
 
-// MARK: - SecretRevealModal
+// MARK: - SecretRevealSheet
 
-/// Sheet presenting decoded Secret data keys with copy affordances.
+/// Sheet presenting Secret data keys with per-key reveal/hide affordance.
 ///
-/// Binary values are masked as `<binary N bytes>`. UTF-8 decodable values
-/// are shown in a monospaced text field with a copy button per entry.
+/// All values start masked. Each key has a `SecretRevealButton` that reveals
+/// the decoded value inline. For `kubernetes.io/dockerconfigjson`, clicking
+/// reveal on the `.dockerconfigjson` key shows a `DockerConfigInspector`.
+/// Each reveal writes an audit entry via `SecretRevealAuditPort`.
 @MainActor
-private struct SecretRevealModal: View {
+private struct SecretRevealSheet: View {
+
     let row: SecretRow
+    let clusterId: ClusterId
+
+    @State private var sheetViewModel: SecretRevealSheetViewModel
+
     @Environment(\.dismiss) private var dismiss
+
+    init(row: SecretRow, clusterId: ClusterId) {
+        self.row = row
+        self.clusterId = clusterId
+        _sheetViewModel = State(initialValue: SecretRevealSheetViewModel(row: row, clusterId: clusterId))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -140,12 +153,12 @@ private struct SecretRevealModal: View {
             Spacer()
         }
         .padding()
-        .frame(minWidth: 520, minHeight: 360)
+        .frame(minWidth: 560, minHeight: 400)
     }
 
     private var headerBar: some View {
         HStack {
-            Label("Secret — \(row.name)", systemImage: "lock.fill")
+            Label("Secret \u{2014} \(row.name)", systemImage: "lock.fill")
                 .font(.headline)
             Spacer()
             Button("Done") { dismiss() }
@@ -154,18 +167,95 @@ private struct SecretRevealModal: View {
 
     private var dataSection: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Type: \(row.type)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Keys: \(row.dataCount)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("(Full decode available after API secret fetch is wired.)")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .italic()
+            VStack(alignment: .leading, spacing: 0) {
+                metaSummary
+                Divider().padding(.vertical, 8)
+                keyRows
             }
         }
+    }
+
+    private var metaSummary: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Namespace: \(row.namespace)")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("Type: \(row.type)")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("Keys: \(row.dataCount)")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var keyRows: some View {
+        if sheetViewModel.keyStates.isEmpty {
+            Text("No data keys available.")
+                .font(.caption).foregroundStyle(.tertiary).italic()
+        } else {
+            ForEach(sheetViewModel.orderedKeys, id: \.self) { key in
+                keyRow(key: key)
+                Divider().opacity(0.4)
+            }
+        }
+    }
+
+    private func keyRow(key: String) -> some View {
+        let state = sheetViewModel.keyStates[key] ?? .masked
+        return HStack(alignment: .top, spacing: 8) {
+            Text(key)
+                .font(.system(.caption, design: .monospaced))
+                .frame(minWidth: 140, alignment: .leading)
+                .lineLimit(1)
+            Spacer()
+            valueDisplay(key: key, state: state)
+            SecretRevealButton(
+                keyName: key,
+                isRevealed: state.isRevealed,
+                onReveal: { Task { await sheetViewModel.reveal(key: key) } },
+                onHide: { Task { await sheetViewModel.hide(key: key) } }
+            )
+        }
+        .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private func valueDisplay(key: String, state: KeyRevealState) -> some View {
+        switch state {
+        case .masked:
+            Text("\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+        case .revealed(let text):
+            if row.type == "kubernetes.io/dockerconfigjson" && key == ".dockerconfigjson" {
+                dockerConfigView(rawValue: text)
+            } else {
+                Text(text)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .lineLimit(4)
+            }
+        case .error(let msg):
+            Text("Error: \(msg)")
+                .font(.caption2).foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private func dockerConfigView(rawValue: String) -> some View {
+        let parseResult = sheetViewModel.parsedDockerConfig(rawValue: rawValue)
+        DockerConfigInspector(
+            config: parseResult.config,
+            parseError: parseResult.error,
+            revealedPasswords: Binding(
+                get: { sheetViewModel.revealedDockerPasswords },
+                set: { sheetViewModel.revealedDockerPasswords = $0 }
+            ),
+            onRevealPassword: { registry in
+                Task { await sheetViewModel.revealDockerPassword(registry: registry) }
+            },
+            onHidePassword: { registry in
+                Task { await sheetViewModel.hideDockerPassword(registry: registry) }
+            }
+        )
     }
 }
