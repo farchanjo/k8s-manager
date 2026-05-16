@@ -1,6 +1,7 @@
 // AppShell.swift — NavigationSplitView shell
 // Bounded context: app_shell (per ADR-0005)
 // ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts), ADR-0032 (toasts)
+import Foundation
 import SwiftUI
 
 /// Namespace marker for the AppShell bounded context.
@@ -30,7 +31,23 @@ public struct K8sManagerRootScene: Scene {
     @State private var toastViewModel = ToastStackViewModel()
     @State private var selectedFeature: Feature? = .clusters
 
-    public init() {}
+    /// Domain-layer aggregate and dependencies constructed once at scene init.
+    ///
+    /// `toastAggregate` backs `ToastDomainEmitter` (domain port) independently of
+    /// the view-layer `ToastStackViewModel` — they serve different concerns:
+    /// domain emitter writes to the aggregate actor; the view model drives the UI stack.
+    private let appShellDeps: AppShellDependencies
+
+    public init() {
+        let toastAggregate = ToastStackAggregate(
+            initial: DomainToastStack(id: UUID().uuidString)
+        )
+        appShellDeps = AppShellDependencies(
+            translationCatalog: BundleTranslationCatalog(bundle: .main),
+            toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
+            localePreference: InMemoryLocalePreferenceStore()
+        )
+    }
 
     public var body: some Scene {
         WindowGroup {
@@ -39,6 +56,7 @@ public struct K8sManagerRootScene: Scene {
                 paletteViewModel: paletteViewModel,
                 toastViewModel: toastViewModel
             )
+            .appShellDependencies(appShellDeps)
         }
         .defaultSize(width: 1280, height: 800)
         .windowResizability(.contentSize)
@@ -56,6 +74,7 @@ public struct K8sManagerRootScene: Scene {
 
         // Menu bar tray (ADR-0022).
         K8sManagerMenuBarScene()
+            .appShellDependencies(appShellDeps)
     }
 }
 
