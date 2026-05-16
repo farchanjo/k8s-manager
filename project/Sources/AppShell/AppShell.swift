@@ -1,7 +1,5 @@
-// AppShell.swift — domain core placeholder
+// AppShell.swift — NavigationSplitView shell
 // Bounded context: app_shell (per ADR-0005)
-// Status: skeleton; domain types pending CUE schema extraction.
-import Foundation
 import SwiftUI
 
 /// Namespace marker for the AppShell bounded context.
@@ -13,13 +11,71 @@ public enum AppShell: Sendable {
     public static let moduleVersion = "0.0.1-skeleton"
 }
 
-/// Root SwiftUI scene. Wired by K8sManagerApp composition root.
+/// Root SwiftUI scene presenting a `NavigationSplitView` shell.
+///
+/// Wired by the `K8sManagerApp` composition root. All feature panels
+/// are driven by `Feature.allCases` through the sidebar selection binding.
 public struct K8sManagerRootScene: Scene {
     public init() {}
+
     public var body: some Scene {
         WindowGroup {
-            ClusterListView()
-                .frame(minWidth: 600, minHeight: 400)
+            AppShellView()
         }
+    }
+}
+
+/// Top-level shell view — sidebar + detail layout.
+///
+/// `selectedFeature` defaults to `.clusters` so the app opens to a
+/// useful state without requiring an explicit sidebar tap.
+public struct AppShellView: View {
+    @State private var selectedFeature: Feature? = .clusters
+
+    public init() {}
+
+    public var body: some View {
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            detail
+        }
+        .frame(minWidth: 900, minHeight: 600)
+    }
+
+    private var sidebar: some View {
+        List(Feature.allCases, selection: $selectedFeature) { feature in
+            NavigationLink(value: feature) {
+                Label(feature.title, systemImage: feature.systemImage)
+            }
+        }
+        .navigationTitle("K8sManager")
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 280)
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        switch selectedFeature {
+        case .clusters:      ClusterListView()
+        case .contexts:      ContextNavigationView()
+        case .resources:     ResourceBrowserView()
+        case .chat:          AssistantChatView()
+        case .intelligence:  ClusterIntelligenceView()
+        case .providers:     LLMProviderView()
+        case .persistence:   LocalPersistenceView()
+        case .helm:          HelmManagementView()
+        case .metrics:       MetricsObservabilityView()
+        case .portForward:   PortForwardingView()
+        case .terminal:      TerminalSessionView()
+        case .none:          emptyState
+        }
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView(
+            "Select a feature",
+            systemImage: "sidebar.left",
+            description: Text("Pick from the sidebar")
+        )
     }
 }
