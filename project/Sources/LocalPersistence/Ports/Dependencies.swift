@@ -87,3 +87,105 @@ public extension DependencyValues {
         set { self[AuditChainPortKey.self] = newValue }
     }
 }
+
+// MARK: - OperatorPreferencesPortKey
+
+/// `DependencyKey` for `OperatorPreferencesPort`.
+public enum OperatorPreferencesPortKey: DependencyKey {
+    public static let liveValue: any OperatorPreferencesPort = UnimplementedOperatorPreferencesPort()
+    public static let testValue: any OperatorPreferencesPort = UnimplementedOperatorPreferencesPort()
+}
+
+public extension DependencyValues {
+    /// The port for loading and saving per-operator UX preferences.
+    ///
+    /// Consumed by `app_shell` on cold launch. Override `liveValue` in the
+    /// composition root with the GRDB-backed adapter.
+    var operatorPreferences: any OperatorPreferencesPort {
+        get { self[OperatorPreferencesPortKey.self] }
+        set { self[OperatorPreferencesPortKey.self] = newValue }
+    }
+}
+
+// MARK: - PersistenceActorKey
+
+/// `DependencyKey` for `PersistenceActor`.
+///
+/// The test value uses a `FakePersistenceWriter` that records calls without
+/// touching any database file. Adapter targets override `liveValue` in the
+/// composition root with a `GRDBWriterAdapter`-backed actor.
+public enum PersistenceActorKey: DependencyKey {
+    public static let liveValue: PersistenceActor = PersistenceActor(
+        writer: UnimplementedPersistenceWriter()
+    )
+    public static let testValue: PersistenceActor = PersistenceActor(
+        writer: FakePersistenceWriter()
+    )
+}
+
+public extension DependencyValues {
+    /// The single write gate for all SQLite traffic (ADR-0010).
+    ///
+    /// Adapters MUST route all mutations through this actor instead of
+    /// calling GRDB directly. Reads may also be routed here for
+    /// consistency, though WAL mode permits concurrent readers.
+    var persistenceActor: PersistenceActor {
+        get { self[PersistenceActorKey.self] }
+        set { self[PersistenceActorKey.self] = newValue }
+    }
+}
+
+// MARK: - UnimplementedPersistenceWriter
+
+/// Crash-fast `PersistenceWriter` used as `liveValue` placeholder before
+/// the adapter registers the real GRDB-backed writer.
+public struct UnimplementedPersistenceWriter: PersistenceWriter {
+    public init() {}
+
+    public func read<T: Sendable>(
+        _ work: @Sendable (any DatabaseHandle) throws -> T
+    ) throws -> T {
+        throw PersistenceActorError.operationFailed(
+            underlying: "PersistenceWriter not configured — register GRDBWriterAdapter"
+        )
+    }
+
+    public func write<T: Sendable>(
+        _ work: @Sendable (any DatabaseHandle) throws -> T
+    ) throws -> T {
+        throw PersistenceActorError.operationFailed(
+            underlying: "PersistenceWriter not configured — register GRDBWriterAdapter"
+        )
+    }
+
+    public func barrier() async {}
+}
+
+// MARK: - FakePersistenceWriter
+
+/// In-memory `PersistenceWriter` used as `testValue`. Immediately executes
+/// closures with a `NullDatabaseHandle`; no file I/O occurs.
+public struct FakePersistenceWriter: PersistenceWriter {
+    public init() {}
+
+    public func read<T: Sendable>(
+        _ work: @Sendable (any DatabaseHandle) throws -> T
+    ) throws -> T {
+        try work(NullDatabaseHandle())
+    }
+
+    public func write<T: Sendable>(
+        _ work: @Sendable (any DatabaseHandle) throws -> T
+    ) throws -> T {
+        try work(NullDatabaseHandle())
+    }
+
+    public func barrier() async {}
+}
+
+// MARK: - NullDatabaseHandle
+
+/// No-op `DatabaseHandle` used by `FakePersistenceWriter` in tests.
+public struct NullDatabaseHandle: DatabaseHandle {
+    public init() {}
+}
