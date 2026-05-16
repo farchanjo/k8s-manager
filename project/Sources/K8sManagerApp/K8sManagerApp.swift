@@ -280,12 +280,15 @@ private extension K8sManagerApp {
         }
     }
 
-    /// Registers HelmManagement ports that have no live adapter yet.
+    /// Registers HelmManagement ports.
     ///
-    /// - `releaseDecoder`: gzip+protobuf Helm secret decoder — adapter deferred.
-    /// - `auditLog`: Helm rollback audit log — GRDB adapter deferred.
+    /// - `rollbackLease`: Kubernetes Lease adapter (ADR-0046) — live via `SwiftkubeRollbackLeaseAdapter`.
+    /// - `releaseDecoder`: Helm secret decoder (ADR-0015) — live via `HelmSecretDecoderAdapter`.
+    /// - `auditLog`: Helm rollback audit log — GRDB adapter wired after database is open.
     nonisolated static func wireHelmManagementExtras(into values: inout DependencyValues) {
-        values.releaseDecoder = UnimplementedReleaseDecoderPort()
+        let loader = YamsKubeconfigLoader()
+        values.rollbackLease = SwiftkubeRollbackLeaseAdapter(resolver: buildResolver(using: loader))
+        values.releaseDecoder = HelmSecretDecoderAdapter()
         values.auditLog = UnimplementedAuditLogPort()
     }
 

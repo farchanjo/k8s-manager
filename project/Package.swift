@@ -803,6 +803,7 @@ let package = Package(
             dependencies: [
                 "SwiftkubeClientAdapter",
                 "ClusterConnectivity",
+                "HelmManagement",
                 "MetricsObservability",
                 "SharedKernel",
             ],
