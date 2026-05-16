@@ -170,6 +170,17 @@ public struct AppShellView: View {
                 paletteViewModel: paletteViewModel,
                 toastViewModel: toastViewModel
             )
+            // Top-right chrome — global namespace pill + assistant / notifications /
+            // user-menu buttons (ADR-0051, ADR-0069). `activeClusterId` is mirrored
+            // from `ClusterStripActor` so the pill appears within one stream-tick
+            // of the user activating a cluster. Placement `.primaryAction` on
+            // NavigationSplitView places the HStack in the trailing toolbar area
+            // on macOS 13+ without interfering with sidebar toggle buttons.
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    TopRightChrome(activeClusterId: activeClusterId)
+                }
+            }
         }
         .task { await trackActiveCluster() }
     }
