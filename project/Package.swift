@@ -716,6 +716,17 @@ let package = Package(
         ),
 
         .testTarget(
+            name: "GRDBPersistenceAdapterTests",
+            dependencies: [
+                "GRDBPersistenceAdapter",
+                "LocalPersistence",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            path: "Tests/GRDBPersistenceAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
             name: "YamsKubeconfigAdapterTests",
             dependencies: [
                 "YamsKubeconfigAdapter",
