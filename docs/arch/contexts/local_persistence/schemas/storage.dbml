@@ -160,6 +160,27 @@ Table cluster_mutation_audit {
   Note: "Append-only ledger of every operator-initiated mutation to a Kubernetes cluster. Rows are guarded by two SQLite triggers (cluster_mutation_audit_no_update, cluster_mutation_audit_no_delete) defined in policies/audit-trigger.sql. The previous_entry_digest field enables offline chain verification. Reference: ADR-0012, ADR-0010."
 }
 
+Table secret_reveal_audit {
+  id varchar [pk, note: "UUIDv7."]
+  cluster_id varchar [not null, note: "UUIDv7 of the cluster whose Secret was accessed. No FK — cluster registry lives outside SQLite."]
+  namespace varchar [not null, note: "Namespace of the Secret. Required (Secret is a namespaced kind)."]
+  secret_name varchar [not null, note: "Kubernetes metadata.name of the Secret."]
+  secret_type varchar [not null, note: "The Secret's type field, e.g. 'kubernetes.io/dockerconfigjson' | 'kubernetes.io/tls' | 'Opaque' | 'kubernetes.io/basic-auth' | 'kubernetes.io/ssh-auth' | 'bootstrap.kubernetes.io/token' | custom string. Stored verbatim from the API server."]
+  key_name varchar [not null, note: "The specific key in the Secret's data map that was accessed. Examples: '.dockerconfigjson', 'tls.crt', 'tls.key', '.dockerconfigjson.auths.registry-io.password'. The dotted-suffix form encodes deep reveal inside a parsed dockerconfigjson auths map (ADR-0063 §Special type parsers)."]
+  action varchar [not null, note: "'reveal' | 'hide' | 'clipboard-copy' | 'auto-hide'. reveal: operator explicitly clicked the eye icon. hide: operator explicitly clicked the eye icon again. clipboard-copy: decoded value was written to NSPasteboard.general. auto-hide: the 60-second focus-loss timer fired."]
+  user_identifier varchar [not null, note: "NSUserName() at the time of the action. On single-user systems this is the macOS short username; on multi-user systems this is the active session's user."]
+  requested_at varchar [not null, note: "RFC 3339. When the action occurred."]
+  previous_entry_digest varchar [not null, note: "64-character lowercase HMAC-SHA256 hex linking to the prior row in this table. Empty string for the first row. Computed and verified in app code by AuditChainKeyManager (ADR-0047) using the same Keychain-stored key as cluster_mutation_audit. Independent chain — secret_reveal_audit links to its own prior row, not to cluster_mutation_audit rows."]
+  entry_digest varchar [not null, note: "64-character lowercase HMAC-SHA256 hex of this entry's canonical serialised form. Computed in app code; the audit_chain_check trigger pattern (see policies/audit-trigger.sql) enforces append-only behaviour for this table."]
+
+  Indexes {
+    (cluster_id, requested_at) [name: "idx_secret_reveal_audit_cluster_time"]
+    (namespace, secret_name) [name: "idx_secret_reveal_audit_secret"]
+  }
+
+  Note: "Append-only ledger of every privileged Secret data access (reveal, hide, clipboard-copy, auto-hide). MUST NOT contain decoded Secret values — only the access metadata. Chained independently from cluster_mutation_audit using the same AuditChainKeyManager (ADR-0047). Rows are guarded by triggers analogous to cluster_mutation_audit (no UPDATE, no DELETE). Retention policy is deferred to a follow-up ADR (ADR-0063 §Followups). Reference: ADR-0063, ADR-0047, ADR-0012, resource_browser bounded context."
+}
+
 Table mcp_wire_log {
   id varchar [pk, note: "UUIDv7."]
   session_id varchar [not null, note: "UUIDv7. FK to the owning chat session. Delete action: cascade (see Ref block at end of file)."]
@@ -204,6 +225,7 @@ TableGroup local_persistence {
   operator_preferences
   editor_drafts
   cluster_mutation_audit
+  secret_reveal_audit
   mcp_wire_log
   trusted_exec_plugins
 }
