@@ -135,10 +135,22 @@ public struct ServicesListView: View {
         List(viewModel.filteredRows, id: \.uid) { item in
             ServiceRow(item: item)
                 .contextMenu {
-                    Button("Port Forward") {
-                        viewModel.portForwardRequested(uid: item.uid)
+                    let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                        kind: "Service", name: item.name,
+                        namespace: item.namespace, family: .network
+                    ))
+                    ForEach(actions) { action in
+                        if action.id == "delete" {
+                            Divider()
+                            Button("Delete\u{2026}", role: .destructive) {}
+                        } else if action.id == "port-forward" {
+                            Button("Port Forward") {
+                                viewModel.portForwardRequested(uid: item.uid)
+                            }
+                        } else {
+                            Button(action.label) {}
+                        }
                     }
-                    Button("View Detail") { viewModel.selectedId = item.uid }
                 }
         }
         .listStyle(.inset)

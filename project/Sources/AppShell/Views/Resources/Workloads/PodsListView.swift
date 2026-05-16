@@ -112,16 +112,23 @@ public struct PodsListView: View {
             TableColumn("Age", value: \.age)
         }
         .contextMenu(forSelectionType: String.self) { ids in
-            Button("Edit YAML") {}
-            Button("Logs") {}
-            Button("Shell") {}
-            Button("Port Forward") {
-                viewModel.portForwardRequested(ids: ids)
-            }
-            Button("Describe") {}
-            Divider()
-            Button("Delete", role: .destructive) {
-                viewModel.confirmDelete(ids: ids)
+            podContextMenuItems(ids: ids)
+        }
+    }
+
+    @ViewBuilder
+    private func podContextMenuItems(ids: Set<String>) -> some View {
+        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+            kind: "Pod", name: ids.first ?? "", family: .workloads
+        ))
+        ForEach(actions) { action in
+            if action.id == "delete" {
+                Divider()
+                Button("Delete\u{2026}", role: .destructive) { viewModel.confirmDelete(ids: ids) }
+            } else if action.id == "port-forward" {
+                Button("Port Forward") { viewModel.portForwardRequested(ids: ids) }
+            } else {
+                Button(action.label) {}
             }
         }
     }

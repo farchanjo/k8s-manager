@@ -217,9 +217,19 @@ public struct NodesListView: View {
     @ViewBuilder
     private func nodeContextMenu(ids: Set<NodeRow.ID>) -> some View {
         if let id = ids.first, let row = viewModel.filteredRows.first(where: { $0.id == id }) {
+            let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                kind: "Node", name: row.name, family: .cluster, canDelete: false
+            ))
+            ForEach(actions) { action in
+                if action.id == "delete" {
+                    EmptyView()
+                } else {
+                    Button(action.label) {}
+                }
+            }
+            Divider()
             Button("Cordon Node") { viewModel.cordon(nodeName: row.name) }
             Button("Drain Node") { viewModel.drain(nodeName: row.name) }
-            Divider()
             Button("Debug Node") { onNodeDebugTap(row.name) }
         }
     }
