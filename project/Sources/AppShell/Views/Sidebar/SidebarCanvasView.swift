@@ -57,8 +57,12 @@ public struct SidebarCanvasView: View {
     // MARK: Body
 
     public var body: some View {
+        // Canvas body — only Band 2 (content) per ADR-0072.
+        //
+        // The legacy `headerBar` (back/forward arrows) has been promoted to the
+        // window toolbar `.navigation` slot per ADR-0072 §"Change 2" + ADR-0065
+        // Amendment 1, eliminating one full horizontal band from the canvas.
         VStack(spacing: 0) {
-            headerBar
             tabBarRow
             Divider()
             activeContent
@@ -89,29 +93,6 @@ public struct SidebarCanvasView: View {
     }
 
     // MARK: Private
-
-    /// Header strip renders the back/forward navigation arrows (ADR-0065).
-    ///
-    /// The namespace picker has moved to the top-right chrome pill
-    /// (ADR-0069 supersedes ADR-0053). The strip height is kept constant so
-    /// the tab bar never jumps when `activeClusterId` changes.
-    private var headerBar: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                // Back/forward navigation arrows — ADR-0065.
-                if let historyActor = deps.navigationHistoryActor {
-                    NavigationHistoryToolbar(historyActor: historyActor)
-                        .padding(.leading, 4)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(minHeight: 40)
-            .background(.regularMaterial)
-            Divider()
-        }
-    }
 
     /// Combined tab bar row — workspace Welcome chip (ADR-0054) followed by
     /// the per-cluster tab list. Both segments share a single visual bar.

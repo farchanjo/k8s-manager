@@ -107,6 +107,12 @@ public struct K8sManagerRootScene: Scene {
         }
         .defaultSize(width: 1280, height: 800)
         .windowResizability(.contentSize)
+        // Apple HIG window chrome — ADR-0072 §"Change 1: window toolbar style".
+        // `.unifiedCompact(showsTitle: false)` collapses the title bar and the
+        // toolbar row into a single dense strip and removes the redundant
+        // "K8sManager" title text (already in the app menu). This is Band 1 of
+        // the three-band ceiling established by ADR-0072.
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             K8sManagerCommands(
                 isPaletteVisible: Binding(
@@ -170,13 +176,21 @@ public struct AppShellView: View {
                 paletteViewModel: paletteViewModel,
                 toastViewModel: toastViewModel
             )
-            // Top-right chrome — global namespace pill + assistant / notifications /
-            // user-menu buttons (ADR-0051, ADR-0069). `activeClusterId` is mirrored
-            // from `ClusterStripActor` so the pill appears within one stream-tick
-            // of the user activating a cluster. Placement `.primaryAction` on
-            // NavigationSplitView places the HStack in the trailing toolbar area
-            // on macOS 13+ without interfering with sidebar toggle buttons.
+            // Window toolbar — Band 1 of ADR-0072.
+            //
+            // Leading (.navigation): back/forward arrows promoted from the
+            // canvas headerBar per ADR-0072 §"Change 2" + ADR-0065 Amendment 1.
+            // Removes 40 pt of vertical chrome from the canvas while keeping
+            // the controls within thumb-reach of the trackpad gesture region.
+            //
+            // Trailing (.primaryAction): TopRightChrome (global namespace pill,
+            // assistant, notifications, user menu) per ADR-0051 + ADR-0069.
             .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    if let historyActor = deps.navigationHistoryActor {
+                        NavigationHistoryToolbar(historyActor: historyActor)
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     TopRightChrome(activeClusterId: activeClusterId)
                 }
@@ -216,7 +230,15 @@ public struct AppShellView: View {
                 openTabsActor: deps.openTabsActor,
                 activeClusterId: activeClusterId
             )
-            StatusBarView(toastViewModel: toastViewModel)
+            // Status footer (Band 3 — optional) per ADR-0072 §"Change 3".
+            // Rendered only when an active cluster is selected so the footer
+            // surfaces only when there is telemetry to report (cluster name,
+            // server version, CPU/mem, watch + error counts). During the
+            // cluster picker state the footer is absent — collapsing the shell
+            // to two bands (toolbar + content) for a calmer initial canvas.
+            if activeClusterId != nil {
+                StatusBarView(toastViewModel: toastViewModel)
+            }
         }
     }
 }
