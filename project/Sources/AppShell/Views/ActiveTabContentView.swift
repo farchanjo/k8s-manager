@@ -44,6 +44,12 @@ public struct ActiveTabContentView: View {
                 noTabState
             }
         }
+        // Force a complete view-hierarchy teardown and rebuild whenever the
+        // active tab changes. Without this identity signal SwiftUI reuses the
+        // existing subtree — its child views' `.task` modifiers never restart,
+        // leaving stale async work from the previous tab painting over the new
+        // tab's content (frame 28 UX regression). ADR-0050 §"Per-tab identity".
+        .id(activeTab?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.onResourceSelect) { ref in
             // Child list views call this on row selection changes; we store
