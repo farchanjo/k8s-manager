@@ -1,16 +1,57 @@
-// GRDBPersistenceAdapter.swift — infrastructure adapter placeholder
-// Implements: PersistencePort from LocalPersistence
-// Library: groue/GRDB.swift@6.29+ (Tier A per ADR-0019)
-// Status: skeleton; port implementations pending domain ports definition.
+// GRDBPersistenceAdapter.swift — GRDBPersistenceAdapter
+// DDD role: CompositionRoot (public facade)
+// ADR refs: ADR-0010, ADR-0026
+import Foundation
 import GRDB
 import LocalPersistence
-import Foundation
+import Logging
 
-/// Namespace marker for the GRDBPersistenceAdapter adapter target.
+// MARK: - GRDBPersistenceAdapter
+
+/// Public facade for the GRDB-backed persistence layer.
 ///
-/// Concrete actor types implementing the domain ports land under this enum
-/// in subsequent rounds. This file exists so the target compiles cleanly
-/// under Swift 6 strict concurrency with the imported infrastructure library.
+/// Call ``openBundle(at:keyProvider:logger:)`` once at startup and wire the
+/// returned ``PersistenceBundle`` into the dependency-injection container.
 public enum GRDBPersistenceAdapter: Sendable {
-    public static let moduleVersion = "0.0.1-skeleton"
+
+    // MARK: - PersistenceBundle
+
+    /// All four GRDB repository adapters wired to the same `DatabaseQueue`.
+    ///
+    /// The bundle owns the `DatabaseQueue` lifecycle. Pass individual properties
+    /// into `prepareDependencies { }` at the composition root.
+    public struct PersistenceBundle: Sendable {
+        /// Repository for chat sessions and messages.
+        public let chatRepository: GRDBChatRepository
+        /// Repository for LLM provider profiles.
+        public let providerRepository: GRDBProviderRepository
+        /// TTL cache for LLM-generated cluster analyses.
+        public let clusterMetadataStore: GRDBClusterMetadataStore
+        /// Append-only HMAC-gated mutation audit chain.
+        public let auditChainStore: GRDBAuditChainStore
+    }
+
+    // MARK: - Factory
+
+    /// Opens (creating if absent) the SQLite file at `path`, runs all pending
+    /// migrations via ``SchemaMigrator``, and returns a ``PersistenceBundle``
+    /// whose adapters share the underlying `DatabaseQueue`.
+    ///
+    /// - Parameters:
+    ///   - path: Absolute POSIX path to the `.sqlite3` file.
+    ///   - keyProvider: HMAC key closure injected into ``GRDBAuditChainStore``.
+    ///   - logger: Diagnostics destination for migration-progress messages.
+    public static func openBundle(
+        at path: String,
+        keyProvider: @escaping KeyProvider,
+        logger: Logger = Logger(label: "GRDBPersistenceAdapter")
+    ) throws -> PersistenceBundle {
+        let db = try SchemaMigrator.makeQueue(at: path, logger: logger)
+        return PersistenceBundle(
+            chatRepository: GRDBChatRepository(db: db),
+            providerRepository: GRDBProviderRepository(db: db),
+            clusterMetadataStore: GRDBClusterMetadataStore(db: db),
+            auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider)
+        )
+    }
 }
