@@ -244,9 +244,8 @@ public actor WatchStreamCoordinator {
             conts[subId] = continuation
             legacyStreams[key] = LegacyEntry(task: entry.task, continuations: conts)
         } else {
-            let task: Task<Void, Never> = Task { [weak self] in
-                guard let self else { return }
-                await self.drainLegacy(key: key)
+            let task = Task<Void, Never> { [weak self] in
+                if let self { await self.drainLegacy(key: key) }
             }
             legacyStreams[key] = LegacyEntry(
                 task: task,
@@ -295,9 +294,8 @@ public actor WatchStreamCoordinator {
         gvk: GroupVersionKind
     ) {
         tasks[tabId]?.cancel()
-        let task: Task<Void, Never> = Task { [weak self] in
-            guard let self else { return }
-            await self.drainTab(tabId: tabId, clusterId: clusterId, gvk: gvk)
+        let task = Task<Void, Never> { [weak self] in
+            if let self { await self.drainTab(tabId: tabId, clusterId: clusterId, gvk: gvk) }
         }
         tasks[tabId] = task
     }
