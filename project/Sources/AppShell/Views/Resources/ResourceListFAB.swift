@@ -90,11 +90,24 @@ public struct ResourceListFAB: View {
     }
 
     public var body: some View {
-        if FABVisibilityPolicy.isVisible(for: kind) {
-            fabButton
-                .padding(.bottom, 16)
-                .padding(.trailing, 16)
-        }
+        // Always-present body with opacity/hit-test toggle (NOT an `if` branch).
+        // ADR-0066 §"FAB visibility rules" requires the FAB to be hidden — not
+        // merely disabled — for excluded kinds; opacity=0 + allowsHitTesting=false
+        // satisfies that contract without flipping the view's structural identity.
+        //
+        // Why this matters: when the container swaps `WorkloadListSkeleton` for
+        // the live `Table`, an `if`-wrapped overlay child gets a fresh identity
+        // and SwiftUI spring-interpolates its position from the skeleton's frame
+        // origin (mid-left of the panel) to the bottom-trailing anchor. The
+        // teleport + slide was the user-visible "efeito zoado". Constant
+        // presence + .animation(.none) kills the interpolation entirely.
+        let visible = FABVisibilityPolicy.isVisible(for: kind)
+        return fabButton
+            .padding(.bottom, 16)
+            .padding(.trailing, 16)
+            .opacity(visible ? 1 : 0)
+            .allowsHitTesting(visible)
+            .animation(.none, value: visible)
     }
 
     // MARK: Private views

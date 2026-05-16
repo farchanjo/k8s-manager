@@ -60,7 +60,14 @@ public struct ResourceListContainer<Content: View>: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
             }
+            // Reserve a fixed leading slot for the count badge so the
+            // surrounding HStack geometry stays stable when itemCount toggles
+            // between nil (skeleton phase) and N (loaded). Without this slot,
+            // the Spacer expands/collapses and the search field slides
+            // horizontally — the artifact users perceive as "search appears
+            // from nowhere" during loading. ADR-0021 §toolbar stability.
             countBadge
+                .frame(minWidth: 32, alignment: .leading)
             Spacer()
             searchField
             // Fixed-frame trailing slot keeps toolbar geometry stable while
@@ -82,16 +89,22 @@ public struct ResourceListContainer<Content: View>: View {
         .frame(minHeight: 36)
     }
 
-    @ViewBuilder
+    /// Always-present count badge whose visibility is toggled via opacity.
+    ///
+    /// An `if let` would flip the badge's structural identity between nil
+    /// (skeleton phase) and `Some(n)` (loaded). SwiftUI's default transition
+    /// for that flip is a fade, producing the 1–2 frame blink users observed.
+    /// Keeping the Text node permanently in the tree (with a placeholder
+    /// string when nil) eliminates the flip entirely. ADR-0021 / ADR-0071.
     private var countBadge: some View {
-        if let count = itemCount {
-            Text("\(count)")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(.quaternary, in: Capsule())
-        }
+        Text(itemCount.map { "\($0)" } ?? "0")
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.quaternary, in: Capsule())
+            .opacity(itemCount != nil ? 1 : 0)
+            .animation(.none, value: itemCount)
     }
 
     private var searchField: some View {
