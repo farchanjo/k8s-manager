@@ -52,11 +52,11 @@ final class ResourceListAdapterResolverErrorTests: XCTestCase {
         resolver: { _ in throw FakeResolverError.notFound }
     )
     private let podGVK = GroupVersionKind.core("Pod")
-    private let contextId = UUID()
+    private let contextId = ClusterId("test-cluster")
 
     func test_list_whenResolverThrows_propagatesError() async {
         do {
-            _ = try await adapter.list(gvk: podGVK, namespace: nil, contextId: contextId)
+            _ = try await adapter.list(gvk: podGVK, namespace: nil, clusterId: contextId)
             XCTFail("Expected error from resolver to be rethrown")
         } catch is FakeResolverError {
             // expected path
@@ -71,7 +71,7 @@ final class ResourceListAdapterResolverErrorTests: XCTestCase {
                 gvk: podGVK,
                 name: "my-pod",
                 namespace: "default",
-                contextId: contextId
+                clusterId: contextId
             )
             XCTFail("Expected error from resolver to be rethrown")
         } catch is FakeResolverError {
@@ -99,11 +99,11 @@ final class ResourceListAdapterUnknownGVKTests: XCTestCase {
         version: "v1alpha1",
         kind: "Widget"
     )
-    private let contextId = UUID()
+    private let contextId = ClusterId("test-cluster")
 
     func test_list_withUnknownGVK_throwsUnknownGVK() async {
         do {
-            _ = try await adapter.list(gvk: unknownGVK, namespace: nil, contextId: contextId)
+            _ = try await adapter.list(gvk: unknownGVK, namespace: nil, clusterId: contextId)
             XCTFail("Expected ResourceListError.unknownGVK to be thrown")
         } catch ResourceListError.unknownGVK(let gvk) {
             XCTAssertEqual(gvk, unknownGVK)
@@ -125,7 +125,7 @@ final class ResourceListAdapterUnknownGVKTests: XCTestCase {
                 gvk: unknownGVK,
                 name: "widget-1",
                 namespace: "default",
-                contextId: contextId
+                clusterId: contextId
             )
             XCTFail("Expected ResourceListError.unknownGVK to be thrown")
         } catch ResourceListError.unknownGVK(let gvk) {
@@ -146,7 +146,7 @@ final class ResourceListAdapterUnknownGVKTests: XCTestCase {
 final class ResourceListAdapterKnownGVKErrorShapeTests: XCTestCase {
 
     private let adapter = SwiftkubeResourceListAdapter(resolver: { _ in makeParams() })
-    private let contextId = UUID()
+    private let contextId = ClusterId("test-cluster")
 
     private let knownGVKs: [GroupVersionKind] = [
         .core("Pod"),
@@ -161,7 +161,7 @@ final class ResourceListAdapterKnownGVKErrorShapeTests: XCTestCase {
     func test_list_knownGVKs_throwResourceListErrorOnNoNetwork() async {
         for gvk in knownGVKs {
             do {
-                _ = try await adapter.list(gvk: gvk, namespace: "default", contextId: contextId)
+                _ = try await adapter.list(gvk: gvk, namespace: "default", clusterId: contextId)
                 // On a machine with no k8s at 127.0.0.1:6443, we expect an error.
                 // If somehow a cluster is running we allow success too.
             } catch let err as ResourceListError {

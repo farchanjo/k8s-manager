@@ -4,7 +4,9 @@
 import XCTest
 import Dependencies
 @testable import AppShell
+import ClusterConnectivity
 import ResourceBrowser
+import SharedKernel
 
 // MARK: - ResourceBrowserViewModelTests
 
@@ -28,6 +30,7 @@ final class ResourceBrowserViewModelTests: XCTestCase {
 
         await withDependencies {
             $0.kubernetesResourceList = fake
+            $0.kubeconfigLoader = FakeKubeconfigLoaderPort(currentContext: "test-ctx", cluster: "test-cluster")
         } operation: {
             let sut = ResourceBrowserViewModel()
             await sut.load(kind: "Pod", namespace: nil)
@@ -41,6 +44,7 @@ final class ResourceBrowserViewModelTests: XCTestCase {
 
         await withDependencies {
             $0.kubernetesResourceList = fake
+            $0.kubeconfigLoader = FakeKubeconfigLoaderPort(currentContext: "test-ctx", cluster: "test-cluster")
         } operation: {
             let sut = ResourceBrowserViewModel()
             await sut.load(kind: "Pod", namespace: "kube-system")
@@ -103,7 +107,7 @@ private final class FakeResourceListPort: KubernetesResourceListPort, @unchecked
     func list(
         gvk: GroupVersionKind,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> [ResourceListItem] {
         lastNamespace = namespace
         if let error = stubbedError { throw error }
@@ -114,9 +118,31 @@ private final class FakeResourceListPort: KubernetesResourceListPort, @unchecked
         gvk: GroupVersionKind,
         name: String,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> ResourceDetail {
         throw ResourceListError.unimplemented
+    }
+}
+
+/// Minimal fake kubeconfig loader that returns a single context entry.
+private struct FakeKubeconfigLoaderPort: KubeconfigLoaderPort {
+    let currentContext: String
+    let cluster: String
+
+    func load(from path: KubeconfigPath) async throws -> Kubeconfig {
+        Kubeconfig(
+            sourcePath: path,
+            sourceMTimeRFC3339: "2024-01-01T00:00:00Z",
+            currentContext: currentContext,
+            contexts: [KubeconfigContext(name: currentContext, cluster: cluster, user: "test-user")]
+        )
+    }
+
+    func contexts(in config: Kubeconfig) -> [KubeconfigContext] { config.contexts }
+
+    func activeContext(in config: Kubeconfig) -> KubeconfigContext? {
+        guard let current = config.currentContext else { return nil }
+        return config.contexts.first { $0.name == current }
     }
 }
 

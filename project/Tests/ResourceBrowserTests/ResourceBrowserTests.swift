@@ -4,6 +4,7 @@
 
 import XCTest
 @testable import ResourceBrowser
+import SharedKernel
 
 // MARK: - GroupVersionKind Tests
 
@@ -397,7 +398,7 @@ final class PortSentinelTests: XCTestCase {
             _ = try await port.list(
                 gvk: .core("Pod"),
                 namespace: "default",
-                contextId: UUID()
+                clusterId: ClusterId("test-cluster")
             )
             XCTFail("Expected unimplemented error")
         } catch ResourceListError.unimplemented {

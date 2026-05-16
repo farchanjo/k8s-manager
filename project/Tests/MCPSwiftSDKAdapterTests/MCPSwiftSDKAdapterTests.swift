@@ -17,7 +17,7 @@ private struct FakeKubernetesResourceListPort: KubernetesResourceListPort {
     func list(
         gvk: GroupVersionKind,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> [ResourceListItem] {
         [
             ResourceListItem(
@@ -37,7 +37,7 @@ private struct FakeKubernetesResourceListPort: KubernetesResourceListPort {
         gvk: GroupVersionKind,
         name: String,
         namespace: String?,
-        contextId: UUID
+        clusterId: ClusterId
     ) async throws -> ResourceDetail {
         let item = ResourceListItem(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,

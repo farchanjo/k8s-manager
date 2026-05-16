@@ -33,8 +33,11 @@ final class KeychainAccessAdapterTests: XCTestCase {
 
     override func tearDown() async throws {
         // Best-effort cleanup — errors intentionally suppressed.
-        for entry in testEntries() {
-            try? await adapter.deleteSecret(for: entry)
+        // Guard against nil when setUp was skipped.
+        if adapter != nil {
+            for entry in testEntries() {
+                try? await adapter.deleteSecret(for: entry)
+            }
         }
         try await super.tearDown()
     }
@@ -172,7 +175,9 @@ final class AuditChainKeyManagerTests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        try? await adapter.deleteSecret(for: auditEntry)
+        if let adapter, let auditEntry {
+            try? await adapter.deleteSecret(for: auditEntry)
+        }
         try await super.tearDown()
     }
 

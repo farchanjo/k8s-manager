@@ -3,6 +3,7 @@
 //          ADR-0013 (kind catalogue)
 
 import Foundation
+import Observation
 import Dependencies
 import Logging
 import ClusterConnectivity
