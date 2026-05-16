@@ -49,8 +49,18 @@ extension ClusterParams {
         case .system:
             return nil
         case .embedded(let pemData):
-            let bytes = Array(pemData.utf8)
-            let certs = try NIOSSLCertificate.fromPEMBytes(bytes)
+            // Kubeconfig stores `certificate-authority-data` as base64-encoded
+            // PEM. If the value already starts with `-----BEGIN`, treat it as
+            // raw PEM; otherwise decode the base64 wrapper first.
+            let pemBytes: [UInt8]
+            if pemData.hasPrefix("-----BEGIN") {
+                pemBytes = Array(pemData.utf8)
+            } else if let decoded = Data(base64Encoded: pemData, options: .ignoreUnknownCharacters) {
+                pemBytes = Array(decoded)
+            } else {
+                pemBytes = Array(pemData.utf8)
+            }
+            let certs = try NIOSSLCertificate.fromPEMBytes(pemBytes)
             return .certificates(certs)
         case .referenced(let path):
             let certs = try NIOSSLCertificate.fromPEMFile(path)
