@@ -1,6 +1,7 @@
 // ViewModels/HelmReleasesViewModel.swift — app_shell bounded context
 // DDD role: ViewModel — Helm Releases list + rollback orchestration
-// ADR ref: ADR-0015 (Helm native phased), ADR-0046 (rollback lease mutex)
+// ADR ref: ADR-0015 (Helm native phased), ADR-0046 (rollback lease mutex),
+//          ADR-0041 (ErrorMapper integration)
 
 import Foundation
 import Dependencies
@@ -97,9 +98,18 @@ public final class HelmReleasesViewModel {
     @ObservationIgnored
     @Dependency(\.openTabs) private var openTabs
 
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
     // MARK: Init
 
-    public init() {}
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port used to surface mapped failure-mode toasts (ADR-0041).
+    ///   Defaults to `NoOpToastEmitter` in preview and test contexts.
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     // MARK: - Filtered rows
 
@@ -132,6 +142,7 @@ public final class HelmReleasesViewModel {
         } catch {
             log.error("start FAILED \(error)")
             releases = .failure(error)
+            await emitMappedToast(for: error)
         }
     }
 
@@ -172,6 +183,7 @@ public final class HelmReleasesViewModel {
         } catch {
             log.error("rollback FAILED release=\(release.name) — \(error)")
             rollbackError = error
+            await emitMappedToast(for: error)
         }
         rollbackInProgress = false
     }
@@ -242,6 +254,18 @@ public final class HelmReleasesViewModel {
             status: release.status,
             updatedRFC3339: release.modifiedAtRFC3339,
             release: release
+        )
+    }
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
         )
     }
 }

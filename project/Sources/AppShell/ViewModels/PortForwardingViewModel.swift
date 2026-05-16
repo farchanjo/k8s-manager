@@ -1,5 +1,6 @@
 // ViewModels/PortForwardingViewModel.swift — app_shell bounded context
-// ADR ref: ADR-0034 (state-driven realtime UI), ADR-0014 (port-forward lifecycle)
+// ADR ref: ADR-0034 (state-driven realtime UI), ADR-0014 (port-forward lifecycle),
+//          ADR-0041 (ErrorMapper integration)
 
 import Foundation
 import Dependencies
@@ -42,9 +43,18 @@ public final class PortForwardingViewModel {
     @ObservationIgnored
     @Dependency(\.portForwardLifecycle) private var lifecycle
 
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
     // MARK: Init
 
-    public init() {}
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port used to surface mapped failure-mode toasts (ADR-0041).
+    ///   Defaults to `NoOpToastEmitter` in preview and test contexts.
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     // MARK: Intents
 
@@ -91,6 +101,7 @@ public final class PortForwardingViewModel {
         } catch {
             log.error("startNew FAILED — \(error)")
             sessions = .failure(error)
+            await emitMappedToast(for: error)
         }
     }
 
@@ -105,6 +116,18 @@ public final class PortForwardingViewModel {
             target: target,
             portMappings: [mapping],
             createdAtRFC3339: ISO8601DateFormatter().string(from: Date())
+        )
+    }
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
         )
     }
 }

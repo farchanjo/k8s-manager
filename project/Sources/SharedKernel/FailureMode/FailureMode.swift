@@ -207,6 +207,86 @@ public enum FailureCatalogue {
                 recovery: .restart,
                 severity: .error
             ),
+
+            // F13 — LLM provider rate limit (ADR-0041 §F13)
+            FailureMode(
+                code: "F13",
+                title: "LLM Provider Rate Limit",
+                userMessage: "The LLM provider is throttling requests (HTTP 429). "
+                    + "The assistant will retry automatically after the indicated delay.",
+                recovery: .retry,
+                severity: .warning
+            ),
+
+            // F14 — LLM provider authentication failure (ADR-0041 §F14)
+            FailureMode(
+                code: "F14",
+                title: "LLM Provider Authentication Failed",
+                userMessage: "The LLM provider rejected the API key (HTTP 401). "
+                    + "Update your key in Settings before retrying.",
+                recovery: .reauth,
+                severity: .error
+            ),
+
+            // F15 — port-forward target gone (ADR-0041 §F15)
+            FailureMode(
+                code: "F15",
+                title: "Port Forward Target Gone",
+                userMessage: "The tunnel target Pod was restarted or deleted. "
+                    + "Restart the tunnel after the Pod is ready.",
+                recovery: .reload,
+                severity: .warning
+            ),
+
+            // F16 — Helm release corrupted (ADR-0041 §F16)
+            FailureMode(
+                code: "F16",
+                title: "Helm Release Corrupted",
+                userMessage: "A Helm release Secret could not be decoded. "
+                    + "Investigate the release directly using the Helm CLI.",
+                recovery: .manual,
+                severity: .error
+            ),
+
+            // F17 — audit log tamper detected (ADR-0041 §F17)
+            FailureMode(
+                code: "F17",
+                title: "Audit Log Integrity Compromised",
+                userMessage: "The audit log hash chain is broken. "
+                    + "Export the log immediately and contact support. All write operations are suspended.",
+                recovery: .manual,
+                severity: .critical
+            ),
+
+            // F18 — disk full (ADR-0041 §F18)
+            FailureMode(
+                code: "F18",
+                title: "Disk Full",
+                userMessage: "The filesystem containing the K8sManager storage directory is full. "
+                    + "Free disk space to resume persistence operations.",
+                recovery: .manual,
+                severity: .critical
+            ),
+
+            // F19 — domain event notification dropped (ADR-0041 §F19)
+            FailureMode(
+                code: "F19",
+                title: "Event Notification Dropped",
+                userMessage: "An event subscriber buffer overflowed and events were dropped. "
+                    + "The affected view will reconcile from local persistence automatically.",
+                recovery: .reload,
+                severity: .warning
+            ),
+
+            // F20 — non-local storage volume (ADR-0042 §Network-volume rejection)
+            FailureMode(
+                code: "F20",
+                title: "Non-Local Storage Volume",
+                userMessage: "K8sManager cannot use a network volume for its configuration storage. "
+                    + "Move the storage directory to a local volume and relaunch.",
+                recovery: .manual,
+                severity: .critical
+            ),
         ]
         return Dictionary(uniqueKeysWithValues: entries.map { ($0.code, $0) })
     }()

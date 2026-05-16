@@ -1,5 +1,6 @@
 // ViewModels/ClusterListViewModel.swift — app_shell bounded context
-// ADR ref: ADR-0034 (state-driven realtime UI), ADR-0031 (per-resource loading states)
+// ADR ref: ADR-0034 (state-driven realtime UI), ADR-0031 (per-resource loading states),
+//          ADR-0041 (ErrorMapper integration)
 
 import Foundation
 import Dependencies
@@ -36,9 +37,18 @@ public final class ClusterListViewModel {
     @ObservationIgnored
     @Dependency(\.kubernetesApi) private var kubernetesApi
 
+    @ObservationIgnored
+    private let toastEmitter: any ToastEmitterPort
+
     // MARK: Init
 
-    public init() {}
+    /// Creates a view model.
+    ///
+    /// - Parameter toastEmitter: Port used to surface mapped failure-mode toasts (ADR-0041).
+    ///   Defaults to `NoOpToastEmitter` in preview and test contexts.
+    public init(toastEmitter: any ToastEmitterPort = NoOpToastEmitter()) {
+        self.toastEmitter = toastEmitter
+    }
 
     // MARK: Intents
 
@@ -58,6 +68,7 @@ public final class ClusterListViewModel {
         } catch {
             log.error("loadKubeconfig FAILED — \(error)")
             contexts = .failure(error)
+            await emitMappedToast(for: error)
         }
     }
 
@@ -75,6 +86,36 @@ public final class ClusterListViewModel {
         } catch {
             log.error("probeHealth THROWN — \(error)")
             healthByContext[context.name] = .failure(error)
+            await emitMappedToast(for: error)
+        }
+    }
+
+    // MARK: Private
+
+    private func emitMappedToast(for error: any Error) async {
+        let mode = ErrorMapper.entry(for: error)
+        await toastEmitter.emit(
+            title: mode.title,
+            message: mode.userMessage,
+            severity: mode.severity.toastSeverity,
+            iconSymbolName: nil,
+            pinned: mode.severity == .critical,
+            action: nil
+        )
+    }
+}
+
+// MARK: - Severity → ToastDomainSeverity bridge
+
+extension Severity {
+    /// Maps a ``Severity`` catalogue value to the `ToastDomainSeverity` expected
+    /// by ``ToastEmitterPort``.
+    var toastSeverity: ToastDomainSeverity {
+        switch self {
+        case .info: return .info
+        case .warning: return .warning
+        case .error: return .error
+        case .critical: return .error
         }
     }
 }
