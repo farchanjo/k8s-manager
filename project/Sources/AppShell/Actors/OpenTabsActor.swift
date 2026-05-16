@@ -85,7 +85,15 @@ public actor OpenTabsActor: OpenTabsPort {
     /// Per ADR-0050 deduplication rule: `TabId` identity is derived from the
     /// tab's structural properties (cluster + kind + namespace + name), so calling
     /// `openTab(.overview(clusterId: x))` twice only focuses the existing tab.
+    ///
+    /// Workspace-scoped tabs (e.g. `.welcome`) are silently rejected — they are
+    /// owned exclusively by ``WorkspaceTabsActor`` per ADR-0054. Routing them
+    /// through this actor would render Welcome as an ordinary closeable cluster
+    /// tab, breaking the persistent-tab invariant.
     public func openTab(_ tab: DocumentTab) async {
+        guard !tab.isWorkspaceScoped else {
+            return
+        }
         if let existing = tabs.first(where: { $0.id == tab.id }) {
             await focusTab(existing.id)
             return
