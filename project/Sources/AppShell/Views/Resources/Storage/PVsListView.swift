@@ -109,6 +109,19 @@ public struct PVsListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 PVRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "PersistentVolume", name: item.name, family: .storage
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

@@ -112,6 +112,19 @@ public struct CertificateSigningRequestsListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 CSRRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "CertificateSigningRequest", name: item.name, family: .accessControl
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

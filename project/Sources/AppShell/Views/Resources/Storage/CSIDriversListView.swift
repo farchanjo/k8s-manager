@@ -112,6 +112,20 @@ public struct CSIDriversListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 CSIDriverRow(item: item)
+                    .contextMenu {
+                        // CSIDriver is excluded from FAB but context menu is still valid.
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "CSIDriver", name: item.name, family: .storage
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

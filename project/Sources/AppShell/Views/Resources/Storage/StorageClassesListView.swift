@@ -112,6 +112,19 @@ public struct StorageClassesListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 StorageClassRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "StorageClass", name: item.name, family: .storage
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

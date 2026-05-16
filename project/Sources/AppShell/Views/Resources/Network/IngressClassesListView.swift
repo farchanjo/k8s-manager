@@ -117,6 +117,19 @@ public struct IngressClassesListView: View {
                     secondary: item.annotations["ingressclass.kubernetes.io/is-default-class"] == "true"
                         ? "default" : nil
                 )
+                .contextMenu {
+                    let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                        kind: "IngressClass", name: item.name, family: .network
+                    ))
+                    ForEach(actions) { action in
+                        if action.id == "delete" {
+                            Divider()
+                            Button("Delete\u{2026}", role: .destructive) {}
+                        } else {
+                            Button(action.label) {}
+                        }
+                    }
+                }
             }
             .listStyle(.inset)
         }

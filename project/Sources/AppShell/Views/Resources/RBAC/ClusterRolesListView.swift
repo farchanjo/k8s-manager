@@ -112,6 +112,19 @@ public struct ClusterRolesListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 ClusterRoleRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "ClusterRole", name: item.name, family: .accessControl
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

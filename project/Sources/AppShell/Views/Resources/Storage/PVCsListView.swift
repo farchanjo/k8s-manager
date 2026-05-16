@@ -117,6 +117,20 @@ public struct PVCsListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 SimpleResourceRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "PersistentVolumeClaim", name: item.name,
+                            namespace: item.namespace, family: .storage
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

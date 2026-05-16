@@ -109,6 +109,19 @@ public struct NamespacesListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 NamespaceRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "Namespace", name: item.name, family: .cluster
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

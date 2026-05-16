@@ -115,6 +115,19 @@ public struct VolumeSnapshotClassesListView: View {
                     item: item,
                     secondary: item.annotations["driver"] ?? item.annotations["deletionPolicy"]
                 )
+                .contextMenu {
+                    let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                        kind: "VolumeSnapshotClass", name: item.name, family: .storage
+                    ))
+                    ForEach(actions) { action in
+                        if action.id == "delete" {
+                            Divider()
+                            Button("Delete\u{2026}", role: .destructive) {}
+                        } else {
+                            Button(action.label) {}
+                        }
+                    }
+                }
             }
             .listStyle(.inset)
         }

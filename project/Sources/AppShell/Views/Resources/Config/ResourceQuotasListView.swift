@@ -57,10 +57,17 @@ public struct ResourceQuotasListView: View {
         }
         .contextMenu(forSelectionType: UUID.self) { ids in
             if let row = viewModel.rows.first(where: { ids.contains($0.id) }) {
-                Button("Edit YAML") {}
-                Button("Describe") {}
-                Divider()
-                Button("Delete…", role: .destructive) { viewModel.requestDelete(row) }
+                let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                    kind: "ResourceQuota", name: row.name, namespace: row.namespace, family: .config
+                ))
+                ForEach(actions) { action in
+                    if action.id == "delete" {
+                        Divider()
+                        Button("Delete\u{2026}", role: .destructive) { viewModel.requestDelete(row) }
+                    } else {
+                        Button(action.label) {}
+                    }
+                }
             }
         }
     }

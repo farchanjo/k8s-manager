@@ -122,6 +122,20 @@ public struct RolesListView: View {
         default:
             List(viewModel.filteredRows, id: \.uid) { item in
                 SimpleResourceRow(item: item)
+                    .contextMenu {
+                        let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                            kind: "Role", name: item.name,
+                            namespace: item.namespace, family: .accessControl
+                        ))
+                        ForEach(actions) { action in
+                            if action.id == "delete" {
+                                Divider()
+                                Button("Delete\u{2026}", role: .destructive) {}
+                            } else {
+                                Button(action.label) {}
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }

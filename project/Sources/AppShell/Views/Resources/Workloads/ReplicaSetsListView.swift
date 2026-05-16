@@ -85,10 +85,17 @@ public struct ReplicaSetsListView: View {
             TableColumn("Age", value: \.age)
         }
         .contextMenu(forSelectionType: String.self) { ids in
-            Button("Edit YAML") {}
-            Button("Describe") {}
-            Divider()
-            Button("Delete", role: .destructive) { viewModel.confirmDelete(ids: ids) }
+            let actions = RowActionMenuBuilder.actions(for: RowActionContext(
+                kind: "ReplicaSet", name: ids.first ?? "", family: .workloads
+            ))
+            ForEach(actions) { action in
+                if action.id == "delete" {
+                    Divider()
+                    Button("Delete\u{2026}", role: .destructive) { viewModel.confirmDelete(ids: ids) }
+                } else {
+                    Button(action.label) {}
+                }
+            }
         }
     }
 
