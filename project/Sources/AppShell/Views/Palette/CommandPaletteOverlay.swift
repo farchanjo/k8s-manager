@@ -4,6 +4,9 @@
 //          ADR-0034 (state-driven realtime UI — @Observable, no Combine)
 
 import SwiftUI
+import Dependencies
+import ContextNavigation
+import SharedKernel
 
 // MARK: - Command (view-layer model)
 
@@ -38,7 +41,9 @@ public struct Command: Sendable, Identifiable {
 
 /// `@Observable` view model for the command palette overlay.
 ///
-/// Fuzzy match is a composite of:
+/// Commands are discovered dynamically from `ContextRepositoryPort` (one "Switch
+/// context to <name>" entry per persisted recent context) plus a static set of
+/// built-in actions. Fuzzy match is a composite of:
 /// - Substring containment (case-insensitive).
 /// - Levenshtein distance ≤ 3 on title tokens (per ADR-0023 FuzzyMatchConfig.maxEditDistance).
 /// Short queries (≤ 3 chars) run synchronously on `@MainActor`; longer queries run
@@ -60,31 +65,97 @@ public final class CommandPaletteViewModel {
     /// Zero-based cursor into `results`.
     public private(set) var selectedIndex: Int = 0
 
+    // MARK: Dependencies
+
+    @ObservationIgnored
+    @Dependency(\.contextRepository) private var contextRepository
+
     // MARK: Private
 
     private var catalog: [Command]
     private var filterTask: Task<Void, Never>?
     private let maxEditDistance = 3
 
-    public init(catalog: [Command] = CommandPaletteViewModel.defaultCatalog()) {
+    /// Initialiser used by tests to inject a pre-built catalog (bypasses `loadCommands()`).
+    public init(catalog: [Command]) {
         self.catalog = catalog
     }
 
-    // MARK: Catalog
+    /// Default initialiser — catalog is populated lazily by `loadCommands()`.
+    public init() {
+        self.catalog = []
+    }
 
-    /// Built-in static command entries. Supplemented at runtime by bounded-context registrations.
-    public static func defaultCatalog() -> [Command] {
+    // MARK: Catalog loading
+
+    /// Loads the command catalog from the dependency graph.
+    ///
+    /// Called once from the `.task` modifier attached to `CommandPaletteOverlay`.
+    /// Merges dynamic context-switch entries with the static built-in set.
+    public func loadCommands() async {
+        let dynamic = await buildContextSwitchCommands()
+        catalog = dynamic + Self.staticCommands()
+        if isVisible { results = catalog }
+    }
+
+    private func buildContextSwitchCommands() async -> [Command] {
+        do {
+            let recents = try await contextRepository.loadRecentWindow()
+            return recents.entries.map { entry in
+                Command(
+                    id: "switch-\(entry.contextId.rawValue)",
+                    title: "Switch context to \(entry.displayName)",
+                    subtitle: "Context",
+                    systemImage: "arrow.triangle.branch"
+                ) {
+                    NotificationCenter.default.post(
+                        name: .k8sManagerSwitchContext,
+                        object: nil,
+                        userInfo: ["contextId": entry.contextId.rawValue,
+                                   "displayName": entry.displayName]
+                    )
+                }
+            }
+        } catch {
+            return []
+        }
+    }
+
+    /// Built-in static command entries, independent of cluster state.
+    public static func staticCommands() -> [Command] {
         [
-            Command(id: "open-settings",    title: "Open Settings",       subtitle: "Preferences",         systemImage: "gear")          { },
-            Command(id: "switch-context",   title: "Switch Context…",     subtitle: "Change active cluster", systemImage: "arrow.triangle.branch") { },
-            Command(id: "refresh",          title: "Refresh Current View", subtitle: nil,                  systemImage: "arrow.clockwise") { },
-            Command(id: "focus-search",     title: "Focus Search",         subtitle: "Resources",          systemImage: "magnifyingglass") { },
-            Command(id: "new-terminal",     title: "New Terminal Tab",     subtitle: nil,                   systemImage: "terminal")       { },
-            Command(id: "view-clusters",    title: "View Clusters",        subtitle: nil,                   systemImage: "cube.transparent") { },
-            Command(id: "view-resources",   title: "View Resources",       subtitle: nil,                   systemImage: "list.bullet.rectangle") { },
-            Command(id: "view-helm",        title: "View Helm Releases",   subtitle: nil,                   systemImage: "shippingbox")   { },
-            Command(id: "view-metrics",     title: "View Metrics",         subtitle: nil,                   systemImage: "chart.line.uptrend.xyaxis") { },
-            Command(id: "view-port-fwd",    title: "View Port Forwards",   subtitle: nil,                   systemImage: "arrow.left.arrow.right.circle") { },
+            Command(
+                id: "refresh",
+                title: "Refresh Resources",
+                subtitle: nil,
+                systemImage: "arrow.clockwise"
+            ) {
+                NotificationCenter.default.post(name: .k8sManagerRefresh, object: nil)
+            },
+            Command(
+                id: "toggle-palette",
+                title: "Toggle Palette",
+                subtitle: "Cmd+K",
+                systemImage: "magnifyingglass"
+            ) {
+                NotificationCenter.default.post(name: .k8sManagerOpenPalette, object: nil)
+            },
+            Command(
+                id: "open-preferences",
+                title: "Open Preferences",
+                subtitle: nil,
+                systemImage: "gear"
+            ) {
+                // Settings scene managed by SwiftUI — no-op stub.
+            },
+            Command(
+                id: "quit",
+                title: "Quit K8sManager",
+                subtitle: nil,
+                systemImage: "power"
+            ) {
+                NSApp.terminate(nil)
+            },
         ]
     }
 
@@ -297,6 +368,7 @@ public struct CommandPaletteOverlay: View {
                     .animation(.spring(response: 0.18, dampingFraction: 0.82), value: viewModel.isVisible)
             }
         }
+        .task { await viewModel.loadCommands() }
         .accessibilityLabel("Command Palette")
     }
 
@@ -415,3 +487,7 @@ public struct CommandPaletteOverlay: View {
             .padding(.vertical, 24)
     }
 }
+
+// MARK: - AppKit import for NSApp usage
+
+import AppKit

@@ -8,7 +8,12 @@
 // domain agent lands the TrayRefreshScheduler aggregate. The MenuBarExtra scene
 // provides the composition root until that bridge is wired.
 
+import AppKit
 import SwiftUI
+import Dependencies
+import ClusterConnectivity
+import MetricsObservability
+import SharedKernel
 
 // MARK: - Placeholder read-models (replaced when domain-layer agent lands aggregates)
 
@@ -61,6 +66,17 @@ public enum TrayHealth: String, Sendable {
         case .unknown:     return "questionmark.circle.fill"
         }
     }
+
+    /// Maps `HealthState` (ClusterConnectivity domain) to `TrayHealth` (AppShell UI).
+    public init(from state: HealthState) {
+        switch state {
+        case .reachable:                    self = .healthy
+        case .degraded:                     self = .degraded
+        case .unreachable, .unauthorized,
+             .forbidden:                    self = .unreachable
+        case .unknown:                      self = .unknown
+        }
+    }
 }
 
 /// Snapshot of a single live metric tile shown in the tray popover.
@@ -88,35 +104,52 @@ public struct TrayMetricTile: Sendable, Identifiable {
 /// View model for the tray popover — `@Observable` per ADR-0034.
 ///
 /// Drives the `MenuBarPopoverView` from `@MainActor`-isolated properties.
-/// All Prometheus and Kubernetes read-model work happens in detached Tasks;
-/// results are posted back via `MainActor.run`.
+/// Cluster identity, health, and Prometheus metrics are fetched on each
+/// 30-second refresh cycle. All async work runs in a structured `Task`
+/// loop; the loop is cancelled when `stop()` is called.
 @Observable
 @MainActor
 public final class MenuBarTrayViewModel {
 
-    // MARK: Public state (read by views via granular observation tracking)
+    // MARK: Public state
 
     /// Current cluster summary powering the header badge.
     public private(set) var cluster: TrayClusterSummary = .placeholder
-    /// Live metric tiles; empty until first successful refresh.
+    /// Live metric tiles — 3 entries after first successful refresh.
+    /// Empty only before the first cycle completes.
     public private(set) var metricTiles: [TrayMetricTile] = []
     /// True while a refresh is in flight.
     public private(set) var isRefreshing = false
     /// Formatted "last checked X" string; nil before first refresh.
     public private(set) var lastCheckedLabel: String?
 
+    // MARK: Dependencies
+
+    @ObservationIgnored
+    @Dependency(\.kubeconfigLoader) private var kubeconfigLoader
+
+    @ObservationIgnored
+    @Dependency(\.kubernetesApi) private var kubernetesApi
+
+    @ObservationIgnored
+    @Dependency(\.prometheusQuery) private var prometheusQuery
+
+    @ObservationIgnored
+    @Dependency(\.prometheusEndpointRepository) private var endpointRepository
+
     // MARK: Private
 
     private var refreshTask: Task<Void, Never>?
 
+    /// Public initialiser — all ports injected via `@Dependency`.
     public init() {}
 
     // MARK: Lifecycle
 
-    /// Called when the popover becomes visible (`popoverWillShow` equivalent).
+    /// Starts the refresh loop. No-op when already running.
     ///
-    /// Starts the refresh loop. Each iteration fires every `refreshIntervalSeconds`
-    /// (default 30 s per ADR-0022). Cancellation propagates when `stop()` is called.
+    /// Called from `popoverWillShow` / `.task` (ADR-0022).
+    /// Each iteration runs every `intervalSeconds` (default 30 s).
     public func start(intervalSeconds: TimeInterval = 30) {
         guard refreshTask == nil else { return }
         refreshTask = Task { [weak self] in
@@ -127,9 +160,7 @@ public final class MenuBarTrayViewModel {
         }
     }
 
-    /// Called when the popover closes (`popoverDidClose` equivalent).
-    ///
-    /// Cancels the root Task; all child tasks are cancelled via structured concurrency.
+    /// Cancels the refresh loop. Called from `popoverDidClose` / `.onDisappear`.
     public func stop() {
         refreshTask?.cancel()
         refreshTask = nil
@@ -137,42 +168,111 @@ public final class MenuBarTrayViewModel {
 
     // MARK: Refresh
 
-    /// Executes a single data refresh from read-model stubs.
+    /// Executes one full refresh: active context + health probe + 3 metric tiles.
     ///
-    /// Replace the stub bodies below with real port calls once the domain layer lands:
-    /// - `ActiveContextReadModel` from `context_navigation`
-    /// - `PromQueryAdapter` port from `metrics_observability`
+    /// Prometheus tiles are fetched when a configured endpoint is available;
+    /// otherwise the tiles display placeholder dashes.
     public func refresh() async {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        // Stub: replaced by real domain port calls.
-        // In production this calls PromQueryAdapter.queryInstant() off-actor
-        // and posts the result back with MainActor.run.
-        await Task.yield()
+        await refreshCluster()
+        await refreshMetrics()
+        updateLastCheckedLabel()
+    }
 
-        cluster = TrayClusterSummary(
-            contextName: cluster.contextName == "—" ? "default" : cluster.contextName,
-            health: cluster.health,
-            lastCheckedISO: ISO8601DateFormatter().string(from: .now)
+    // MARK: Private helpers
+
+    private func refreshCluster() async {
+        do {
+            let config = try await kubeconfigLoader.load(from: KubeconfigPath("~/.kube/config"))
+            let activeCtx = kubeconfigLoader.activeContext(in: config)
+            let contextName = activeCtx?.name ?? config.currentContext ?? "—"
+            let health: TrayHealth
+            if let ctx = activeCtx {
+                let status = try await kubernetesApi.probeHealth(clusterId: ClusterId(ctx.cluster))
+                health = TrayHealth(from: status.state)
+            } else {
+                health = .unknown
+            }
+            cluster = TrayClusterSummary(
+                contextName: contextName,
+                health: health,
+                lastCheckedISO: ISO8601DateFormatter().string(from: .now)
+            )
+        } catch {
+            cluster = TrayClusterSummary(
+                contextName: cluster.contextName,
+                health: .unreachable,
+                lastCheckedISO: ISO8601DateFormatter().string(from: .now)
+            )
+        }
+    }
+
+    private func refreshMetrics() async {
+        do {
+            let endpoints = try await endpointRepository.load()
+            guard let endpoint = endpoints.first(where: { $0.status == .healthy }) ?? endpoints.first else {
+                metricTiles = unavailableTiles()
+                return
+            }
+            metricTiles = try await fetchMetricTiles(endpoint: endpoint)
+        } catch {
+            metricTiles = unavailableTiles()
+        }
+    }
+
+    private func fetchMetricTiles(endpoint: PrometheusEndpoint) async throws -> [TrayMetricTile] {
+        async let cpuResult = prometheusQuery.instantQuery(
+            .instant(expr: "100 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100"),
+            endpoint: endpoint
         )
-
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        lastCheckedLabel = "Checked " + formatter.localizedString(for: .now, relativeTo: .now)
-
-        // Stub metric tiles — replaced by PromQL results.
-        metricTiles = [
-            TrayMetricTile(id: "cpu",    label: "CPU",     value: "—",  unit: "%",   systemImage: "cpu"),
-            TrayMetricTile(id: "mem",    label: "Memory",  value: "—",  unit: "GiB", systemImage: "memorychip"),
-            TrayMetricTile(id: "pods",   label: "Pods",    value: "—",  unit: "",    systemImage: "square.3.layers.3d"),
+        async let memResult = prometheusQuery.instantQuery(
+            .instant(expr: "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100"),
+            endpoint: endpoint
+        )
+        async let podsResult = prometheusQuery.instantQuery(
+            .instant(expr: "count(kube_pod_info)"),
+            endpoint: endpoint
+        )
+        let cpu  = Self.firstValue(from: try await cpuResult,  format: "%.1f")
+        let mem  = Self.firstValue(from: try await memResult,  format: "%.1f")
+        let pods = Self.firstValue(from: try await podsResult, format: "%.0f")
+        return [
+            TrayMetricTile(id: "cpu",  label: "CPU",    value: cpu,  unit: "%", systemImage: "cpu"),
+            TrayMetricTile(id: "mem",  label: "Memory", value: mem,  unit: "%", systemImage: "memorychip"),
+            TrayMetricTile(id: "pods", label: "Pods",   value: pods, unit: "",  systemImage: "square.3.layers.3d"),
         ]
     }
 
-    /// Switch the active context — routes to `ContextSwitcher` once the domain lands.
+    private static func firstValue(from result: PromQueryResult, format: String) -> String {
+        switch result {
+        case .instantVector(let samples) where !samples.isEmpty:
+            return String(format: format, samples[0].value)
+        case .scalar(_, let value):
+            return String(format: format, value)
+        default:
+            return "—"
+        }
+    }
+
+    private func unavailableTiles() -> [TrayMetricTile] {
+        [
+            TrayMetricTile(id: "cpu",  label: "CPU",    value: "—", unit: "", systemImage: "cpu"),
+            TrayMetricTile(id: "mem",  label: "Memory", value: "—", unit: "", systemImage: "memorychip"),
+            TrayMetricTile(id: "pods", label: "Pods",   value: "—", unit: "", systemImage: "square.3.layers.3d"),
+        ]
+    }
+
+    private func updateLastCheckedLabel() {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        lastCheckedLabel = "Checked " + formatter.localizedString(for: .now, relativeTo: .now)
+    }
+
+    /// Brings the main application window to the foreground.
     public func openMainWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first(where: { $0.isMainWindow == false && $0.isVisible == false })?.makeKeyAndOrderFront(nil)
         for window in NSApp.windows where window.title != "" {
             window.makeKeyAndOrderFront(nil)
         }
@@ -205,7 +305,7 @@ public struct K8sManagerMenuBarScene: Scene {
 ///
 /// Sections (per ADR-0022 § Popover Content Layout):
 /// 1. Header — active context name + cluster health badge + last-checked label.
-/// 2. Live metrics — up to 5 metric tiles (CPU, memory, pods…).
+/// 2. Live metrics — 3 metric tiles (CPU, memory, pods).
 /// 3. Quick actions — Open Main Window, Switch Context, Quit.
 @MainActor
 public struct MenuBarPopoverView: View {
@@ -327,7 +427,7 @@ public struct MenuBarPopoverView: View {
                 viewModel.openMainWindow()
             }
             quickActionButton(title: "Switch Context…", systemImage: "arrow.triangle.branch") {
-                // Routes to palette pre-filtered on "switch context" once ADR-0023 wiring lands.
+                NotificationCenter.default.post(name: .palettePrefilter, object: nil, userInfo: ["query": "switch context"])
                 viewModel.openMainWindow()
             }
             Divider().padding(.horizontal, 16)
@@ -355,7 +455,3 @@ public struct MenuBarPopoverView: View {
         .accessibilityLabel(title)
     }
 }
-
-// MARK: - AppKit import for NSApp usage
-
-import AppKit
