@@ -59,3 +59,24 @@ public extension DependencyValues {
         set { self[ToolDispatcherPortKey.self] = newValue }
     }
 }
+
+// MARK: - ToolCallRateLimiterKey
+
+/// `DependencyKey` for `ToolCallRateLimiter`.
+///
+/// Both `liveValue` and `testValue` are a permissive shared instance that
+/// always admits calls, so unit tests that do not exercise rate-limiting
+/// behaviour compile and run without additional setup.
+public enum ToolCallRateLimiterKey: DependencyKey {
+    public static let liveValue: ToolCallRateLimiter = ToolCallRateLimiter()
+    public static let testValue: ToolCallRateLimiter = ToolCallRateLimiter()
+}
+
+public extension DependencyValues {
+    /// Per-session sliding-window rate limiter for assistant tool calls
+    /// (ADR-0043).
+    var toolCallRateLimiter: ToolCallRateLimiter {
+        get { self[ToolCallRateLimiterKey.self] }
+        set { self[ToolCallRateLimiterKey.self] = newValue }
+    }
+}

@@ -76,8 +76,18 @@ public actor AssistantSessionActor {
     @Dependency(\.promptInjectionFilter) private var promptInjectionFilter
     @Dependency(\.toolDispatcher) private var toolDispatcher
     @Dependency(\.llmStreaming) private var llmStreaming
+    @Dependency(\.toolCallRateLimiter) private var toolCallRateLimiter
 
     private let logger: Logger
+
+    // MARK: - Rate-limit denial message
+
+    /// Produces the `mcp.tool_rate_limited` error envelope emitted to the model
+    /// when the per-session quota is exhausted (ADR-0043).
+    private static func rateLimitDenialEvent(retryAfterSeconds: Int) -> AssistantStreamEvent {
+        let json = #"{"code":"rate_limited","retryAfterSeconds":\#(retryAfterSeconds)}"#
+        return .delta(DeltaEvent(text: "[mcp.tool_rate_limited] \(json)"))
+    }
 
     // MARK: - Init
 
@@ -148,6 +158,7 @@ public actor AssistantSessionActor {
             let capturedStreaming = llmStreaming
             let capturedRepo = chatRepository
             let capturedLogger = logger
+            let capturedRateLimiter = toolCallRateLimiter
 
             Task {
                 let turnMessageId = UUID()
@@ -160,6 +171,24 @@ public actor AssistantSessionActor {
                 do {
                     for try await event in upstream {
                         if case .toolUseFinish(let finish) = event {
+                            let decision = await capturedRateLimiter.attempt(
+                                sessionId: capturedSession.id
+                            )
+                            if case .denied(let retryAfter) = decision {
+                                capturedLogger.warning(
+                                    "Tool call rate limited",
+                                    metadata: [
+                                        "callId": "\(finish.callId)",
+                                        "retryAfterSeconds": "\(retryAfter)",
+                                    ]
+                                )
+                                continuation.yield(
+                                    AssistantSessionActor.rateLimitDenialEvent(
+                                        retryAfterSeconds: retryAfter
+                                    )
+                                )
+                                continue
+                            }
                             let toolReq = ToolRequest(
                                 callId: finish.callId,
                                 toolName: finish.callId,
