@@ -1,13 +1,8 @@
-// AssistantChat.swift — domain core placeholder
+// AssistantChat.swift — assistant_chat domain core
 // Bounded context: assistant_chat (per ADR-0005)
-// Status: skeleton; domain types pending CUE schema extraction.
-import Foundation
-
-/// Namespace marker for the AssistantChat bounded context.
-///
-/// Domain types, ports, and actors land under this enum in subsequent rounds.
-/// This file exists so the target compiles cleanly under Swift 6 strict concurrency.
-public enum AssistantChat: Sendable {
-    /// Build identifier — bumped manually until CI emits this.
-    public static let moduleVersion = "0.0.1-skeleton"
-}
+//
+// Domain types live in `Domain/`, hexagonal port protocols in `Ports/`.
+// This file intentionally exports no namespace enum: a top-level type named
+// `AssistantChat` would shadow the module name and break adapter-side type
+// qualification such as `AssistantChat.ChatSession` when both this module and
+// another module export the same simple type name.
