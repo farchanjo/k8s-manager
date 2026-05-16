@@ -182,3 +182,18 @@ Negative:
   are defined here; `SidebarNode.toDocumentTab(clusterId:)` is the forward mapping.
 - ADR-0052 — CRD dynamic sidebar nodes; dynamic `customResourceKind` leaves follow the
   same derived-selection invariant via `SidebarNode.from`.
+
+## Amendments
+
+### Amendment 1 — Inspector "Open in Tab" is a new mutation source for openTabs (2026-05-16)
+
+ADR-0073 (Inspector trailing column) introduces an "Open in Tab" context-menu action available on
+every resource row. When the operator activates this action, it calls `openTabs.openTab(_:)` with
+a `DocumentTab.resourceDetail` value — the same path as the pre-ADR-0073 row-tap-to-tab route.
+
+The bidirectional sync invariant established by this ADR is unchanged: `selectedNode` is still
+always derived from `OpenTabsActor.activeTabId` via the `subscribeToOpenTabs()` subscription. The
+"Open in Tab" action is just another call site for `openTabs.openTab(_:)`; it does not bypass the
+actor and does not require any change to `SidebarTreeViewModel` or `SidebarNode.from(documentTab:)`.
+
+Forward reference: ADR-0073 (Inspector trailing column substitutes resource detail tabs).

@@ -276,3 +276,19 @@ Negative:
   surfaces whose state changes generate history entries.
 - Feature gap analysis `docs/arch/contexts/app_shell/feature-gap-analysis-lens-prism-ai.md`,
   item R4 — browser-style back/forward arrows: the direct trigger for this ADR.
+
+## Amendments
+
+### Amendment 1 — Nav arrows promoted to window toolbar `.navigation` placement (2026-05-16)
+
+The §UI affordance clause "Two arrow buttons are placed in the top-left area of the window toolbar
+(left of the cluster strip, mirroring R4 of the reference recording)" is superseded by ADR-0072
+(Apple-native window chrome consolidation), Change 2.
+
+The `SidebarCanvasView.headerBar` in which the arrows previously resided is removed entirely by
+ADR-0072. The back and forward `ToolbarItem` declarations (SF Symbols `chevron.backward` and
+`chevron.forward`, placement `.navigation`) are now registered at the primary window's `.toolbar {}`
+block rather than inside the canvas header. The `NavigationHistoryActor` wiring, enabled/disabled
+state logic, keyboard shortcuts `⌘[` / `⌘]`, accessibility labels, and tooltip text are unchanged.
+
+Forward reference: ADR-0072 (Change 2 — nav arrows move to window toolbar `.navigation` placement).

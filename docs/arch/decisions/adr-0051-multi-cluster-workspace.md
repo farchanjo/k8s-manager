@@ -297,3 +297,23 @@ Negative:
   system that the sidebar tree exposes.
 - ADR-0052 — Custom resource discovery; defines how CRD groups appear in the sidebar tree Custom
   Resources section.
+
+## Amendments
+
+### Amendment 1 — ClusterStripView is now operator-toggleable; detail drawer retired (2026-05-16)
+
+The clause "It is always visible; it cannot be collapsed." in §Vertical cluster strip is superseded
+by ADR-0072 (Apple-native window chrome consolidation), Change 4.
+
+`ClusterStripView` is now toggled via a window-toolbar button. Default state: visible
+(`WindowLayout.mainWindow.clusterStripVisible = true`). When hidden, the active cluster context
+remains accessible via a compact cluster avatar `ToolbarItem` in the window toolbar and the
+keyboard shortcut `⌘⇧K`. This is a presentation-layer change only; `ClusterStripActor` and the
+pin order persistence contract are unchanged.
+
+Additionally, the §Detail drawer (slide-in right panel) specification is retired by ADR-0073
+(Inspector trailing column). The detail drawer's content inventory migrates to per-kind
+`ResourceInspectorContent` conformances rendered inside the `.inspector(isPresented:)` trailing
+column. The `⌘⇧I` shortcut is reassigned to the Inspector toggle.
+
+Forward references: ADR-0072 (Change 4), ADR-0073 (Inspector trailing column).

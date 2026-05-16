@@ -268,3 +268,19 @@ The file uses the same JSON encoding conventions as `cluster-strip-pins.json` (A
 - ADR-0051 — Multi-cluster workspace; cluster strip, detail drawer chrome, `AppShell` composition.
 - Feature gap analysis — `docs/arch/contexts/app_shell/feature-gap-analysis-lens-prism-ai.md`,
   items R7, R35, R36, R37.
+
+## Amendments
+
+### Amendment 1 — Docked terminal pane renders as bottom-sheet overlay (2026-05-16)
+
+The §Bottom pane chrome clause "The docked terminal pane occupies a horizontal region at the bottom
+of the content area, below the resource list and above the status bar" is superseded by ADR-0072
+(Apple-native window chrome consolidation), Change 5.
+
+The terminal pane is now rendered as a floating `.overlay(alignment: .bottom)` sheet anchored to
+the bottom of the content area column. It does not displace the resource list above it; it floats
+over the content. Maximum pane height is capped at 50% of the content area height (reduced from the
+80% cap in §Pane chrome). The drag-resize handle, tab bar row, PTY viewport, and persistence
+contract are unchanged. The `DockedTerminalPane` actor is unaffected.
+
+Forward reference: ADR-0072 (Change 5 — docked panes become bottom-sheet overlays).

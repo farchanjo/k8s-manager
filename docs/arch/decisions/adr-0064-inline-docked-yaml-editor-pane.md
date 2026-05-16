@@ -237,3 +237,19 @@ Negative:
 - ADR-0057 — `docs/arch/decisions/adr-0057-bottom-docked-terminal-pane.md`
 - Gap analysis — `docs/arch/contexts/app_shell/feature-gap-analysis-lens-prism-ai.md` (R33, R34)
 - Gherkin — `docs/arch/contexts/app_shell/features/inline-docked-yaml-editor.feature`
+
+## Amendments
+
+### Amendment 1 — Docked YAML editor pane renders as bottom-sheet overlay (2026-05-16)
+
+The §Pane chrome clause "The docked YAML editor pane occupies a horizontal split beneath the
+resource list pane inside the content area column of the `NavigationSplitView`" is superseded by
+ADR-0072 (Apple-native window chrome consolidation), Change 5.
+
+The YAML editor pane is now rendered as a floating `.overlay(alignment: .bottom)` sheet anchored
+to the bottom of the content area column. It does not displace the resource list above it. Maximum
+pane height is 50% of the content area height. The drag-resize handle, breadcrumb, save/discard
+buttons, diff overlay, unsaved-changes guard, and coexistence rules with the terminal pane are
+unchanged. `DockedEditorPaneOrchestrator` is unaffected.
+
+Forward reference: ADR-0072 (Change 5 — docked panes become bottom-sheet overlays).

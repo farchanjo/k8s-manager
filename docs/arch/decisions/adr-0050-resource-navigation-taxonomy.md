@@ -332,3 +332,22 @@ Negative:
 - ADR-0036 — Watch stream lifecycle; tab-owned watches follow the same state machine.
 - ADR-0051 — Multi-cluster workspace; cluster strip and provider grouping in the sidebar.
 - ADR-0052 — Custom resource discovery; CRD group rendering in the Custom Resources sidebar section.
+
+## Amendments
+
+### Amendment 1 — Row-tap routing restricted; detail viewing routes to Inspector (2026-05-16)
+
+The rule "clicking a resource kind node in the sidebar must open a tab" (§Multi-document tab system
+contract, §Tab identity `resourceDetail`) is narrowed by ADR-0073 (Inspector trailing column).
+
+Row-tap → `openTabs.openTab(.resourceDetail(...))` is now restricted to resource kinds that do NOT
+have a registered `ResourceInspectorContent` conformance, plus the explicit "Open in Tab"
+context-menu action. For inspector-capable kinds, a row tap updates
+`ResourceInspectorViewModel.selectedKey`; no tab is opened.
+
+The `DocumentTab.resourceDetail` case is retained in the `TabKind` enum and in `OpenTabsActor`
+for the explicit "Open in Tab" path, for kinds without inspector content, and for persistence
+compatibility. The `terminalSession`, `helmDetail`, `clusterOverview`, `events`, and `helmReleases`
+tab kinds are unaffected.
+
+Forward reference: ADR-0073 (Inspector trailing column substitutes resource detail tabs).

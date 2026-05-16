@@ -290,6 +290,16 @@ graph TB
   initial list load; mandate `WorkloadListSkeleton` for all `KubernetesResourceListPort` list
   calls; permitted `ProgressView` exceptions enumerated). Accepted (ratified 2026-05-16). Refines
   ADR-0031.
+- **ADR-0072** — Apple-native window chrome consolidation (collapse to 3 horizontal bands:
+  `.unifiedCompact` toolbar + nav arrows promoted to `.navigation` placement + conditional status
+  bar + toggleable `ClusterStripView` + docked panes as `.overlay(alignment: .bottom)` sheets).
+  Accepted (ratified 2026-05-16). Refines ADR-0021, ADR-0051, ADR-0065. Amends ADR-0050,
+  ADR-0051, ADR-0057, ADR-0064, ADR-0065.
+- **ADR-0073** — Inspector trailing column substitutes resource detail tabs (`NavigationSplitView`
+  third column via `.inspector(isPresented:)`; `ResourceInspectorViewModel` keyed by
+  `InspectorKey`; row-tap routes to Inspector for inspector-capable kinds; "Open in Tab"
+  context-menu action retained; ADR-0051 detail drawer retired). Accepted (ratified 2026-05-16).
+  Refines ADR-0021, ADR-0034, ADR-0050, ADR-0070. Amends ADR-0050, ADR-0070.
 
 ## Status lifecycle
 
