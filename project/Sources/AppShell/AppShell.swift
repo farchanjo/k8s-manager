@@ -55,7 +55,9 @@ public struct K8sManagerRootScene: Scene {
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
         openTabsActor: OpenTabsActor? = nil,
         workspaceTabsActor: WorkspaceTabsActor? = nil,
-        navigationHistoryActor: NavigationHistoryActor? = nil
+        navigationHistoryActor: NavigationHistoryActor? = nil,
+        dockedTerminalPaneActor: DockedTerminalPaneActor? = nil,
+        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil
     ) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
@@ -73,6 +75,14 @@ public struct K8sManagerRootScene: Scene {
         let resolvedNavHistory = navigationHistoryActor ?? NavigationHistoryActor(
             persistenceURL: ApplicationPaths.navigationHistoryURL
         )
+        // Default docked pane actors — composition root may override with
+        // pre-constructed instances that survive scene re-init cycles.
+        let resolvedTerminalPane = dockedTerminalPaneActor ?? DockedTerminalPaneActor(
+            persistenceURL: ApplicationPaths.dockedTerminalPaneURL
+        )
+        let resolvedYAMLPane = dockedYAMLEditorPaneActor ?? DockedYAMLEditorPaneActor(
+            persistenceURL: ApplicationPaths.dockedYAMLEditorPaneURL
+        )
         appShellDeps = AppShellDependencies(
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
@@ -80,7 +90,9 @@ public struct K8sManagerRootScene: Scene {
             openTabsActor: openTabsActor,
             workspaceTabsActor: resolvedWorkspaceTabs,
             navigationHistoryActor: resolvedNavHistory,
-            codeEditor: codeEditor
+            codeEditor: codeEditor,
+            dockedTerminalPaneActor: resolvedTerminalPane,
+            dockedYAMLEditorPaneActor: resolvedYAMLPane
         )
     }
 

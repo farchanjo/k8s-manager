@@ -59,6 +59,20 @@ public struct AWSClusterDiscoveryAdapter: CloudClusterDiscoveryPort, Sendable {
         self.logger = logger
     }
 
+    /// Convenience initialiser for the composition root.
+    ///
+    /// Creates an `AWSClient` with the standard credential chain
+    /// (environment variables → `~/.aws/credentials` → SSO) and wraps it in
+    /// an adapter ready for cloud cluster discovery. The caller is responsible
+    /// for shutting the client down at app exit via `applicationWillTerminate`.
+    public init(
+        credentialProvider: CredentialProviderFactory = .selector(.environment, .configFile(), .sso()),
+        logger: Logger = Logger(label: "aws.eks.discovery")
+    ) {
+        self.client = AWSClient(credentialProvider: credentialProvider, logger: logger)
+        self.logger = logger
+    }
+
     // MARK: CloudClusterDiscoveryPort
 
     public func listClusters(

@@ -75,7 +75,39 @@ struct K8sManagerApp: App {
     /// is deferred until the cluster-strip selects which subdirectory to load.
     private let openTabsActor: OpenTabsActor
 
+    /// Workspace-scoped tabs actor (ADR-0054). Owns the persistent Welcome tab.
+    /// Single instance per launch; hydrated from disk in ``wireAsync()``.
+    private let workspaceTabsActor: WorkspaceTabsActor
+
+    /// Bottom-docked terminal pane actor (ADR-0057). Owns docked terminal tab
+    /// lifecycle and persists pane state across launches.
+    private let dockedTerminalPaneActor: DockedTerminalPaneActor
+
+    /// Inline docked YAML editor pane actor (ADR-0064). Owns draft YAML state
+    /// and persists pane open/close across launches.
+    private let dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor
+
+    /// Per-window navigation history actor (ADR-0065). Owns back/forward deque
+    /// and persists history across launches.
+    private let navigationHistoryActor: NavigationHistoryActor
+
     init() {
+        // Construct workspace-scoped actors first so stored properties are always
+        // initialised regardless of which early-exit branch fires below.
+        let openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
+        let workspaceTabsActor = WorkspaceTabsActor(
+            persistenceURL: ApplicationPaths.workspaceTabsURL
+        )
+        let dockedTerminalPaneActor = DockedTerminalPaneActor(
+            persistenceURL: ApplicationPaths.dockedTerminalPaneURL
+        )
+        let dockedYAMLEditorPaneActor = DockedYAMLEditorPaneActor(
+            persistenceURL: ApplicationPaths.dockedYAMLEditorPaneURL
+        )
+        let navigationHistoryActor = NavigationHistoryActor(
+            persistenceURL: ApplicationPaths.navigationHistoryURL
+        )
+
         do {
             // ADR-0042: enforce single-instance before any other bootstrap work.
             let lockPath = Self.defaultLockPath()
@@ -86,8 +118,11 @@ struct K8sManagerApp: App {
             Self.activateExistingInstance(pid: existingPid)
             // activateExistingInstance calls NSApp.terminate; this path should
             // not be reached, but guard against a no-op delegate scenario.
-            // Initialise stored properties so the App struct stays valid.
-            self.openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
+            self.openTabsActor = openTabsActor
+            self.workspaceTabsActor = workspaceTabsActor
+            self.dockedTerminalPaneActor = dockedTerminalPaneActor
+            self.dockedYAMLEditorPaneActor = dockedYAMLEditorPaneActor
+            self.navigationHistoryActor = navigationHistoryActor
             return
         } catch {
             let log = Logger(label: "K8sManagerApp.singleInstance")
@@ -102,7 +137,11 @@ struct K8sManagerApp: App {
             let isLocal = try ApplicationPaths.isLocalVolume(at: ApplicationPaths.storageURL)
             if !isLocal {
                 Self.rejectNonLocalVolume(path: ApplicationPaths.storageURL.path)
-                self.openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
+                self.openTabsActor = openTabsActor
+                self.workspaceTabsActor = workspaceTabsActor
+                self.dockedTerminalPaneActor = dockedTerminalPaneActor
+                self.dockedYAMLEditorPaneActor = dockedYAMLEditorPaneActor
+                self.navigationHistoryActor = navigationHistoryActor
                 return
             }
         } catch {
@@ -111,8 +150,11 @@ struct K8sManagerApp: App {
             log.warning("Volume locality probe failed: \(error). Proceeding with caution.")
         }
 
-        let openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
         self.openTabsActor = openTabsActor
+        self.workspaceTabsActor = workspaceTabsActor
+        self.dockedTerminalPaneActor = dockedTerminalPaneActor
+        self.dockedYAMLEditorPaneActor = dockedYAMLEditorPaneActor
+        self.navigationHistoryActor = navigationHistoryActor
 
         do {
             try Self.wireSync(openTabsActor: openTabsActor)
@@ -127,7 +169,11 @@ struct K8sManagerApp: App {
     var body: some Scene {
         K8sManagerRootScene(
             codeEditor: CodeEditorViewAdapter(),
-            openTabsActor: openTabsActor
+            openTabsActor: openTabsActor,
+            workspaceTabsActor: workspaceTabsActor,
+            navigationHistoryActor: navigationHistoryActor,
+            dockedTerminalPaneActor: dockedTerminalPaneActor,
+            dockedYAMLEditorPaneActor: dockedYAMLEditorPaneActor
         )
     }
 }
@@ -194,9 +240,10 @@ private extension K8sManagerApp {
         let keychain = KeychainAccessAdapter()
         let keyManager = AuditChainKeyManager(keychainAdapter: keychain)
         let db = try openDatabase()
-        let (chatRepo, providerRepo, clusterStore, auditChain, terminalRepo, persistenceActor) = wirePersistence(
-            db: db, keyManager: keyManager
-        )
+        let (
+            chatRepo, providerRepo, clusterStore, auditChain,
+            terminalRepo, secretRevealAudit, prometheusEndpointRepo, persistenceActor
+        ) = wirePersistence(db: db, keyManager: keyManager)
         let (loader, kubeApi, resourceList, discoveryAdapter) = wireKubernetes()
         let contextRepo = KubeconfigContextRepository(loader: loader, metadataStore: clusterStore)
         let activeContextWatch = KubeconfigActiveContextWatch(repository: contextRepo, loader: loader)
@@ -241,6 +288,7 @@ private extension K8sManagerApp {
             values.providerRepository = providerRepo
             values.clusterMetadataStore = clusterStore
             values.auditChain = auditChain
+            values.secretRevealAudit = secretRevealAudit
 
             // ContextNavigation ports
             values.contextRepository = contextRepo
@@ -275,8 +323,11 @@ private extension K8sManagerApp {
             // PortForwarding extras — unimplemented sentinels until adapters land
             wirePortForwardingExtras(into: &values)
 
-            // LocalPersistence + MetricsObservability extras
-            wirePersistenceExtras(into: &values)
+            // MetricsObservability — real GRDB-backed repository (ADR-0016)
+            values.prometheusEndpointRepository = prometheusEndpointRepo
+
+            // Cloud cluster discovery registry — real adapters per provider (ADR-0055)
+            wireCloudDiscovery(into: &values)
         }
     }
 
@@ -304,13 +355,117 @@ private extension K8sManagerApp {
         values.portForwardRepository = UnimplementedPortForwardRepositoryPort()
     }
 
-    /// Registers LocalPersistence and MetricsObservability ports without live adapters.
+    /// Registers cloud cluster discovery adapters keyed by ``CloudProvider`` (ADR-0055).
     ///
-    /// - `operatorPreferences`: UX preference store — GRDB adapter deferred.
-    /// - `prometheusEndpointRepository`: Endpoint config store — adapter deferred.
-    nonisolated static func wirePersistenceExtras(into values: inout DependencyValues) {
-        values.operatorPreferences = UnimplementedOperatorPreferencesPort()
-        values.prometheusEndpointRepository = UnimplementedPrometheusEndpointRepositoryPort()
+    /// - AWS: ``AWSClusterDiscoveryAdapter`` with a default Soto credential chain
+    ///   (env vars → `~/.aws/credentials` → SSO).
+    /// - Azure: ``AzureClusterDiscoveryAdapter`` with an OAuth2 client-credentials
+    ///   resolver backed by env vars `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` /
+    ///   `AZURE_CLIENT_SECRET`. Missing vars surface as `missingCredentials`.
+    /// - GCP: ``GCPClusterDiscoveryAdapter`` with an ADC-derived token resolver.
+    nonisolated static func wireCloudDiscovery(into values: inout DependencyValues) {
+        values.cloudClusterDiscoveryRegistry = [
+            .aws: AWSClusterDiscoveryAdapter(),
+            .azure: AzureClusterDiscoveryAdapter(tokenResolver: makeAzureTokenResolver()),
+            .gcp: GCPClusterDiscoveryAdapter(tokenResolver: makeGCPTokenResolver()),
+        ]
+    }
+
+    /// Builds an Azure OAuth2 client-credentials token resolver.
+    ///
+    /// Reads credentials from env vars at resolution time (not at wire time) so
+    /// operators can set them after the process starts. Throws
+    /// ``CloudClusterDiscoveryError.missingCredentials`` when any required var
+    /// is absent.
+    nonisolated static func makeAzureTokenResolver() -> AzureClusterDiscoveryAdapter.TokenResolver {
+        { scope in
+            let env = ProcessInfo.processInfo.environment
+            guard
+                let tenantId = env["AZURE_TENANT_ID"], !tenantId.isEmpty,
+                let clientId = env["AZURE_CLIENT_ID"], !clientId.isEmpty,
+                let clientSecret = env["AZURE_CLIENT_SECRET"], !clientSecret.isEmpty
+            else {
+                throw CloudClusterDiscoveryError.missingCredentials(
+                    provider: .azure,
+                    detail: "AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET must be set"
+                )
+            }
+            return try await fetchAzureToken(
+                tenantId: tenantId,
+                clientId: clientId,
+                clientSecret: clientSecret,
+                scope: scope
+            )
+        }
+    }
+
+    /// Performs a single Azure Entra ID client-credentials grant and returns the
+    /// access token string.
+    ///
+    /// Called by the ``makeAzureTokenResolver()`` closure at discovery time.
+    nonisolated static func fetchAzureToken(
+        tenantId: String,
+        clientId: String,
+        clientSecret: String,
+        scope: String
+    ) async throws -> String {
+        guard let tokenURL = URL(
+            string: "https://login.microsoftonline.com/\(tenantId)/oauth2/v2.0/token"
+        ) else {
+            throw CloudClusterDiscoveryError.transport(
+                provider: .azure,
+                detail: "Could not construct Entra token URL for tenant \(tenantId)"
+            )
+        }
+        var comps = URLComponents()
+        comps.queryItems = [
+            URLQueryItem(name: "grant_type", value: "client_credentials"),
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "client_secret", value: clientSecret),
+            URLQueryItem(name: "scope", value: scope),
+        ]
+        guard let body = comps.percentEncodedQuery?.data(using: .utf8) else {
+            throw CloudClusterDiscoveryError.transport(
+                provider: .azure, detail: "Failed to encode token request body"
+            )
+        }
+        var request = URLRequest(url: tokenURL)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw CloudClusterDiscoveryError.permissionDenied(
+                provider: .azure, detail: "Token endpoint returned non-200"
+            )
+        }
+        struct TokenResponse: Decodable { let access_token: String }
+        let decoded = try JSONDecoder().decode(TokenResponse.self, from: data)
+        return decoded.access_token
+    }
+
+    /// Builds a GCP ADC token resolver that uses `GCPExecCredentialAdapter`
+    /// to load Application Default Credentials from disk.
+    ///
+    /// The discovery adapter ignores the `scope` argument (GCP uses the same
+    /// `cloud-platform` scope for both exec credentials and management APIs).
+    nonisolated static func makeGCPTokenResolver() -> GCPClusterDiscoveryAdapter.TokenResolver {
+        let adapter = GCPExecCredentialAdapter()
+        return { _ in
+            let auth = try await adapter.resolve(
+                auth: ExecPluginAuth(
+                    apiVersion: "client.authentication.k8s.io/v1beta1",
+                    command: "gcloud"
+                )
+            )
+            if case .bearerToken(let tokenAuth) = auth {
+                return tokenAuth.token
+            }
+            throw CloudClusterDiscoveryError.missingCredentials(
+                provider: .gcp,
+                detail: "GCP ADC did not produce a bearer token"
+            )
+        }
     }
 
     /// Opens the application SQLite database via ``ApplicationPaths`` (ADR-0026).
@@ -322,7 +477,8 @@ private extension K8sManagerApp {
         )
     }
 
-    /// Constructs the four GRDB repository adapters and the `PersistenceActor`
+    // swiftlint:disable large_tuple
+    /// Constructs all GRDB repository adapters and the `PersistenceActor`
     /// sharing one `DatabaseWriter`.
     ///
     /// The returned `PersistenceActor` wraps the same writer via
@@ -331,18 +487,31 @@ private extension K8sManagerApp {
     nonisolated static func wirePersistence(
         db: any DatabaseWriter,
         keyManager: AuditChainKeyManager
-    ) -> (GRDBChatRepository, GRDBProviderRepository, GRDBClusterMetadataStore, GRDBAuditChainStore, GRDBTerminalRepository, PersistenceActor) {
+    ) -> (
+        GRDBChatRepository,
+        GRDBProviderRepository,
+        GRDBClusterMetadataStore,
+        GRDBAuditChainStore,
+        GRDBTerminalRepository,
+        GRDBSecretRevealAudit,
+        GRDBPrometheusEndpointRepository,
+        PersistenceActor
+    ) {
+        let keyProvider = makeSyncKeyProvider(keyManager)
         let chatRepo = GRDBChatRepository(db: db)
         let providerRepo = GRDBProviderRepository(db: db)
         let clusterStore = GRDBClusterMetadataStore(db: db)
-        let auditChain = GRDBAuditChainStore(
-            db: db,
-            keyProvider: makeSyncKeyProvider(keyManager)
-        )
+        let auditChain = GRDBAuditChainStore(db: db, keyProvider: keyProvider)
         let terminalRepo = GRDBTerminalRepository(db: db)
+        let secretRevealAudit = GRDBSecretRevealAudit(db: db, keyProvider: keyProvider)
+        let prometheusEndpointRepo = GRDBPrometheusEndpointRepository(db: db)
         let persistenceActor = PersistenceActor(writer: GRDBWriterAdapter(writer: db))
-        return (chatRepo, providerRepo, clusterStore, auditChain, terminalRepo, persistenceActor)
+        return (
+            chatRepo, providerRepo, clusterStore, auditChain,
+            terminalRepo, secretRevealAudit, prometheusEndpointRepo, persistenceActor
+        )
     }
+    // swiftlint:enable large_tuple
 
     /// Wraps async `AuditChainKeyManager.currentKey()` in the synchronous
     /// `KeyProvider` closure expected by `GRDBAuditChainStore`.

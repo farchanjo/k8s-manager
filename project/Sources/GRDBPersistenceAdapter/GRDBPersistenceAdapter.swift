@@ -4,6 +4,7 @@
 import Foundation
 import GRDB
 import LocalPersistence
+import MetricsObservability
 import TerminalSession
 import Logging
 
@@ -34,6 +35,8 @@ public enum GRDBPersistenceAdapter: Sendable {
         public let terminalRepository: GRDBTerminalRepository
         /// Append-only HMAC-gated secret-reveal audit (ADR-0063).
         public let secretRevealAudit: GRDBSecretRevealAudit
+        /// GRDB-backed Prometheus endpoint config store (ADR-0016).
+        public let prometheusEndpointRepository: GRDBPrometheusEndpointRepository
     }
 
     // MARK: - Factory
@@ -58,7 +61,8 @@ public enum GRDBPersistenceAdapter: Sendable {
             clusterMetadataStore: GRDBClusterMetadataStore(db: db),
             auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider),
             terminalRepository: GRDBTerminalRepository(db: db),
-            secretRevealAudit: GRDBSecretRevealAudit(db: db, keyProvider: keyProvider)
+            secretRevealAudit: GRDBSecretRevealAudit(db: db, keyProvider: keyProvider),
+            prometheusEndpointRepository: GRDBPrometheusEndpointRepository(db: db)
         )
     }
 }

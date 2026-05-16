@@ -366,6 +366,7 @@ let package = Package(
                 "LocalPersistence",
                 "AssistantChat",
                 "HelmManagement",
+                "MetricsObservability",
                 "ResourceBrowser",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Logging", package: "swift-log"),

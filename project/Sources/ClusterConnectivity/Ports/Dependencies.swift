@@ -72,3 +72,32 @@ public extension DependencyValues {
         set { self[ExecPluginPortKey.self] = newValue }
     }
 }
+
+// MARK: - CloudClusterDiscoveryRegistryKey
+
+/// `DependencyKey` for the per-provider `CloudClusterDiscoveryPort` registry.
+///
+/// Maps each `CloudProvider` to its concrete discovery adapter. The default
+/// empty dictionary causes callers to receive `nil` for any provider until the
+/// composition root populates the registry with the real adapters (ADR-0055).
+///
+/// Composition root registers `AWSClusterDiscoveryAdapter`, `AzureClusterDiscoveryAdapter`,
+/// and `GCPClusterDiscoveryAdapter` keyed by `.aws`, `.azure`, `.gcp` respectively.
+public enum CloudClusterDiscoveryRegistryKey: DependencyKey {
+    public static let liveValue: [CloudProvider: any CloudClusterDiscoveryPort] = [:]
+    public static let testValue: [CloudProvider: any CloudClusterDiscoveryPort] = [:]
+}
+
+public extension DependencyValues {
+    /// Per-provider cloud cluster discovery adapter registry (ADR-0055).
+    ///
+    /// Retrieve the adapter for a specific provider via subscript:
+    /// ```swift
+    /// @Dependency(\.cloudClusterDiscoveryRegistry) var registry
+    /// let adapter = registry[.aws]
+    /// ```
+    var cloudClusterDiscoveryRegistry: [CloudProvider: any CloudClusterDiscoveryPort] {
+        get { self[CloudClusterDiscoveryRegistryKey.self] }
+        set { self[CloudClusterDiscoveryRegistryKey.self] = newValue }
+    }
+}

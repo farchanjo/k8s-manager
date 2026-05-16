@@ -62,6 +62,7 @@ public enum SchemaMigrator {
         migrator.registerMigration("v2_terminal_session", migrate: v2TerminalSession)
         migrator.registerMigration("v3_secret_reveal_audit", migrate: v3SecretRevealAudit)
         migrator.registerMigration("v4_helm_audit_log", migrate: v4HelmAuditLog)
+        migrator.registerMigration("v5_prometheus_endpoint", migrate: v5PrometheusEndpoint)
         try migrator.migrate(queue)
         logger.info("SchemaMigrator: all migrations applied")
     }
@@ -94,6 +95,16 @@ public enum SchemaMigrator {
         try v2TerminalSession(db)
         try v3SecretRevealAudit(db)
         try v4HelmAuditLog(db)
+    }
+
+    /// Exposed for in-memory test helpers that target the `prometheus_endpoint` table.
+    /// Runs v1 through v5 so the schema is fully consistent.
+    public static func _runV5(_ db: Database) throws {
+        try v1InitialSchema(db)
+        try v2TerminalSession(db)
+        try v3SecretRevealAudit(db)
+        try v4HelmAuditLog(db)
+        try v5PrometheusEndpoint(db)
     }
 
     // swiftlint:disable function_body_length
@@ -275,6 +286,33 @@ public enum SchemaMigrator {
         try db.execute(sql: """
             CREATE INDEX IF NOT EXISTS idx_helm_audit_log_action_time
                 ON helm_audit_log(action, timestamp)
+            """)
+    }
+
+    // MARK: v5 — prometheus_endpoint table (ADR-0016)
+
+    /// Stores `PrometheusEndpoint` aggregates.
+    ///
+    /// `auth_strategy_json` persists the `AuthStrategy` as a JSON blob (the
+    /// domain type is `Codable`). `discovery_source` and `status` are raw-value
+    /// strings of their `RawRepresentable` enums.
+    private static func v5PrometheusEndpoint(_ db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS prometheus_endpoint (
+                id TEXT PRIMARY KEY NOT NULL,
+                kubernetes_context_id TEXT NOT NULL,
+                url TEXT NOT NULL,
+                discovery_source TEXT NOT NULL,
+                auth_strategy_json TEXT NOT NULL,
+                insecure_skip_tls_verify INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'unknown',
+                last_probed_at TEXT,
+                version TEXT
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_prometheus_endpoint_context
+                ON prometheus_endpoint(kubernetes_context_id, url)
             """)
     }
 }
