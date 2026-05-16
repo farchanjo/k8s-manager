@@ -59,6 +59,7 @@ public enum SchemaMigrator {
     private static func runMigrations(on queue: DatabaseQueue, logger: Logger) throws {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1_initial_schema", migrate: v1InitialSchema)
+        migrator.registerMigration("v2_terminal_session", migrate: v2TerminalSession)
         try migrator.migrate(queue)
         logger.info("SchemaMigrator: all migrations applied")
     }
@@ -67,6 +68,13 @@ public enum SchemaMigrator {
     /// Not part of the public stable API — prefixed with `_` by convention.
     public static func _runV1(_ db: Database) throws {
         try v1InitialSchema(db)
+    }
+
+    /// Exposed for in-memory test helpers that target the `terminal_session` table.
+    /// Runs both v1 and v2 so the schema is fully consistent.
+    public static func _runV2(_ db: Database) throws {
+        try v1InitialSchema(db)
+        try v2TerminalSession(db)
     }
 
     // swiftlint:disable function_body_length
@@ -171,4 +179,30 @@ public enum SchemaMigrator {
             """)
     }
     // swiftlint:enable function_body_length
+
+    // MARK: v2 — terminal_session table (ADR-0017)
+
+    private static func v2TerminalSession(_ db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS terminal_session (
+                id TEXT PRIMARY KEY NOT NULL,
+                cluster_id TEXT NOT NULL,
+                namespace TEXT NOT NULL,
+                pod TEXT NOT NULL,
+                container TEXT,
+                kind TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_active_at TEXT NOT NULL
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_terminal_session_cluster_created
+                ON terminal_session(cluster_id, created_at)
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_terminal_session_status
+                ON terminal_session(status)
+            """)
+    }
 }

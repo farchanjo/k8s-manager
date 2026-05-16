@@ -4,6 +4,7 @@
 import Foundation
 import GRDB
 import LocalPersistence
+import TerminalSession
 import Logging
 
 // MARK: - GRDBPersistenceAdapter
@@ -16,7 +17,7 @@ public enum GRDBPersistenceAdapter: Sendable {
 
     // MARK: - PersistenceBundle
 
-    /// All four GRDB repository adapters wired to the same `DatabaseQueue`.
+    /// All five GRDB repository adapters wired to the same `DatabaseQueue`.
     ///
     /// The bundle owns the `DatabaseQueue` lifecycle. Pass individual properties
     /// into `prepareDependencies { }` at the composition root.
@@ -29,6 +30,8 @@ public enum GRDBPersistenceAdapter: Sendable {
         public let clusterMetadataStore: GRDBClusterMetadataStore
         /// Append-only HMAC-gated mutation audit chain.
         public let auditChainStore: GRDBAuditChainStore
+        /// Repository for terminal session metadata (ADR-0017).
+        public let terminalRepository: GRDBTerminalRepository
     }
 
     // MARK: - Factory
@@ -51,7 +54,8 @@ public enum GRDBPersistenceAdapter: Sendable {
             chatRepository: GRDBChatRepository(db: db),
             providerRepository: GRDBProviderRepository(db: db),
             clusterMetadataStore: GRDBClusterMetadataStore(db: db),
-            auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider)
+            auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider),
+            terminalRepository: GRDBTerminalRepository(db: db)
         )
     }
 }
