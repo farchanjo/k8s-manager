@@ -104,7 +104,13 @@ final class PrometheusEndpointTests: XCTestCase {
     }
 
     func test_all_authStrategy_cases_codable() throws {
-        for strategy in AuthStrategy.allCases {
+        let strategies: [AuthStrategy] = [
+            .none,
+            .bearerInherit,
+            .bearer(token: "test-token"),
+            .basic(username: "admin", password: "secret"),
+        ]
+        for strategy in strategies {
             let ep = makeEndpoint(authStrategy: strategy)
             let data = try JSONEncoder().encode(ep)
             let decoded = try JSONDecoder().decode(PrometheusEndpoint.self, from: data)

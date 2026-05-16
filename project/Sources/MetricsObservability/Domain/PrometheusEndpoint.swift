@@ -29,15 +29,72 @@ public enum DiscoverySource: String, Hashable, Sendable, Codable, CaseIterable {
 /// Authentication strategy for requests to a `PrometheusEndpoint`.
 ///
 /// Mirrors the `auth_strategy` field from `prometheus_endpoint.cue`.
-public enum AuthStrategy: String, Hashable, Sendable, Codable, CaseIterable {
+///
+/// - `none`: No `Authorization` header is added.
+/// - `bearerInherit`: Forwards the bearer token from the current
+///   `KubernetesSession`. The token is injected by the adapter at
+///   request-build time; it is never stored in the endpoint aggregate.
+/// - `bearer(token:)`: Uses an operator-supplied bearer token stored in
+///   the endpoint aggregate. Adapter emits `Authorization: Bearer <token>`.
+/// - `basic(username:password:)`: Uses HTTP Basic credentials stored in
+///   the endpoint aggregate. Adapter emits `Authorization: Basic <b64>`.
+public enum AuthStrategy: Hashable, Sendable {
     /// No `Authorization` header is added.
     case none
 
     /// Forwards the bearer token from the current `KubernetesSession`.
-    case bearerInherit = "bearer_inherit"
+    case bearerInherit
 
-    /// Uses a separate operator-supplied bearer token.
-    case bearerExplicit = "bearer_explicit"
+    /// Uses an explicit operator-supplied bearer token.
+    case bearer(token: String)
+
+    /// Uses HTTP Basic credentials.
+    case basic(username: String, password: String)
+}
+
+// MARK: AuthStrategy + Codable
+
+extension AuthStrategy: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case type, token, username, password
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .none:
+            try container.encode("none", forKey: .type)
+        case .bearerInherit:
+            try container.encode("bearer_inherit", forKey: .type)
+        case .bearer(let token):
+            try container.encode("bearer", forKey: .type)
+            try container.encode(token, forKey: .token)
+        case .basic(let username, let password):
+            try container.encode("basic", forKey: .type)
+            try container.encode(username, forKey: .username)
+            try container.encode(password, forKey: .password)
+        }
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        switch type {
+        case "none":
+            self = .none
+        case "bearer_inherit":
+            self = .bearerInherit
+        case "bearer":
+            let token = try container.decode(String.self, forKey: .token)
+            self = .bearer(token: token)
+        case "basic":
+            let username = try container.decode(String.self, forKey: .username)
+            let password = try container.decode(String.self, forKey: .password)
+            self = .basic(username: username, password: password)
+        default:
+            self = .none
+        }
+    }
 }
 
 // MARK: - EndpointStatus
