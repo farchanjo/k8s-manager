@@ -78,7 +78,7 @@ public struct PrometheusHTTPClient: PrometheusQueryPort {
 
 // MARK: - ADR-0044 label-value guard
 
-private extension PrometheusHTTPClient {
+extension PrometheusHTTPClient {
 
     /// Validates every value in `query.labelSelector` against the ADR-0044
     /// allowlist (`^[a-zA-Z0-9._-]{1,63}$`).
@@ -111,7 +111,9 @@ private extension PrometheusHTTPClient {
 
 // MARK: - URL builders
 
-private extension PrometheusHTTPClient {
+// `internal` visibility so that `PrometheusHTTPClientTests` can exercise URL
+// composition without a network connection.
+extension PrometheusHTTPClient {
 
     func instantURL(for query: PromQuery, base: String) throws -> String {
         guard var components = URLComponents(string: base + "/api/v1/query") else {
@@ -210,7 +212,9 @@ private extension PrometheusHTTPClient {
 
 // MARK: - JSON decoding
 
-private extension PrometheusHTTPClient {
+// `internal` visibility (not `private`) so that `@testable import` can invoke
+// the decode methods directly in `PrometheusHTTPClientTests`.
+extension PrometheusHTTPClient {
 
     func decodeVector(_ data: Data) throws -> PromQueryResult {
         let envelope = try decode(PromEnvelope.self, from: data)
@@ -237,6 +241,42 @@ private extension PrometheusHTTPClient {
             return TimeSeries(metric: item.metric, points: points).downsampled()
         }
         return .rangeMatrix(series)
+    }
+
+    /// Decodes a scalar response (`resultType == "scalar"`).
+    ///
+    /// Prometheus encodes scalars as `[timestamp, "value"]` at the top-level
+    /// `data.result` position rather than inside a nested array.
+    func decodeScalar(_ data: Data) throws -> PromQueryResult {
+        let raw = try decode(PromScalarEnvelope.self, from: data)
+        guard raw.data.resultType == "scalar" else {
+            throw PrometheusQueryError.unsupportedResultType(raw.data.resultType)
+        }
+        let pair = raw.data.result
+        guard pair.count == 2 else {
+            throw PrometheusQueryError.decodeError(detail: "Scalar result must have 2 elements")
+        }
+        let ts = pair[0].asDouble
+        guard let val = pair[1].stringValue.flatMap(Double.init) else {
+            throw PrometheusQueryError.decodeError(detail: "Non-numeric scalar value")
+        }
+        return .scalar(timestampUnix: ts, value: val)
+    }
+
+    /// Decodes a string response (`resultType == "string"`).
+    ///
+    /// Prometheus encodes strings as `[timestamp, "text"]` at `data.result`.
+    func decodeString(_ data: Data) throws -> PromQueryResult {
+        let raw = try decode(PromScalarEnvelope.self, from: data)
+        guard raw.data.resultType == "string" else {
+            throw PrometheusQueryError.unsupportedResultType(raw.data.resultType)
+        }
+        let pair = raw.data.result
+        guard pair.count == 2 else {
+            throw PrometheusQueryError.decodeError(detail: "String result must have 2 elements")
+        }
+        let text = pair[1].stringValue ?? ""
+        return .string(text)
     }
 
     func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -315,6 +355,30 @@ private struct PromResultItem: Decodable {
             }
             return DataPoint(tUnix: row[0].asDouble, value: v)
         }
+    }
+}
+
+// MARK: - PromScalarEnvelope
+
+/// Top-level Prometheus API response envelope for scalar and string results.
+///
+/// Unlike vector/matrix, scalar and string results encode `data.result` directly
+/// as a two-element array `[timestamp, "value"]` rather than a nested array of
+/// objects. A separate envelope type is required because the `result` key has
+/// a different JSON shape.
+private struct PromScalarEnvelope: Decodable {
+    let status: String
+    let data: PromScalarData
+}
+
+/// `data` field for scalar and string responses.
+private struct PromScalarData: Decodable {
+    let resultType: String
+    let result: [PromScalar]
+
+    enum CodingKeys: String, CodingKey {
+        case resultType
+        case result
     }
 }
 

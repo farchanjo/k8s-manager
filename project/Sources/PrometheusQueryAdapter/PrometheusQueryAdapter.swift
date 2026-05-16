@@ -1,16 +1,46 @@
-// PrometheusQueryAdapter.swift — infrastructure adapter placeholder
-// Implements: MetricsQueryPort from MetricsObservability
+// PrometheusQueryAdapter.swift — infrastructure adapter
+// Implements: PrometheusQueryPort from MetricsObservability
 // Library: swift-server/async-http-client (Tier A per ADR-0019)
-// Status: skeleton; port implementations pending domain ports definition.
-import AsyncHTTPClient
-import MetricsObservability
-import Foundation
+// ADR ref: ADR-0016 (HTTP client strategy, curated queries)
+// ADR ref: ADR-0044 (PromQL injection prevention)
 
-/// Namespace marker for the PrometheusQueryAdapter adapter target.
+import AsyncHTTPClient
+import Foundation
+import MetricsObservability
+
+// MARK: - PrometheusQueryAdapter
+
+/// Module-level factory for the Prometheus query adapter.
 ///
-/// Concrete actor types implementing the domain ports land under this enum
-/// in subsequent rounds. This file exists so the target compiles cleanly
-/// under Swift 6 strict concurrency with the imported infrastructure library.
+/// The composition root calls `makePort(httpClient:)` and passes the result to
+/// `withDependencies { $0.prometheusQuery = port }` before any query is executed.
+///
+/// ```swift
+/// let port = PrometheusQueryAdapter.makePort(httpClient: sharedHTTPClient)
+/// // In SwiftUI App body or composition root:
+/// withDependencies { $0.prometheusQuery = port } operation: { ... }
+/// ```
+///
+/// `PrometheusHTTPClient` is the concrete conformance; this enum provides a
+/// stable public API surface for the module without exposing the implementation
+/// type directly.
 public enum PrometheusQueryAdapter: Sendable {
-    public static let moduleVersion = "0.0.1-skeleton"
+
+    /// Semantic version of this adapter module.
+    public static let moduleVersion = "1.0.0"
+
+    /// Creates a `PrometheusQueryPort` backed by the full HTTP client.
+    ///
+    /// The returned port validates all label values against the ADR-0044 allowlist
+    /// (`^[a-zA-Z0-9._-]{1,63}$`) before issuing any HTTP request. Range query
+    /// results are downsampled to <= 200 points before being returned.
+    ///
+    /// - Parameter httpClient: A shared `AsyncHTTPClient` instance. The caller
+    ///   owns the lifecycle and must shut it down after use.
+    /// - Returns: A `Sendable` port ready for dependency injection.
+    public static func makePort(
+        httpClient: HTTPClient
+    ) -> any PrometheusQueryPort {
+        PrometheusHTTPClient(httpClient: httpClient)
+    }
 }
