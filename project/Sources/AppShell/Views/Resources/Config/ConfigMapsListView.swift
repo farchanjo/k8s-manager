@@ -55,11 +55,8 @@ public struct ConfigMapsListView: View {
     // MARK: Private views
 
     private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Loading ConfigMaps…").font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        WorkloadListSkeleton()
+            .accessibilityLabel("Loading ConfigMaps")
     }
 
     private func errorView(_ error: Error) -> some View {

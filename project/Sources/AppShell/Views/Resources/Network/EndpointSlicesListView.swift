@@ -116,7 +116,7 @@ public struct EndpointSlicesListView: View {
     private var content: some View {
         switch viewModel.loadState {
         case .idle, .loading where viewModel.filteredRows.isEmpty:
-            ProgressView("Loading Endpoint Slices…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            WorkloadListSkeleton()
         case .failure(let error):
             errorView(error)
         default:

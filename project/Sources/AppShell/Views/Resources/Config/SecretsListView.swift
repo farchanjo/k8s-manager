@@ -53,11 +53,8 @@ public struct SecretsListView: View {
     // MARK: Private views
 
     private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Loading Secrets\u{2026}").font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        WorkloadListSkeleton()
+            .accessibilityLabel("Loading Secrets")
     }
 
     private func errorView(_ error: Error) -> some View {

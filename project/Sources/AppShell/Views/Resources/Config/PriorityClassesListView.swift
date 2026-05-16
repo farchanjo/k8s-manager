@@ -23,7 +23,7 @@ public struct PriorityClassesListView: View {
         Group {
             switch viewModel.loadState {
             case .idle, .loading:
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                WorkloadListSkeleton()
             case .failure(let error):
                 errorView(error)
             case .success:

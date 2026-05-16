@@ -106,7 +106,7 @@ public struct CertificateSigningRequestsListView: View {
     private var content: some View {
         switch viewModel.loadState {
         case .idle, .loading where viewModel.filteredRows.isEmpty:
-            ProgressView("Loading Certificate Signing Requests…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            WorkloadListSkeleton()
         case .failure(let error):
             errorView(error)
         default:

@@ -189,13 +189,8 @@ public struct CustomResourceListView: View {
     }
 
     private var loadingPlaceholder: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Loading \(gvr.resource)…")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        WorkloadListSkeleton()
+            .accessibilityLabel("Loading \(gvr.resource)")
     }
 
     private func errorView(_ error: Error) -> some View {

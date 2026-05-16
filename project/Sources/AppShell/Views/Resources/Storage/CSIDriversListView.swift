@@ -106,7 +106,7 @@ public struct CSIDriversListView: View {
     private var content: some View {
         switch viewModel.loadState {
         case .idle, .loading where viewModel.filteredRows.isEmpty:
-            ProgressView("Loading CSI Drivers…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            WorkloadListSkeleton()
         case .failure(let error):
             errorView(error)
         default:

@@ -189,14 +189,8 @@ public struct ApplicationsView: View {
     // MARK: States
 
     private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Loading applications…")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityLabel("Loading applications")
+        WorkloadListSkeleton()
+            .accessibilityLabel("Loading applications")
     }
 
     private func errorView(_ error: Error) -> some View {
