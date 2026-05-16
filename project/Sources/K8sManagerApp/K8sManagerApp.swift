@@ -110,7 +110,7 @@ private extension K8sManagerApp {
         let keychain = KeychainAccessAdapter()
         let keyManager = AuditChainKeyManager(keychainAdapter: keychain)
         let db = try openDatabase()
-        let (chatRepo, providerRepo, clusterStore, auditChain, persistenceActor) = wirePersistence(
+        let (chatRepo, providerRepo, clusterStore, auditChain, terminalRepo, persistenceActor) = wirePersistence(
             db: db, keyManager: keyManager
         )
         let (loader, kubeApi, resourceList, discoveryAdapter) = wireKubernetes()
@@ -161,7 +161,46 @@ private extension K8sManagerApp {
                 urlSession: .shared,
                 apiServerBase: placeholderURL
             )
+
+            // TerminalSession repository (GRDB-backed; ADR-0017)
+            values.terminalRepository = terminalRepo
+
+            // HelmManagement extras — unimplemented sentinels until adapters land
+            wireHelmManagementExtras(into: &values)
+
+            // PortForwarding extras — unimplemented sentinels until adapters land
+            wirePortForwardingExtras(into: &values)
+
+            // LocalPersistence + MetricsObservability extras
+            wirePersistenceExtras(into: &values)
         }
+    }
+
+    /// Registers HelmManagement ports that have no live adapter yet.
+    ///
+    /// - `releaseDecoder`: gzip+protobuf Helm secret decoder — adapter deferred.
+    /// - `auditLog`: Helm rollback audit log — GRDB adapter deferred.
+    nonisolated static func wireHelmManagementExtras(into values: inout DependencyValues) {
+        values.releaseDecoder = UnimplementedReleaseDecoderPort()
+        values.auditLog = UnimplementedAuditLogPort()
+    }
+
+    /// Registers PortForwarding ports that have no live adapter yet.
+    ///
+    /// - `serviceEndpointReader`: EndpointSlice query adapter — deferred.
+    /// - `portForwardRepository`: GRDB session store — deferred (ADR-0007).
+    nonisolated static func wirePortForwardingExtras(into values: inout DependencyValues) {
+        values.serviceEndpointReader = UnimplementedServiceEndpointReaderPort()
+        values.portForwardRepository = UnimplementedPortForwardRepositoryPort()
+    }
+
+    /// Registers LocalPersistence and MetricsObservability ports without live adapters.
+    ///
+    /// - `operatorPreferences`: UX preference store — GRDB adapter deferred.
+    /// - `prometheusEndpointRepository`: Endpoint config store — adapter deferred.
+    nonisolated static func wirePersistenceExtras(into values: inout DependencyValues) {
+        values.operatorPreferences = UnimplementedOperatorPreferencesPort()
+        values.prometheusEndpointRepository = UnimplementedPrometheusEndpointRepositoryPort()
     }
 
     /// Opens the application SQLite database via ``ApplicationPaths`` (ADR-0026).
@@ -182,7 +221,7 @@ private extension K8sManagerApp {
     nonisolated static func wirePersistence(
         db: any DatabaseWriter,
         keyManager: AuditChainKeyManager
-    ) -> (GRDBChatRepository, GRDBProviderRepository, GRDBClusterMetadataStore, GRDBAuditChainStore, PersistenceActor) {
+    ) -> (GRDBChatRepository, GRDBProviderRepository, GRDBClusterMetadataStore, GRDBAuditChainStore, GRDBTerminalRepository, PersistenceActor) {
         let chatRepo = GRDBChatRepository(db: db)
         let providerRepo = GRDBProviderRepository(db: db)
         let clusterStore = GRDBClusterMetadataStore(db: db)
@@ -190,8 +229,9 @@ private extension K8sManagerApp {
             db: db,
             keyProvider: makeSyncKeyProvider(keyManager)
         )
+        let terminalRepo = GRDBTerminalRepository(db: db)
         let persistenceActor = PersistenceActor(writer: GRDBWriterAdapter(writer: db))
-        return (chatRepo, providerRepo, clusterStore, auditChain, persistenceActor)
+        return (chatRepo, providerRepo, clusterStore, auditChain, terminalRepo, persistenceActor)
     }
 
     /// Wraps async `AuditChainKeyManager.currentKey()` in the synchronous
