@@ -39,11 +39,13 @@ public extension EnvironmentValues {
 // MARK: - View extension convenience
 
 public extension View {
-    /// Injects `ResourceInspectorViewModel` into the SwiftUI environment tree.
+    /// Injects a `ResourceInspectorViewModel` into the SwiftUI environment tree.
     ///
     /// Called once at the scene root (`AppShellView.body`) so every list view
-    /// in the hierarchy resolves the same instance.
-    func resourceInspector(_ viewModel: ResourceInspectorViewModel) -> some View {
+    /// in the hierarchy resolves the same instance. Accepts an optional so the
+    /// composition root can pass `deps.inspectorViewModel` directly without
+    /// unwrapping — when `nil`, the existing environment value is unchanged.
+    func resourceInspector(_ viewModel: ResourceInspectorViewModel?) -> some View {
         environment(\.resourceInspector, viewModel)
     }
 }

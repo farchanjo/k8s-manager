@@ -153,6 +153,14 @@ public struct K8sManagerCommands: Commands {
             }
             .keyboardShortcut("e", modifiers: .option)
             .accessibilityLabel("Toggle inline docked YAML editor pane")
+
+            // ⌘⌥0 — toggle Inspector trailing column (ADR-0073).
+            // Matches Xcode's Attributes inspector toggle shortcut.
+            Button("Toggle Inspector") {
+                NotificationCenter.default.post(name: .k8sManagerToggleInspector, object: nil)
+            }
+            .keyboardShortcut("0", modifiers: [.command, .option])
+            .accessibilityLabel("Toggle resource inspector panel")
         }
     }
 }
@@ -189,6 +197,9 @@ public extension Notification.Name {
     /// Posted when `⌥E` is pressed — `SidebarCanvasView` toggles the docked YAML editor pane
     /// (ADR-0064).
     static let k8sManagerToggleYAMLEditorPane = Notification.Name("appShell.toggleYAMLEditorPane")
+    /// Posted when `⌘⌥0` is pressed — `AppShellView` calls `inspectorViewModel.toggle()`
+    /// (ADR-0073). Matches Xcode's Attributes inspector toggle shortcut.
+    static let k8sManagerToggleInspector = Notification.Name("appShell.toggleInspector")
 }
 
 // MARK: - KeyboardShortcutsHandler

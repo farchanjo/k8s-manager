@@ -1,7 +1,8 @@
 // AppShell.swift — NavigationSplitView shell
 // Bounded context: app_shell (per ADR-0005)
 // ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts),
-//          ADR-0032 (toasts), ADR-0050 (tab bar), ADR-0051 (Lens-style layout)
+//          ADR-0032 (toasts), ADR-0050 (tab bar), ADR-0051 (Lens-style layout),
+//          ADR-0073 (inspector trailing column)
 import Dependencies
 import Foundation
 import SharedKernel
@@ -184,11 +185,16 @@ public struct AppShellView: View {
             }
 
             // NavigationSplitView: hierarchical sidebar tree | canvas (ADR-0050/0051)
+            // The canvas detail column carries `.inspector(isPresented:)` per
+            // ADR-0073 §"NavigationSplitView extension to three columns".
             NavigationSplitView {
                 sidebarTree
             } detail: {
                 canvas
             }
+            // Propagate the inspector view model through the SwiftUI environment
+            // so resource list views can call `setSelection(_:)` without prop-drilling.
+            .resourceInspector(deps.inspectorViewModel)
             .k8sKeyboardShortcuts(
                 selectedFeature: $selectedFeature,
                 paletteViewModel: paletteViewModel,
@@ -226,12 +232,37 @@ public struct AppShellView: View {
                         : "Show cluster strip")
                     .accessibilityIdentifier("AppShell.ClusterStripToggle")
                 }
+                // Inspector toggle (ADR-0073 §"Inspector visibility").
+                // SF Symbol follows WWDC23 "Inspectors in SwiftUI" demo pattern.
+                // Placed as a `.primaryAction` item to the left of TopRightChrome
+                // so the toggle is reachable without crossing the full toolbar width.
+                ToolbarItem(placement: .primaryAction) {
+                    if let inspector = deps.inspectorViewModel {
+                        Button {
+                            inspector.toggle()
+                        } label: {
+                            Image(systemName: inspector.isVisible
+                                ? "sidebar.right"
+                                : "sidebar.right")
+                        }
+                        .help(inspector.isVisible ? "Hide Inspector" : "Show Inspector (⌘⌥0)")
+                        .accessibilityLabel(inspector.isVisible ? "Hide Inspector" : "Show Inspector")
+                        .accessibilityIdentifier("AppShell.InspectorToggle")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     TopRightChrome(activeClusterId: activeClusterId)
                 }
             }
         }
         .task { await trackActiveCluster() }
+        // Cmd-Opt-0 shortcut routed via NotificationCenter so K8sManagerCommands
+        // (which lives in the Commands graph, not the view tree) can fire it.
+        .onReceive(
+            NotificationCenter.default.publisher(for: .k8sManagerToggleInspector)
+        ) { _ in
+            deps.inspectorViewModel?.toggle()
+        }
     }
 
     /// Subscribes to ``ClusterStripActor`` so the canvas header reacts to
@@ -259,6 +290,14 @@ public struct AppShellView: View {
 
     // MARK: - Canvas column (tab bar + active tab content + status bar)
 
+    /// Canvas content — Band 2 of the ADR-0072 three-band ceiling.
+    ///
+    /// `.inspector(isPresented:)` is applied here per the WWDC23 "Inspectors in
+    /// SwiftUI" pattern: the modifier is placed on the detail-column body, not
+    /// on the `NavigationSplitView` itself. This produces the system-standard
+    /// trailing slide animation on macOS 14+ (ADR-0073 §"NavigationSplitView
+    /// extension to three columns").
+    @ViewBuilder
     private var canvas: some View {
         VStack(spacing: 0) {
             SidebarCanvasView(
@@ -275,5 +314,20 @@ public struct AppShellView: View {
                 StatusBarView(toastViewModel: toastViewModel)
             }
         }
+        .inspector(isPresented: inspectorBinding) {
+            ResourceInspectorPanel(viewModel: deps.inspectorViewModel)
+        }
+    }
+
+    /// Binding that bridges the optional `ResourceInspectorViewModel.isVisible`
+    /// into the non-optional `Bool` required by `.inspector(isPresented:)`.
+    ///
+    /// When no inspector view model is wired (preview / menu bar scene) the
+    /// binding is permanently `false` and the inspector column is hidden.
+    private var inspectorBinding: Binding<Bool> {
+        Binding(
+            get: { deps.inspectorViewModel?.isVisible ?? false },
+            set: { deps.inspectorViewModel?.isVisible = $0 }
+        )
     }
 }
