@@ -5,6 +5,14 @@
 import SwiftUI
 import SharedKernel
 import HelmManagement
+import Dependencies
+
+// MARK: - ReleaseHistoryEntry + Identifiable
+
+extension ReleaseHistoryEntry: Identifiable {
+    /// Revision number uniquely identifies each history row.
+    public var id: Int { revision }
+}
 
 // MARK: - HelmReleaseDetailView
 

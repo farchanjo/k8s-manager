@@ -5,6 +5,7 @@
 import SwiftUI
 import SharedKernel
 import HelmManagement
+import Dependencies
 
 // MARK: - HelmRollbackSheet
 

@@ -77,7 +77,7 @@ public struct PropertiesSection: View {
                 }
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(.accentColor)
+            .foregroundStyle(Color.accentColor)
         } else {
             Text(row.value)
                 .font(.subheadline.monospaced())

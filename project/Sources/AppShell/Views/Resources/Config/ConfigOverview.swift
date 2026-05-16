@@ -21,7 +21,9 @@ final class ConfigOverviewViewModel {
         let count: AsyncResource<Int>
     }
 
-    var summaries: [KindSummary] = Self.emptyKinds
+    var summaries: [KindSummary] = ConfigOverviewViewModel.kindSpecs.map {
+        KindSummary(id: $0.id, kind: $0.displayName, systemImage: $0.systemImage, count: .idle)
+    }
 
     @ObservationIgnored
     @Dependency(\.kubernetesResourceList) private var resourceList
@@ -85,10 +87,6 @@ final class ConfigOverviewViewModel {
                                        kind: "ValidatingWebhookConfiguration")),
     ]
 
-    private static var emptyKinds: [KindSummary] {
-        kindSpecs.map { KindSummary(id: $0.id, kind: $0.displayName,
-                                    systemImage: $0.systemImage, count: .idle) }
-    }
 }
 
 // MARK: - ConfigOverview
@@ -124,7 +122,7 @@ public struct ConfigOverview: View {
         VStack(spacing: 8) {
             Image(systemName: summary.systemImage)
                 .font(.title2)
-                .foregroundStyle(.accent)
+                .foregroundStyle(Color.accentColor)
             Text(summary.kind)
                 .font(.caption)
                 .foregroundStyle(.secondary)
