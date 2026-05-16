@@ -57,6 +57,9 @@ public struct PodRow: Identifiable, Hashable, Sendable {
     public let nodeName: String
     /// Human-readable age (e.g. `"5d"`, `"3h"`, `"12m"`).
     public let age: String
+    /// Live metric series for CPU / Memory mini-bars (ADR-0059).
+    /// Empty when the row is off-screen or no feed is available.
+    public var metricSeries: [MetricSeries]
 
     public init(
         id: String,
@@ -69,7 +72,8 @@ public struct PodRow: Identifiable, Hashable, Sendable {
         cpuUsage: String?,
         memUsage: String?,
         nodeName: String,
-        age: String
+        age: String,
+        metricSeries: [MetricSeries] = []
     ) {
         self.id = id
         self.name = name
@@ -82,6 +86,7 @@ public struct PodRow: Identifiable, Hashable, Sendable {
         self.memUsage = memUsage
         self.nodeName = nodeName
         self.age = age
+        self.metricSeries = metricSeries
     }
 }
 
@@ -174,6 +179,23 @@ public final class PodsListViewModel {
         guard let id = ids.first,
               let row = rows.first(where: { $0.id == id }) else { return }
         log.info("port-forward requested for pod=\(row.name) ns=\(row.namespace)")
+    }
+
+    /// Notifies the view model that a pod row has become visible (ADR-0059).
+    ///
+    /// In a concrete implementation this would register the pod with
+    /// `NodeMetricsRefreshActor` so it participates in the next batch query.
+    /// The stub records the event for logging.
+    public func rowDidAppear(id: String) {
+        log.debug("pod row appeared id=\(id) (metric activation stub)")
+    }
+
+    /// Notifies the view model that a pod row has left the viewport (ADR-0059).
+    ///
+    /// In a concrete implementation this would deregister the pod from the
+    /// batch query coordinator so off-screen rows do not add query load.
+    public func rowDidDisappear(id: String) {
+        log.debug("pod row disappeared id=\(id) (metric deactivation stub)")
     }
 
     // MARK: Private projection

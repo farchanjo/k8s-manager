@@ -98,7 +98,17 @@ public struct PodsListView: View {
 
     private var podTableContent: some View {
         Table(viewModel.filteredRows, selection: $viewModel.selectedId) {
-            TableColumn("Name", value: \.name)
+            TableColumn("Name") { row in
+                HStack {
+                    Text(row.name)
+                    Spacer()
+                    if !row.metricSeries.isEmpty {
+                        MetricMiniBarStack(series: row.metricSeries)
+                    }
+                }
+                .onAppear { viewModel.rowDidAppear(id: row.id) }
+                .onDisappear { viewModel.rowDidDisappear(id: row.id) }
+            }
             TableColumn("Namespace", value: \.namespace)
             TableColumn("Status") { row in
                 let chip = StatusChipSemantic.podPhaseChip(phase: row.phase.rawValue)

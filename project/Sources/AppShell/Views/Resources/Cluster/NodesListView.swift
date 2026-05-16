@@ -24,10 +24,14 @@ public struct NodeRow: Identifiable, Hashable, Sendable {
     public let osImage: String
     public let kernelVersion: String
     public let ageSeconds: Int
+    /// Live metric series for CPU / Memory / Disk mini-bars (ADR-0059).
+    /// Empty when no metric feed is available.
+    public var metricSeries: [MetricSeries]
 
     public init(
         id: String, name: String, status: String, role: String, version: String,
-        internalIP: String, osImage: String, kernelVersion: String, ageSeconds: Int
+        internalIP: String, osImage: String, kernelVersion: String, ageSeconds: Int,
+        metricSeries: [MetricSeries] = []
     ) {
         self.id = id
         self.name = name
@@ -38,6 +42,7 @@ public struct NodeRow: Identifiable, Hashable, Sendable {
         self.osImage = osImage
         self.kernelVersion = kernelVersion
         self.ageSeconds = ageSeconds
+        self.metricSeries = metricSeries
     }
 }
 
@@ -185,9 +190,15 @@ public struct NodesListView: View {
         } else {
             Table(viewModel.filteredRows) {
                 TableColumn("Name") { row in
-                    Button(row.name) { onNodeDebugTap(row.name) }
-                        .buttonStyle(.borderless)
-                        .font(.body.monospaced())
+                    HStack {
+                        Button(row.name) { onNodeDebugTap(row.name) }
+                            .buttonStyle(.borderless)
+                            .font(.body.monospaced())
+                        Spacer()
+                        if !row.metricSeries.isEmpty {
+                            MetricMiniBarStack(series: row.metricSeries)
+                        }
+                    }
                 }
                 TableColumn("Status") { row in
                     NodeConditionBadge(rawStatus: row.status)
