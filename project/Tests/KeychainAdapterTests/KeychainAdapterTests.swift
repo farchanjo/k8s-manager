@@ -19,6 +19,14 @@ final class KeychainAccessAdapterTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        // `swift test` runs as an unsigned tool without the Keychain entitlement
+        // and gets `errSecMissingEntitlement (-34018)` on every SecItem call.
+        // Skip when not running inside a signed app bundle (real-app tests go in
+        // an XCUITest target attached to the eventual .app — see ADR-0038).
+        try XCTSkipIf(
+            ProcessInfo.processInfo.environment["K8SMGR_KEYCHAIN_TESTS"] == nil,
+            "Keychain integration tests require a signed bundle; set K8SMGR_KEYCHAIN_TESTS=1 to run."
+        )
         adapter = KeychainAccessAdapter()
         testRunID = UUID().uuidString
     }
@@ -147,6 +155,10 @@ final class AuditChainKeyManagerTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try XCTSkipIf(
+            ProcessInfo.processInfo.environment["K8SMGR_KEYCHAIN_TESTS"] == nil,
+            "Keychain integration tests require a signed bundle; set K8SMGR_KEYCHAIN_TESTS=1 to run."
+        )
         adapter = KeychainAccessAdapter()
         manager = AuditChainKeyManager(keychainAdapter: adapter)
         auditEntry = KeychainEntry(
