@@ -1,13 +1,8 @@
-// ResourceBrowser.swift — domain core placeholder
+// ResourceBrowser.swift — resource_browser bounded context
 // Bounded context: resource_browser (per ADR-0005)
-// Status: skeleton; domain types pending CUE schema extraction.
-import Foundation
-
-/// Namespace marker for the ResourceBrowser bounded context.
-///
-/// Domain types, ports, and actors land under this enum in subsequent rounds.
-/// This file exists so the target compiles cleanly under Swift 6 strict concurrency.
-public enum ResourceBrowser: Sendable {
-    /// Build identifier — bumped manually until CI emits this.
-    public static let moduleVersion = "0.0.1-skeleton"
-}
+// ADR refs: ADR-0012 (mutating operations policy), ADR-0013 (kind catalogue)
+//
+// Domain types live in `Domain/`, hexagonal port protocols in `Ports/`.
+// This file intentionally exports no namespace enum: a top-level type named
+// `ResourceBrowser` would shadow the module name and break adapter-side type
+// qualification. The comment header mirrors the ClusterConnectivity pattern.
