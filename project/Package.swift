@@ -706,6 +706,16 @@ let package = Package(
         ),
 
         .testTarget(
+            name: "KeychainAdapterTests",
+            dependencies: [
+                "KeychainAdapter",
+                "LocalPersistence",
+            ],
+            path: "Tests/KeychainAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
             name: "YamsKubeconfigAdapterTests",
             dependencies: [
                 "YamsKubeconfigAdapter",
