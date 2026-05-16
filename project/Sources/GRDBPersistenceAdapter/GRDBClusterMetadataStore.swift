@@ -70,8 +70,8 @@ public struct GRDBClusterMetadataStore: ClusterMetadataStorePort {
                         entry.clusterId.uuidString,
                         entry.kind.rawValue,
                         entry.payloadJSON,
-                        iso8601(entry.expiresAt),
-                        iso8601(entry.createdAt)
+                        Self.iso8601(entry.expiresAt),
+                        Self.iso8601(entry.createdAt)
                     ]
                 )
             }
@@ -86,7 +86,7 @@ public struct GRDBClusterMetadataStore: ClusterMetadataStorePort {
             return try await db.write { database in
                 try database.execute(
                     sql: "DELETE FROM cluster_analysis_cache WHERE expires_at_rfc3339 < ?",
-                    arguments: [iso8601(now)]
+                    arguments: [Self.iso8601(now)]
                 )
                 return database.changesCount
             }
@@ -103,8 +103,8 @@ public struct GRDBClusterMetadataStore: ClusterMetadataStorePort {
             clusterId: UUID(uuidString: row["cluster_id"]) ?? UUID(),
             kind: AnalysisKind(rawValue: row["kind"]) ?? .clusterSummary,
             payloadJSON: row["payload_json"],
-            expiresAt: parseDate(row["expires_at_rfc3339"]),
-            createdAt: parseDate(row["created_at"])
+            expiresAt: Self.parseDate(row["expires_at_rfc3339"]),
+            createdAt: Self.parseDate(row["created_at"])
         )
     }
 
