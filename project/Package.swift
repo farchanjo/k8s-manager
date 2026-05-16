@@ -365,6 +365,7 @@ let package = Package(
             dependencies: [
                 "LocalPersistence",
                 "AssistantChat",
+                "HelmManagement",
                 "ResourceBrowser",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Logging", package: "swift-log"),
@@ -747,6 +748,7 @@ let package = Package(
             name: "GRDBPersistenceAdapterTests",
             dependencies: [
                 "GRDBPersistenceAdapter",
+                "HelmManagement",
                 "LocalPersistence",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],

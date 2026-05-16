@@ -61,6 +61,7 @@ public enum SchemaMigrator {
         migrator.registerMigration("v1_initial_schema", migrate: v1InitialSchema)
         migrator.registerMigration("v2_terminal_session", migrate: v2TerminalSession)
         migrator.registerMigration("v3_secret_reveal_audit", migrate: v3SecretRevealAudit)
+        migrator.registerMigration("v4_helm_audit_log", migrate: v4HelmAuditLog)
         try migrator.migrate(queue)
         logger.info("SchemaMigrator: all migrations applied")
     }
@@ -84,6 +85,15 @@ public enum SchemaMigrator {
         try v1InitialSchema(db)
         try v2TerminalSession(db)
         try v3SecretRevealAudit(db)
+    }
+
+    /// Exposed for in-memory test helpers that target the `helm_audit_log` table.
+    /// Runs v1 through v4 so the schema is fully consistent.
+    public static func _runV4(_ db: Database) throws {
+        try v1InitialSchema(db)
+        try v2TerminalSession(db)
+        try v3SecretRevealAudit(db)
+        try v4HelmAuditLog(db)
     }
 
     // swiftlint:disable function_body_length
@@ -241,6 +251,30 @@ public enum SchemaMigrator {
         try db.execute(sql: """
             CREATE INDEX IF NOT EXISTS idx_secret_reveal_audit_secret
                 ON secret_reveal_audit(namespace, secret_name)
+            """)
+    }
+
+    // MARK: v4 — helm_audit_log table (ADR-0015 Phase 1)
+
+    private static func v4HelmAuditLog(_ db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS helm_audit_log (
+                id TEXT PRIMARY KEY NOT NULL,
+                release_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                operator_identity TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                detail TEXT
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_helm_audit_log_release_time
+                ON helm_audit_log(release_id, timestamp)
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_helm_audit_log_action_time
+                ON helm_audit_log(action, timestamp)
             """)
     }
 }

@@ -269,8 +269,8 @@ private extension K8sManagerApp {
             // TerminalSession repository (GRDB-backed; ADR-0017)
             values.terminalRepository = terminalRepo
 
-            // HelmManagement extras — unimplemented sentinels until adapters land
-            wireHelmManagementExtras(into: &values)
+            // HelmManagement extras — live adapters (ADR-0015, ADR-0046)
+            wireHelmManagementExtras(db: db, into: &values)
 
             // PortForwarding extras — unimplemented sentinels until adapters land
             wirePortForwardingExtras(into: &values)
@@ -282,14 +282,17 @@ private extension K8sManagerApp {
 
     /// Registers HelmManagement ports.
     ///
-    /// - `rollbackLease`: Kubernetes Lease adapter (ADR-0046) — live via `SwiftkubeRollbackLeaseAdapter`.
-    /// - `releaseDecoder`: Helm secret decoder (ADR-0015) — live via `HelmSecretDecoderAdapter`.
-    /// - `auditLog`: Helm rollback audit log — GRDB adapter wired after database is open.
-    nonisolated static func wireHelmManagementExtras(into values: inout DependencyValues) {
+    /// - `rollbackLease`: Kubernetes Lease adapter (ADR-0046) via `SwiftkubeRollbackLeaseAdapter`.
+    /// - `releaseDecoder`: Helm secret decoder (ADR-0015) via `HelmSecretDecoderAdapter`.
+    /// - `auditLog`: Helm rollback audit log (ADR-0015) via `GRDBHelmAuditLogAdapter`.
+    nonisolated static func wireHelmManagementExtras(
+        db: any DatabaseWriter,
+        into values: inout DependencyValues
+    ) {
         let loader = YamsKubeconfigLoader()
         values.rollbackLease = SwiftkubeRollbackLeaseAdapter(resolver: buildResolver(using: loader))
         values.releaseDecoder = HelmSecretDecoderAdapter()
-        values.auditLog = UnimplementedAuditLogPort()
+        values.auditLog = GRDBHelmAuditLogAdapter(db: db)
     }
 
     /// Registers PortForwarding ports that have no live adapter yet.
