@@ -5,6 +5,9 @@
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
+- Refined by — ADR-0050 (resource navigation taxonomy: 51 kinds, sidebar category grouping, tab
+  system), ADR-0052 (custom resource discovery and rendering: sidebar grouping, generic views,
+  GVRWatchPort)
 - Tags — resource-browser, kinds, gvk, operations, crds, scope
 
 ## Context and problem statement
@@ -267,3 +270,70 @@ ADR-0012.
   targets.
 - Kubernetes API reference for each group/version/kind combination referenced above:
   kubernetes.io/docs/reference/kubernetes-api/.
+
+---
+
+## Addendum — Kinds catalogue expansion (2026-05-16, ADR-0050 refinement)
+
+ADR-0050 expands the supported kind catalogue from 23 to 51 standard Kubernetes kinds and introduces
+a 8-category sidebar taxonomy. The categories and additional kinds are specified in full in
+ADR-0050. The following kinds are added to the catalogue by ADR-0050 and carry the same operation
+surface rules as the existing catalogue:
+
+**autoscaling/v2**
+
+- `HorizontalPodAutoscaler` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`,
+  `events`.
+
+**policy/v1**
+
+- `PodDisruptionBudget` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+
+**scheduling.k8s.io/v1**
+
+- `PriorityClass` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+
+**node.k8s.io/v1**
+
+- `RuntimeClass` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+
+**admissionregistration.k8s.io/v1**
+
+- `MutatingWebhookConfiguration` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+- `ValidatingWebhookConfiguration` — cluster-scoped. Operations: `list`, `get`, `watch`,
+  `edit-yaml`.
+
+**discovery.k8s.io/v1**
+
+- `EndpointSlice` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`.
+
+**networking.k8s.io/v1**
+
+- `IngressClass` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+
+**storage.k8s.io/v1**
+
+- `VolumeAttachment` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+- `CSINode` — cluster-scoped. Operations: `list`, `get`, `watch`.
+- `CSIDriver` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+
+**gateway.networking.k8s.io/v1** (optional — absent if Gateway API CRDs not installed)
+
+- `HTTPRoute` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+- `GatewayClass` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`.
+- `Gateway` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+
+**core/v1** (additional entries)
+
+- `Node` — cluster-scoped. Operations: `list`, `get`, `watch`, `edit-yaml`, `events`, `logs`.
+- `ResourceQuota` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+- `LimitRange` — namespaced. Operations: `list`, `get`, `watch`, `edit-yaml`, `delete`.
+
+**events.k8s.io/v1**
+
+- `Event` — namespaced. Operations: `list`, `get`, `watch`. (merged view with `core/v1` events).
+
+The `resource_descriptor.cue` schema is extended by ADR-0050 with the `statusFieldPaths` field for
+generic column extraction in CRD list views. The CRD discovery flow and OpenAPI schema extraction
+rules remain as specified in ADR-0013. ADR-0052 extends the presentation layer for CRD instances
+without changing the discovery flow.
