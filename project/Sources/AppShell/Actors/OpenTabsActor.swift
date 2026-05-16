@@ -38,7 +38,11 @@ public struct OpenTabsSnapshot: Sendable, Equatable {
 ///
 /// One `OpenTabsActor` should be created per cluster that has at least one tab
 /// open. The composition root owns the actor's lifetime.
-public actor OpenTabsActor {
+///
+/// Conforms to ``OpenTabsPort`` so it can be registered directly in
+/// `swift-dependencies` and consumed by `SidebarTreeViewModel` / `HelmReleasesViewModel`
+/// without an intermediate adapter.
+public actor OpenTabsActor: OpenTabsPort {
 
     // MARK: Public state
 

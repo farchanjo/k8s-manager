@@ -2,6 +2,7 @@
 // DDD role: ViewModel (presentation projection of ClusterStripActor)
 // ADR ref: ADR-0051 (cluster strip), ADR-0034 (state-driven realtime UI)
 
+import Dependencies
 import Foundation
 import SharedKernel
 
@@ -33,7 +34,20 @@ public final class ClusterStripViewModel {
 
     // MARK: Init
 
-    public init(actor: ClusterStripActor = ClusterStripActor()) {
+    /// Resolves the process-wide ``ClusterStripActor`` via swift-dependencies.
+    ///
+    /// The composition root (`K8sManagerApp`) is responsible for registering
+    /// the singleton actor in `prepareDependencies { $0.clusterStrip = … }`
+    /// so that ``ClusterStripView``, ``SidebarTreeViewModel``, and every
+    /// other observer all see the SAME state. Without this, click events on
+    /// the strip never reach the sidebar (two-actor split bug).
+    public init() {
+        @Dependency(\.clusterStrip) var sharedActor
+        self.actor = sharedActor
+    }
+
+    /// Test/preview seam — inject any actor explicitly.
+    internal init(actor: ClusterStripActor) {
         self.actor = actor
     }
 

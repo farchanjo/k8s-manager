@@ -35,6 +35,32 @@ public enum ClusterAvatarColor: String, CaseIterable, Sendable, Codable {
     }
 }
 
+// MARK: - ClusterProviderKind
+
+/// Auth provider category derived from the kubeconfig user.exec block.
+///
+/// Drives the sidebar tree's provider section grouping (ADR-0051
+/// §"Per-cluster sidebar tree"). The CUE schema mirrors this enum:
+/// `providerKind: "aks" | "eks" | "gke" | "oidc" | "local"`.
+public enum ClusterProviderKind: String, Sendable, Codable, Hashable, CaseIterable {
+    case aks
+    case eks
+    case gke
+    case oidc
+    case local
+
+    /// Human-readable section label shown in the sidebar.
+    public var displayLabel: String {
+        switch self {
+        case .aks: return "AKS"
+        case .eks: return "EKS"
+        case .gke: return "GKE"
+        case .oidc: return "OIDC"
+        case .local: return "Local Kubeconfigs"
+        }
+    }
+}
+
 // MARK: - ClusterStripPin
 
 /// Value object representing one pinned cluster entry in the vertical cluster strip.
@@ -67,6 +93,11 @@ public struct ClusterStripPin: Sendable, Codable, Hashable, Identifiable {
     /// Zero-based strip position (top = 0). Contiguous across the full pin list.
     public let order: Int
 
+    /// Authentication provider category. Defaults to `.local` for backward
+    /// compatibility with pins persisted before ADR-0051 §"ClusterStripPin
+    /// schema" added this field.
+    public let providerKind: ClusterProviderKind
+
     // MARK: Identifiable
 
     /// `Identifiable.id` delegates to `clusterId` for SwiftUI list diffing.
@@ -81,7 +112,8 @@ public struct ClusterStripPin: Sendable, Codable, Hashable, Identifiable {
         initials: String,
         colorHex: String,
         pinnedAtRFC3339: String,
-        order: Int
+        order: Int,
+        providerKind: ClusterProviderKind = .local
     ) {
         self.clusterId = clusterId
         self.displayName = displayName
@@ -89,6 +121,7 @@ public struct ClusterStripPin: Sendable, Codable, Hashable, Identifiable {
         self.colorHex = colorHex
         self.pinnedAtRFC3339 = pinnedAtRFC3339
         self.order = order
+        self.providerKind = providerKind
     }
 
     /// Convenience factory that derives `initials` and `colorHex` automatically.
@@ -96,7 +129,8 @@ public struct ClusterStripPin: Sendable, Codable, Hashable, Identifiable {
         clusterId: ClusterId,
         displayName: String,
         pinnedAtRFC3339: String,
-        order: Int
+        order: Int,
+        providerKind: ClusterProviderKind = .local
     ) -> ClusterStripPin {
         ClusterStripPin(
             clusterId: clusterId,
@@ -104,8 +138,29 @@ public struct ClusterStripPin: Sendable, Codable, Hashable, Identifiable {
             initials: Self.deriveInitials(from: displayName),
             colorHex: ClusterAvatarColor.deterministic(for: clusterId).rawValue,
             pinnedAtRFC3339: pinnedAtRFC3339,
-            order: order
+            order: order,
+            providerKind: providerKind
         )
+    }
+
+    // MARK: Codable (backward-compatible providerKind decode)
+
+    private enum CodingKeys: String, CodingKey {
+        case clusterId, displayName, initials, colorHex
+        case pinnedAtRFC3339, order, providerKind
+    }
+
+    /// Custom decoder defaults `providerKind` to `.local` when reading legacy
+    /// pin JSON written before this field existed (ADR-0051 §"ClusterStripPin").
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.clusterId = try c.decode(ClusterId.self, forKey: .clusterId)
+        self.displayName = try c.decode(String.self, forKey: .displayName)
+        self.initials = try c.decode(String.self, forKey: .initials)
+        self.colorHex = try c.decode(String.self, forKey: .colorHex)
+        self.pinnedAtRFC3339 = try c.decode(String.self, forKey: .pinnedAtRFC3339)
+        self.order = try c.decode(Int.self, forKey: .order)
+        self.providerKind = try c.decodeIfPresent(ClusterProviderKind.self, forKey: .providerKind) ?? .local
     }
 
     // MARK: Helpers

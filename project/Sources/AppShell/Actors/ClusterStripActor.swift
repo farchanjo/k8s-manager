@@ -9,6 +9,7 @@
 //     cancels the pending write and schedules a fresh one.
 //   - Atomic write: write to a .tmp file then rename, preventing torn reads.
 
+import Dependencies
 import Foundation
 import Logging
 import SharedKernel
@@ -170,6 +171,12 @@ public actor ClusterStripActor {
     // MARK: Persistence
 
     /// Loads state from disk. Call once at app launch before other mutations.
+    ///
+    /// Broadcasts to existing subscribers after mutating in-memory state so a
+    /// view that subscribed BEFORE `wireAsync` finished restoring the strip
+    /// still receives the restored snapshot — preventing the canvas / sidebar
+    /// from latching onto an empty initial state and never noticing the
+    /// loaded pin (root cause of intermittent "no cluster selected" flicker).
     public func loadFromDisk() async throws {
         guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
         let data = try Data(contentsOf: persistenceURL)
@@ -177,6 +184,7 @@ public actor ClusterStripActor {
         pins = state.pins.sorted { $0.order < $1.order }
         activeClusterId = state.activeClusterId.map(ClusterId.init)
         log.info("ClusterStripActor loaded \(pins.count) pins from disk")
+        broadcast()
     }
 
     /// Schedules a debounced save. A new call within 500 ms cancels the pending write.
@@ -256,4 +264,28 @@ private struct PersistedState: Codable, Sendable {
     let pins: [ClusterStripPin]
     let activeClusterId: String?
     let lastPersistedAt: String
+}
+
+// MARK: - DependencyValues integration (ADR-0051 / ADR-0040)
+
+/// Public dependency key for the process-wide `ClusterStripActor`.
+///
+/// `ClusterStripView`, `ClusterStripViewModel`, `SidebarTreeViewModel`, and the
+/// composition root MUST all observe the SAME actor instance, otherwise click
+/// events on the strip never reach the sidebar (two-actor split bug).
+///
+/// The default `liveValue` is a fresh actor — useful for previews / tests.
+/// Production wires the singleton via `prepareDependencies { $0.clusterStrip = … }`
+/// at the composition root (`K8sManagerApp`).
+public enum ClusterStripDependencyKey: DependencyKey {
+    public static let liveValue: ClusterStripActor = ClusterStripActor()
+    public static let testValue: ClusterStripActor = ClusterStripActor()
+}
+
+extension DependencyValues {
+    /// Shared `ClusterStripActor` for cluster-strip state and active-cluster broadcast.
+    public var clusterStrip: ClusterStripActor {
+        get { self[ClusterStripDependencyKey.self] }
+        set { self[ClusterStripDependencyKey.self] = newValue }
+    }
 }

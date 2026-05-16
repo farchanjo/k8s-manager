@@ -2,7 +2,9 @@
 // Bounded context: app_shell (per ADR-0005)
 // ADR ref: ADR-0022 (menu bar tray), ADR-0023 (command palette + shortcuts),
 //          ADR-0032 (toasts), ADR-0050 (tab bar), ADR-0051 (Lens-style layout)
+import Dependencies
 import Foundation
+import SharedKernel
 import SwiftUI
 
 /// Namespace marker for the AppShell bounded context.
@@ -40,11 +42,19 @@ public struct K8sManagerRootScene: Scene {
     private let appShellDeps: AppShellDependencies
 
     /// Designated init.
-    /// - Parameter codeEditor: Concrete `CodeEditorPort` injected by the
-    ///   composition root (`K8sManagerApp` passes `CodeEditorViewAdapter()`).
-    ///   Defaults to `UnimplementedCodeEditor()` so previews and tests can
-    ///   instantiate the scene without the adapter target.
-    public init(codeEditor: any CodeEditorPort = UnimplementedCodeEditor()) {
+    /// - Parameters:
+    ///   - codeEditor: Concrete `CodeEditorPort` injected by the composition
+    ///     root (`K8sManagerApp` passes `CodeEditorViewAdapter()`). Defaults to
+    ///     `UnimplementedCodeEditor()` so previews and tests can instantiate
+    ///     the scene without the adapter target.
+    ///   - openTabsActor: The shared `OpenTabsActor` instance, owned by the
+    ///     composition root. SwiftUI views and `SidebarTreeViewModel` read the
+    ///     same actor via `AppShellDependencies` / `\.openTabs` — wiring both
+    ///     pathways from one source prevents tab-bar / sidebar drift.
+    public init(
+        codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
+        openTabsActor: OpenTabsActor? = nil
+    ) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
         )
@@ -52,6 +62,7 @@ public struct K8sManagerRootScene: Scene {
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
             localePreference: InMemoryLocalePreferenceStore(),
+            openTabsActor: openTabsActor,
             codeEditor: codeEditor
         )
     }
@@ -110,6 +121,10 @@ public struct AppShellView: View {
 
     @Environment(\.appShellDependencies) private var deps
 
+    /// Active cluster id mirrored from `ClusterStripActor` so the canvas
+    /// header can render the global namespace picker for the right cluster.
+    @State private var activeClusterId: ClusterId?
+
     public var body: some View {
         HStack(spacing: 0) {
             // Fixed-width cluster strip (ADR-0051). Always visible; not collapsible.
@@ -126,6 +141,18 @@ public struct AppShellView: View {
                 paletteViewModel: paletteViewModel,
                 toastViewModel: toastViewModel
             )
+        }
+        .task { await trackActiveCluster() }
+    }
+
+    /// Subscribes to ``ClusterStripActor`` so the canvas header reacts to
+    /// pin / activate / unpin without each child view re-implementing it.
+    private func trackActiveCluster() async {
+        @Dependency(\.clusterStrip) var stripActor
+        for await snapshot in stripActor.stateStream() {
+            if activeClusterId != snapshot.activeClusterId {
+                activeClusterId = snapshot.activeClusterId
+            }
         }
     }
 
@@ -145,7 +172,10 @@ public struct AppShellView: View {
 
     private var canvas: some View {
         VStack(spacing: 0) {
-            SidebarCanvasView(openTabsActor: deps.openTabsActor)
+            SidebarCanvasView(
+                openTabsActor: deps.openTabsActor,
+                activeClusterId: activeClusterId
+            )
             StatusBarView(toastViewModel: toastViewModel)
         }
     }

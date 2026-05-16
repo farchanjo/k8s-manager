@@ -51,6 +51,18 @@ struct K8sManagerApp: App {
     @NSApplicationDelegateAdaptor(AppActivationDelegate.self)
     private var appDelegate
 
+    /// Shared `OpenTabsActor` owned by the composition root.
+    ///
+    /// One actor backs both the `OpenTabsPort` consumed by view models (via
+    /// `swift-dependencies`) AND the SwiftUI tab-bar canvas (via
+    /// `AppShellDependencies.openTabsActor`). Wiring both pathways from a
+    /// single instance prevents the sidebar/tab-bar drift bug.
+    ///
+    /// Persistence path lives under `~/Library/Application Support/K8sManager/workspace/`
+    /// for now; ADR-0050 multi-cluster scoping (per-cluster `open-tabs.json`)
+    /// is deferred until the cluster-strip selects which subdirectory to load.
+    private let openTabsActor: OpenTabsActor
+
     init() {
         do {
             // ADR-0042: enforce single-instance before any other bootstrap work.
@@ -62,14 +74,19 @@ struct K8sManagerApp: App {
             Self.activateExistingInstance(pid: existingPid)
             // activateExistingInstance calls NSApp.terminate; this path should
             // not be reached, but guard against a no-op delegate scenario.
+            // Initialise stored properties so the App struct stays valid.
+            self.openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
             return
         } catch {
             let log = Logger(label: "K8sManagerApp.singleInstance")
             log.error("Single-instance lock error: \(error). Proceeding without enforcement.")
         }
 
+        let openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
+        self.openTabsActor = openTabsActor
+
         do {
-            try Self.wireSync()
+            try Self.wireSync(openTabsActor: openTabsActor)
         } catch {
             let log = Logger(label: "K8sManagerApp.bootstrap")
             log.critical("Composition-root bootstrap failed: \(error)")
@@ -79,7 +96,10 @@ struct K8sManagerApp: App {
     }
 
     var body: some Scene {
-        K8sManagerRootScene(codeEditor: CodeEditorViewAdapter())
+        K8sManagerRootScene(
+            codeEditor: CodeEditorViewAdapter(),
+            openTabsActor: openTabsActor
+        )
     }
 }
 
@@ -105,8 +125,20 @@ private extension K8sManagerApp {
 
 private extension K8sManagerApp {
 
+    /// Canonical persistence path for the shared `OpenTabsActor`.
+    ///
+    /// TODO (ADR-0050 addendum, 2026-05-16): the canonical contract is
+    /// per-cluster `clusters/<clusterId>/open-tabs.json`. Onda 3 ships this
+    /// single-cluster workspace path as a transitional state — see the ADR
+    /// addendum for migration plan (OpenTabsRegistry routing per ClusterId).
+    nonisolated static var openTabsPersistenceURL: URL {
+        ApplicationPaths.supportDirectory
+            .appendingPathComponent("workspace", isDirectory: true)
+            .appendingPathComponent("open-tabs.json")
+    }
+
     /// Wires all synchronously constructible adapters and registers their ports.
-    nonisolated static func wireSync() throws {
+    nonisolated static func wireSync(openTabsActor: OpenTabsActor) throws {
         let keychain = KeychainAccessAdapter()
         let keyManager = AuditChainKeyManager(keychainAdapter: keychain)
         let db = try openDatabase()
@@ -119,9 +151,29 @@ private extension K8sManagerApp {
         let sidebarReadModel = KubeconfigSidebarReadModel(repository: contextRepo, watch: activeContextWatch)
         let domainEventBus = DomainEventBus()
 
+        // Process-wide ClusterStripActor — registered here so ClusterStripView,
+        // SidebarTreeViewModel, and any other observer all share ONE actor.
+        // Without this, the strip would broadcast to its own actor while the
+        // sidebar silently observed a different one (two-actor split bug —
+        // click on a cluster avatar would never reach the sidebar tree).
+        let clusterStripActor = ClusterStripActor()
+
         prepareDependencies { values in
             // Domain event bus (ADR-0040)
             values.domainEventBus = domainEventBus
+
+            // ClusterStrip — shared singleton (ADR-0051)
+            values.clusterStrip = clusterStripActor
+
+            // OpenTabs — shared singleton (ADR-0050). SidebarTreeViewModel
+            // and HelmReleasesViewModel resolve this port to open document
+            // tabs; the same actor backs SidebarCanvasView's tab bar.
+            values.openTabs = openTabsActor
+
+            // NamespaceFilter — process-wide picker state. Every workload
+            // list view model and the canvas-header `GlobalNamespacePicker`
+            // share this actor so one dropdown filters the whole app.
+            values.namespaceFilter = NamespaceFilterActor()
 
             // Connectivity
             values.kubeconfigLoader = loader
@@ -289,9 +341,41 @@ private extension K8sManagerApp {
     /// `WatchStreamCoordinator` singleton.
     nonisolated static func wireAsync() {
         Task.detached(priority: .userInitiated) {
+            await wireClusterStrip()
+            await wireOpenTabs()
             await wireMCP()
             await wireLLM()
             await wireWatchCoordinator()
+        }
+    }
+
+    /// Restores persisted ``ClusterStripActor`` state (pins + active cluster)
+    /// from `~/Library/Application Support/K8sManager/workspace/cluster-strip-pins.json`
+    /// so that the strip survives app restarts (ADR-0051).
+    nonisolated static func wireClusterStrip() async {
+        @Dependency(\.clusterStrip) var actor
+        do {
+            try await actor.loadFromDisk()
+        } catch {
+            let log = Logger(label: "K8sManagerApp.clusterStrip")
+            log.warning("ClusterStripActor.loadFromDisk failed: \(error)")
+        }
+    }
+
+    /// Restores persisted ``OpenTabsActor`` state from disk.
+    ///
+    /// Silently swallows `fileNotFound` on first launch; logs other errors so
+    /// they remain diagnosable without crashing the bootstrap path (ADR-0050).
+    nonisolated static func wireOpenTabs() async {
+        @Dependency(\.openTabs) var port
+        guard let actor = port as? OpenTabsActor else { return }
+        do {
+            try await actor.loadFromDisk()
+        } catch let cocoa as CocoaError where cocoa.code == .fileReadNoSuchFile {
+            // First launch — no tabs persisted yet, expected.
+        } catch {
+            let log = Logger(label: "K8sManagerApp.openTabs")
+            log.warning("OpenTabsActor.loadFromDisk failed: \(error)")
         }
     }
 
