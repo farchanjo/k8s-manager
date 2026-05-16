@@ -112,3 +112,23 @@ public extension DependencyValues {
         set { self[WatchStreamCoordinatorKey.self] = newValue }
     }
 }
+
+// MARK: - PodLogsPortKey
+
+/// `DependencyKey` for `PodLogsPort`.
+///
+/// Both `liveValue` and `testValue` are the `Unimplemented` sentinel so the
+/// build is clean with no adapter linked. Adapter targets override `liveValue`
+/// at the composition root.
+public enum PodLogsPortKey: DependencyKey {
+    public static let liveValue: any PodLogsPort = UnimplementedPodLogsPort()
+    public static let testValue: any PodLogsPort = UnimplementedPodLogsPort()
+}
+
+public extension DependencyValues {
+    /// The port that streams pod container logs.
+    var podLogs: any PodLogsPort {
+        get { self[PodLogsPortKey.self] }
+        set { self[PodLogsPortKey.self] = newValue }
+    }
+}
