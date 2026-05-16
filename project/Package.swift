@@ -752,6 +752,17 @@ let package = Package(
         ),
 
         .testTarget(
+            name: "PrometheusQueryAdapterTests",
+            dependencies: [
+                "PrometheusQueryAdapter",
+                "MetricsObservability",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+            ],
+            path: "Tests/PrometheusQueryAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
             name: "YamsKubeconfigAdapterTests",
             dependencies: [
                 "YamsKubeconfigAdapter",
