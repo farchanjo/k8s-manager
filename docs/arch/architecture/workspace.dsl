@@ -6,7 +6,8 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         k8sManager = softwareSystem "K8sManager" "macOS-native Kubernetes manager." {
 
             // Bounded-context containers (domain cores)
-            appShell = container "App Shell" "SwiftUI window with NavigationSplitView 3-column + .inspector + status bar; sidebar; settings; chat surface; terminal surface; metrics surface; command palette ⌘P/⌘K; keyboard shortcuts; SF Symbols + custom symbol set; app self-monitoring (ADR-0027); state restoration on launch (ADR-0026); toast notifications (ADR-0032); loading skeletons / shimmer / spinner (ADR-0031); i18n catalog — en / pt-BR / es-ES baseline with community-extensible Xcode String Catalog (ADR-0033); state-driven UI via @Observable + AsyncSequence (ADR-0034)." "Swift / SwiftUI"
+            appShell = container "App Shell" "SwiftUI window with Lens IDE-style chrome: vertical cluster strip (ClusterStripActor) + per-cluster sidebar tree (provider-grouped, 8 resource categories per ADR-0050) + multi-document tab bar (OpenTabsActor, persistent tabs per cluster, tab-owned watch streams per ADR-0050/0036) + detail drawer (metrics + properties + events + action toolbar per ADR-0051) + status bar (cluster telemetry) + top-right chrome (assistant toggle, notifications, user menu); command palette ⌘P/⌘K; keyboard shortcuts; SF Symbols + custom symbol set; app self-monitoring (ADR-0027); state restoration on launch (ADR-0026); toast notifications (ADR-0032); loading skeletons / shimmer / spinner (ADR-0031); i18n catalog — en / pt-BR / es-ES baseline (ADR-0033); state-driven UI via @Observable + AsyncSequence (ADR-0034)." "Swift / SwiftUI"
+            tabSessionManager = container "TabSessionManager" "Application-scope actor pair managing the multi-document tab bar and cluster strip. OpenTabsActor owns DocumentTab ordered list, watcher-task registry, tab persistence (open-tabs.json per cluster, debounced 500 ms), and AsyncStream<[DocumentTab]> for the tab bar view model. ClusterStripActor owns ClusterStripPin ordered list, strip persistence (workspace/cluster-strip-pins.json), and AsyncStream<[ClusterStripPin]> for the strip view. Enforces tab invariants: max 20 tabs/cluster, identity-tuple dedup, cross-cluster isolation, LRU eviction signalling to ClusterSessionActor. Defined in ADR-0050 and ADR-0051." "Swift / actor"
             contextNavigation = container "Context Navigation" "Active context, recents, pinned items." "Swift"
             clusterConnectivity = container "Cluster Connectivity" "Parses kubeconfig, probes cluster health, owns KubernetesApiPort, ExecCredentialPort, and a ClusterSessionActor per cluster with isolated HTTPClient pool, dedicated MultiThreadedEventLoopGroup (kqueue underneath), credential cache, and watch/exec/portforward/terminal registries (ADR-0025)." "Swift"
             clusterIntelligence = container "Cluster Intelligence" "In-process MCP server (read-only K8s tool registry + Rego policy gate)." "Swift / MCP"
@@ -64,6 +65,12 @@ workspace "K8sManager" "macOS-native Kubernetes manager with built-in LLM assist
         // Operator interactions
         operator -> appShell "Switches contexts, browses resources, edits YAML, opens terminals, configures providers, chats with assistant, watches metrics"
         operator -> analyticsDashboard "Selects scope; clicks widgets to drill down"
+
+        // TabSessionManager relationships (ADR-0050, ADR-0051)
+        tabSessionManager -> clusterConnectivity "OpenTabsActor issues WatchPort.watch/GVRWatchPort.watch per tab open; cancels via Task.cancel per tab close; reads ClusterSessionActor watch budget"
+        tabSessionManager -> localPersistence "Persists open-tabs.json per cluster and workspace/cluster-strip-pins.json via atomic write; reads both on cold launch"
+        tabSessionManager -> domainEventBus "Publishes TabOpened, TabClosed, TabFocused, ClusterStripPinned, ClusterStripUnpinned, ClusterStripReordered; subscribes to ClusterSessionClosed to cascade tab teardown"
+        appShell -> tabSessionManager "Reads AsyncStream<[DocumentTab]> for tab bar rendering; reads AsyncStream<[ClusterStripPin]> for cluster strip rendering; issues openTab/closeTab/focusTab/pinCluster commands"
 
         // App Shell consumes read models
         appShell -> analyticsDashboard "Reads DashboardCatalogReadModel for the sidebar dashboards section"
