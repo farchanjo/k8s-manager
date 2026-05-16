@@ -24,9 +24,11 @@ public struct AssistantChatView: View {
     public var body: some View {
         HSplitView {
             sessionSidebar
-                .frame(minWidth: 200, idealWidth: 220, maxWidth: 280)
+                .frame(minWidth: 200, idealWidth: 220, maxWidth: 280, maxHeight: .infinity)
             conversationPanel
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await viewModel.loadSessions() }
     }
 

@@ -83,9 +83,11 @@ public struct HelmManagementView: View {
             )) { release in
                 releaseRow(release)
             }
-            .frame(minWidth: 260, idealWidth: 300, maxWidth: 380)
+            .frame(minWidth: 260, idealWidth: 300, maxWidth: 380, maxHeight: .infinity)
             historyPanel
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func releaseRow(_ release: Release) -> some View {

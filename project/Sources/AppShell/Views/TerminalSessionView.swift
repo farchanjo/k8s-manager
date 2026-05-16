@@ -75,9 +75,11 @@ public struct TerminalSessionView: View {
     private func sessionSplitView(_ sessions: [TerminalSession]) -> some View {
         HSplitView {
             sessionList(sessions)
-                .frame(minWidth: 200, idealWidth: 240, maxWidth: 300)
+                .frame(minWidth: 200, idealWidth: 240, maxWidth: 300, maxHeight: .infinity)
             outputPane
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Session list

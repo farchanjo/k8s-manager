@@ -83,6 +83,7 @@ public struct ResourceBrowserView: View {
             itemList(items)
             detailPanel
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func itemList(_ items: [ResourceListItem]) -> some View {
@@ -92,7 +93,7 @@ public struct ResourceBrowserView: View {
         )) { item in
             itemRow(item)
         }
-        .frame(minWidth: 300)
+        .frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func itemRow(_ item: ResourceListItem) -> some View {

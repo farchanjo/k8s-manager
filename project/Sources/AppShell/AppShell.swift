@@ -22,6 +22,8 @@ public struct K8sManagerRootScene: Scene {
         WindowGroup {
             AppShellView()
         }
+        .defaultSize(width: 1280, height: 800)
+        .windowResizability(.contentSize)
     }
 }
 
@@ -40,7 +42,6 @@ public struct AppShellView: View {
         } detail: {
             detail
         }
-        .frame(minWidth: 900, minHeight: 600)
     }
 
     private var sidebar: some View {
