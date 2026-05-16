@@ -124,8 +124,18 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
     case customResourceGroup(String)          // e.g. "argoproj.io"
     case customResourceKind(GroupVersionResource)
 
-    // MARK: Security + Cluster Operations
+    // MARK: Security Center group + leaves (ADR-0068)
     case securityCenter
+    /// Security Center: cluster-level posture overview.
+    case securityOverviewEntry
+    /// Security Center: container image inventory.
+    case securityImagesEntry
+    /// Security Center: pod resource and baseline audit.
+    case securityResourcesEntry
+    /// Security Center: RBAC role privilege audit.
+    case securityRolesEntry
+
+    // MARK: Cluster Operations
     case clusterOperations
     case apiResources
     case applyYAML
@@ -149,8 +159,12 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .helmReleases:      return "helm.releases"
         case .accessControl:     return "access-control"
         case .customResources:   return "custom-resources"
-        case .securityCenter:    return "security-center"
-        case .clusterOperations: return "cluster-operations"
+        case .securityCenter:          return "security-center"
+        case .securityOverviewEntry:   return "security-center.overview"
+        case .securityImagesEntry:     return "security-center.images"
+        case .securityResourcesEntry:  return "security-center.resources"
+        case .securityRolesEntry:      return "security-center.roles"
+        case .clusterOperations:       return "cluster-operations"
         case .apiResources:      return "api-resources"
         case .applyYAML:         return "apply-yaml"
         case .workloadKind(let k):        return "workload.\(k.kind)"
@@ -183,8 +197,12 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .helmReleases:      return "Releases"
         case .accessControl:     return "Access Control"
         case .customResources:   return "Custom Resources"
-        case .securityCenter:    return "Security Center"
-        case .clusterOperations: return "Cluster Operations"
+        case .securityCenter:         return "Security Center"
+        case .securityOverviewEntry:  return "Overview"
+        case .securityImagesEntry:    return "Images"
+        case .securityResourcesEntry: return "Resources"
+        case .securityRolesEntry:     return "Roles"
+        case .clusterOperations:      return "Cluster Operations"
         case .apiResources:      return "API Resources"
         case .applyYAML:         return "Apply YAML"
         case .workloadKind(let k):        return k.kind + "s"
@@ -214,8 +232,12 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .helmReleases:      return "shippingbox.fill"
         case .accessControl:     return "lock.shield"
         case .customResources:   return "puzzlepiece.extension"
-        case .securityCenter:    return "lock.shield.fill"
-        case .clusterOperations: return "gearshape.2"
+        case .securityCenter:         return "lock.shield.fill"
+        case .securityOverviewEntry:  return "chart.bar.xaxis"
+        case .securityImagesEntry:    return "photo.stack"
+        case .securityResourcesEntry: return "exclamationmark.shield"
+        case .securityRolesEntry:     return "person.badge.key"
+        case .clusterOperations:      return "gearshape.2"
         case .apiResources:      return "list.bullet.rectangle.portrait"
         case .applyYAML:         return "doc.badge.plus"
         case .workloadKind(let k):        return Self.workloadSymbol(for: k)
@@ -242,6 +264,7 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .storage:           return SidebarTree.storageChildren
         case .helm:              return SidebarTree.helmChildren
         case .accessControl:     return SidebarTree.accessControlChildren
+        case .securityCenter:    return SidebarTree.securityCenterChildren
         case .clusterOperations: return SidebarTree.clusterOperationsChildren
         default:                 return nil
         }
@@ -258,15 +281,18 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
     /// when used as an expand-only group without a tab of its own).
     public func toDocumentTab(clusterId: ClusterId) -> DocumentTab? {
         switch self {
-        case .overview:        return .overview(clusterId: clusterId)
-        case .applications:    return .applications(clusterId: clusterId)
-        case .nodes:           return .nodes(clusterId: clusterId)
-        case .namespaces:      return .namespaces(clusterId: clusterId)
-        case .events:          return .events(clusterId: clusterId, scope: nil)
-        case .securityCenter:  return .securityOverview(clusterId: clusterId)
-        case .apiResources:    return .apiResources(clusterId: clusterId)
-        case .applyYAML:       return .applyYAML(clusterId: clusterId)
-        case .helmReleases:    return .resourceList(clusterId: clusterId, kind: .helmRelease, namespace: nil)
+        case .overview:                 return .overview(clusterId: clusterId)
+        case .applications:             return .applications(clusterId: clusterId)
+        case .nodes:                    return .nodes(clusterId: clusterId)
+        case .namespaces:               return .namespaces(clusterId: clusterId)
+        case .events:                   return .events(clusterId: clusterId, scope: nil)
+        case .securityOverviewEntry:    return .securityOverview(clusterId: clusterId)
+        case .securityImagesEntry:      return .securityImages(clusterId: clusterId)
+        case .securityResourcesEntry:   return .securityResources(clusterId: clusterId)
+        case .securityRolesEntry:       return .securityRoles(clusterId: clusterId)
+        case .apiResources:             return .apiResources(clusterId: clusterId)
+        case .applyYAML:                return .applyYAML(clusterId: clusterId)
+        case .helmReleases:             return .resourceList(clusterId: clusterId, kind: .helmRelease, namespace: nil)
         case .workloadKind(let k):
             return .resourceList(clusterId: clusterId, kind: k, namespace: nil)
         case .configKind(let k):
@@ -283,6 +309,7 @@ public enum SidebarNode: Hashable, Sendable, Identifiable {
         case .workloads, .config, .network, .storage,
              .helm, .helmCharts,
              .accessControl, .customResources,
+             .securityCenter,
              .clusterOperations,
              .customResourceGroup:
             return nil
@@ -451,6 +478,16 @@ public enum SidebarTree {
         .rbacKind(.clusterRoleBindings),
         .rbacKind(.roleBindings),
         .rbacKind(.certificateSigningRequests),
+    ]
+
+    /// Security Center child nodes per ADR-0068 §"Sub-entry contracts".
+    ///
+    /// Fixed order: Overview, Images, Resources, Roles.
+    static let securityCenterChildren: [SidebarNode] = [
+        .securityOverviewEntry,
+        .securityImagesEntry,
+        .securityResourcesEntry,
+        .securityRolesEntry,
     ]
 
     /// Cluster Operations child nodes.

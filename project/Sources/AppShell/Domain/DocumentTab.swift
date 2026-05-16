@@ -136,6 +136,15 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
     /// RBAC / PSA security overview for a cluster.
     case securityOverview(clusterId: ClusterId)
 
+    /// Security Center — container image inventory (ADR-0068).
+    case securityImages(clusterId: ClusterId)
+
+    /// Security Center — pod resource and baseline audit (ADR-0068).
+    case securityResources(clusterId: ClusterId)
+
+    /// Security Center — RBAC role privilege audit (ADR-0068).
+    case securityRoles(clusterId: ClusterId)
+
     /// API resource discovery browser.
     case apiResources(clusterId: ClusterId)
 
@@ -172,6 +181,9 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
              .nodes(let c),
              .namespaces(let c),
              .securityOverview(let c),
+             .securityImages(let c),
+             .securityResources(let c),
+             .securityRoles(let c),
              .apiResources(let c),
              .applyYAML(let c),
              .diagnostics(let c):
@@ -225,7 +237,10 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .applications:                         return "Applications"
         case .nodes:                                return "Nodes"
         case .namespaces:                           return "Namespaces"
-        case .securityOverview:                     return "Security"
+        case .securityOverview:                     return "Security Overview"
+        case .securityImages:                       return "Security: Images"
+        case .securityResources:                    return "Security: Resources"
+        case .securityRoles:                        return "Security: Roles"
         case .apiResources:                         return "API Resources"
         case .applyYAML:                            return "Apply YAML"
         case .diagnostics:                          return "Diagnostics"
@@ -270,7 +285,10 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .namespaces:       return "folder"
         case .portForward:      return "arrow.left.arrow.right"
         case .customResource:   return "puzzlepiece.extension"
-        case .securityOverview: return "lock.shield"
+        case .securityOverview:   return "lock.shield"
+        case .securityImages:     return "photo.stack"
+        case .securityResources:  return "exclamationmark.shield"
+        case .securityRoles:      return "person.badge.key"
         case .apiResources:     return "network"
         case .applyYAML:        return "doc.badge.plus"
         case .diagnostics:      return "stethoscope"
@@ -293,7 +311,10 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .applications:         return "applications:\(c)"
         case .nodes:                return "nodes:\(c)"
         case .namespaces:           return "namespaces:\(c)"
-        case .securityOverview:     return "security:\(c)"
+        case .securityOverview:     return "security.overview:\(c)"
+        case .securityImages:       return "security.images:\(c)"
+        case .securityResources:    return "security.resources:\(c)"
+        case .securityRoles:        return "security.roles:\(c)"
         case .apiResources:         return "apiresources:\(c)"
         case .applyYAML:            return "applyyaml:\(c)"
         case .diagnostics:          return "diagnostics:\(c)"
@@ -363,8 +384,9 @@ extension DocumentTab: Codable {
         case welcome
         case overview, applications, nodes, resourceList, resourceDetail
         case yamlEditor, logs, exec, nodeDebug, events, helmRelease, namespaces
-        case portForward, customResource, securityOverview, apiResources
-        case applyYAML, diagnostics
+        case portForward, customResource
+        case securityOverview, securityImages, securityResources, securityRoles
+        case apiResources, applyYAML, diagnostics
     }
 
     public init(from decoder: any Decoder) throws {
@@ -380,14 +402,17 @@ extension DocumentTab: Codable {
         case .welcome:
             // Unreachable: handled by early return above.
             self = .welcome
-        case .overview:         self = .overview(clusterId: cid)
-        case .applications:     self = .applications(clusterId: cid)
-        case .nodes:            self = .nodes(clusterId: cid)
-        case .namespaces:       self = .namespaces(clusterId: cid)
-        case .securityOverview: self = .securityOverview(clusterId: cid)
-        case .apiResources:     self = .apiResources(clusterId: cid)
-        case .applyYAML:        self = .applyYAML(clusterId: cid)
-        case .diagnostics:      self = .diagnostics(clusterId: cid)
+        case .overview:          self = .overview(clusterId: cid)
+        case .applications:      self = .applications(clusterId: cid)
+        case .nodes:             self = .nodes(clusterId: cid)
+        case .namespaces:        self = .namespaces(clusterId: cid)
+        case .securityOverview:  self = .securityOverview(clusterId: cid)
+        case .securityImages:    self = .securityImages(clusterId: cid)
+        case .securityResources: self = .securityResources(clusterId: cid)
+        case .securityRoles:     self = .securityRoles(clusterId: cid)
+        case .apiResources:      self = .apiResources(clusterId: cid)
+        case .applyYAML:         self = .applyYAML(clusterId: cid)
+        case .diagnostics:       self = .diagnostics(clusterId: cid)
         case .resourceList:
             let kind = try c.decode(ResourceKind.self, forKey: .kind)
             let ns = try c.decodeIfPresent(String.self, forKey: .namespace)
@@ -449,6 +474,12 @@ extension DocumentTab: Codable {
             try c.encode(TypeTag.namespaces, forKey: .type)
         case .securityOverview:
             try c.encode(TypeTag.securityOverview, forKey: .type)
+        case .securityImages:
+            try c.encode(TypeTag.securityImages, forKey: .type)
+        case .securityResources:
+            try c.encode(TypeTag.securityResources, forKey: .type)
+        case .securityRoles:
+            try c.encode(TypeTag.securityRoles, forKey: .type)
         case .apiResources:
             try c.encode(TypeTag.apiResources, forKey: .type)
         case .applyYAML:

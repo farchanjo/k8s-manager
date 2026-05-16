@@ -129,6 +129,15 @@ public struct ActiveTabContentView: View {
         case .securityOverview(let clusterId):
             SecurityOverviewView(clusterId: clusterId)
 
+        case .securityImages(let clusterId):
+            SecurityImagesView(clusterId: clusterId)
+
+        case .securityResources(let clusterId):
+            SecurityResourcesView(clusterId: clusterId)
+
+        case .securityRoles(let clusterId):
+            SecurityRolesView(clusterId: clusterId)
+
         case .apiResources(let clusterId):
             APIResourcesListView(clusterId: clusterId)
 
