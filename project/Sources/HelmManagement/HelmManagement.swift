@@ -1,13 +1,9 @@
-// HelmManagement.swift — domain core placeholder
+// HelmManagement.swift — helm_management domain core
 // Bounded context: helm_management (per ADR-0005)
-// Status: skeleton; domain types pending CUE schema extraction.
-import Foundation
-
-/// Namespace marker for the HelmManagement bounded context.
-///
-/// Domain types, ports, and actors land under this enum in subsequent rounds.
-/// This file exists so the target compiles cleanly under Swift 6 strict concurrency.
-public enum HelmManagement: Sendable {
-    /// Build identifier — bumped manually until CI emits this.
-    public static let moduleVersion = "0.0.1-skeleton"
-}
+// ADR ref: ADR-0015 (Helm native phased), ADR-0046 (rollback lease mutex)
+//
+// Domain types live in `Domain/`, hexagonal port protocols in `Ports/`.
+// No namespace enum is declared: a top-level type named `HelmManagement`
+// would shadow the module name and break adapter-side type qualification
+// (e.g. `HelmManagement.Release`) when both this module and another module
+// export the same simple type name — same rationale as ClusterConnectivity.
