@@ -123,12 +123,11 @@ public struct EndpointsListView: View {
     }
 
     private func errorView(_ error: Error) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundStyle(.orange)
-            Text(error.localizedDescription).multilineTextAlignment(.center)
-            Button("Retry") { Task { await viewModel.reload(clusterId: clusterId) } }
-                .buttonStyle(.borderedProminent)
-        }
-        .padding().frame(maxWidth: .infinity, maxHeight: .infinity)
+        ErrorStateView(
+            title: "Failed to load Endpoints",
+            error: error,
+            retryable: true,
+            onRetry: { Task { await viewModel.reload(clusterId: clusterId) } }
+        )
     }
 }
