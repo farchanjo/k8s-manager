@@ -28,8 +28,8 @@ public typealias DomainGVK = ResourceBrowser.GroupVersionKind
 /// down a short-lived `KubernetesClient` actor — intentional for the first
 /// vertical slice to keep one client per call lifetime.
 ///
-/// Thread safety: `struct` with value semantics. Resolver and ELG are
-/// captured by value or reference respectively; both are `Sendable`.
+/// Thread safety: `struct` with value semantics. Resolver is captured by value;
+/// `SharedNetworking.eventLoopGroup` is a process-wide singleton (ADR-0007).
 public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
 
     // MARK: - Types
@@ -43,7 +43,6 @@ public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
 
     private let resolver: ClusterResolver
     private let logger: Logger
-    private let eventLoopGroup: MultiThreadedEventLoopGroup
 
     // MARK: - Initialiser
 
@@ -58,7 +57,6 @@ public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
     ) {
         self.resolver = resolver
         self.logger = logger
-        self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 
     // MARK: - KubernetesResourceListPort
@@ -117,7 +115,7 @@ public struct SwiftkubeResourceListAdapter: KubernetesResourceListPort {
 
         return KubernetesClient(
             config: config,
-            provider: .shared(eventLoopGroup),
+            provider: .shared(SharedNetworking.eventLoopGroup),
             logger: logger
         )
     }

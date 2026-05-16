@@ -27,6 +27,9 @@ import SwiftkubeClient
 /// Thread safety: `struct` with value semantics. Each call instantiates and
 /// shuts down a `KubernetesClient` actor — intentional for the first slice
 /// to keep one client per cluster-identity bounded to the call lifetime.
+///
+/// The shared `MultiThreadedEventLoopGroup` is provided by `SharedNetworking`
+/// (ADR-0007). Its lifecycle is managed at the composition-root level.
 public struct SwiftkubeApiAdapter: KubernetesApiPort {
 
     // MARK: - Types
@@ -40,7 +43,6 @@ public struct SwiftkubeApiAdapter: KubernetesApiPort {
 
     private let resolver: ClusterResolver
     private let logger: Logger
-    private let eventLoopGroup: MultiThreadedEventLoopGroup
 
     // MARK: - Initialiser
 
@@ -56,8 +58,6 @@ public struct SwiftkubeApiAdapter: KubernetesApiPort {
     ) {
         self.resolver = resolver
         self.logger = logger
-        // One thread is sufficient for a macOS desktop app.
-        self.eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 
     // MARK: - KubernetesApiPort
@@ -152,7 +152,7 @@ public struct SwiftkubeApiAdapter: KubernetesApiPort {
 
         return KubernetesClient(
             config: config,
-            provider: .shared(eventLoopGroup),
+            provider: .shared(SharedNetworking.eventLoopGroup),
             logger: logger
         )
     }
