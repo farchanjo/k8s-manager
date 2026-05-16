@@ -5,35 +5,56 @@ This directory contains the Apple platform source root for K8S-Manager. It is a 
 
 ## Module topology
 
-```
-Foundation / Swift stdlib
-        │
-  ┌─────┴──────┐
-  │ SharedKernel│  (zero external deps beyond swift-log)
-  └─────┬──────┘
-        │
-  Domain cores (depend only on SharedKernel + swift-{dependencies,log,metrics})
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ ClusterConnectivity  ContextNavigation  LLMProvider  AssistantChat      │
-  │ ClusterIntelligence  LocalPersistence   ResourceBrowser                 │
-  │ PortForwarding       HelmManagement     MetricsObservability            │
-  │ TerminalSession                                                          │
-  └──────────────────────────────┬──────────────────────────────────────────┘
-                                 │
-  AppShell (SwiftUI shell — imports all domain cores; NO adapter imports)
-                                 │
-  Adapters (each imports ONE infra lib + its domain core(s))
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ SwiftkubeClientAdapter   YamsKubeconfigAdapter   KeychainAdapter        │
-  │ GRDBPersistenceAdapter   AnthropicAdapter        OpenAIAdapter          │
-  │ OpenAICompatibleAdapter  MCPSwiftSDKAdapter      AWSExecCredentialAdapter│
-  │ GCPExecCredentialAdapter AzureExecCredentialAdapter                     │
-  │ OIDCExecCredentialAdapter SubprocessExecCredentialAdapter               │
-  │ PrometheusQueryAdapter   WebSocketExecAdapter    WebSocketPortForwardAdapter│
-  │ CodeEditorAdapter                                                        │
-  └──────────────────────────────┬──────────────────────────────────────────┘
-                                 │
-  K8sManagerApp (executable — composition root; imports everything)
+```mermaid
+graph TD
+    Foundation["Foundation / Swift stdlib"]
+    SharedKernel["SharedKernel<br/>zero external deps beyond swift-log"]
+
+    subgraph DomainCores["Domain cores — depend only on SharedKernel + swift-{dependencies,log,metrics}"]
+        direction LR
+        ClusterConnectivity
+        ContextNavigation
+        LLMProvider
+        AssistantChat
+        ClusterIntelligence
+        LocalPersistence
+        ResourceBrowser
+        PortForwarding
+        HelmManagement
+        MetricsObservability
+        TerminalSession
+    end
+
+    AppShell["AppShell<br/>SwiftUI shell — imports all domain cores; NO adapter imports"]
+
+    subgraph Adapters["Adapters — each imports ONE infra lib + its domain core(s)"]
+        direction LR
+        SwiftkubeClientAdapter
+        YamsKubeconfigAdapter
+        KeychainAdapter
+        GRDBPersistenceAdapter
+        AnthropicAdapter
+        OpenAIAdapter
+        OpenAICompatibleAdapter
+        MCPSwiftSDKAdapter
+        AWSExecCredentialAdapter
+        GCPExecCredentialAdapter
+        AzureExecCredentialAdapter
+        OIDCExecCredentialAdapter
+        SubprocessExecCredentialAdapter
+        PrometheusQueryAdapter
+        WebSocketExecAdapter
+        WebSocketPortForwardAdapter
+        CodeEditorAdapter
+    end
+
+    K8sManagerApp["K8sManagerApp<br/>executable — composition root; imports everything"]
+
+    Foundation --> SharedKernel
+    SharedKernel --> DomainCores
+    DomainCores --> AppShell
+    AppShell --> Adapters
+    Adapters --> K8sManagerApp
 ```
 
 The invariants above (domain cores never import infra; AppShell never imports adapters) are enforced
