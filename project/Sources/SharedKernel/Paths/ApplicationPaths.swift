@@ -1,6 +1,6 @@
 // SharedKernel/Paths/ApplicationPaths.swift
 // DDD role: infrastructure utility — canonical path resolver
-// ADR refs: ADR-0010 (storage design), ADR-0026 (filesystem layout), ADR-0042 (instance lock)
+// ADR refs: ADR-0010 (storage design), ADR-0026 (filesystem layout), ADR-0042 (instance lock, network-volume rejection)
 
 import Foundation
 
@@ -105,5 +105,26 @@ public enum ApplicationPaths: Sendable {
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+    }
+
+    // MARK: Network-volume detection (ADR-0042)
+
+    /// Returns `true` when the volume hosting `url` is a local (non-network) filesystem.
+    ///
+    /// Uses `URLResourceKey.volumeIsLocalKey` which honours macOS's kernel-level
+    /// volume attribute without requiring `statfs(2)` directly. A `false` return
+    /// means the path resides on NFS, SMB, AFP, WebDAV, or another remote volume
+    /// and the app must refuse to use it for storage (ADR-0042 §Network-volume rejection).
+    ///
+    /// - Parameter url: Any URL whose volume should be probed. The volume is
+    ///   resolved from `url.deletingLastPathComponent()` so the file itself need
+    ///   not exist yet (it is safe to probe the parent directory).
+    /// - Returns: `true` if the hosting volume reports itself as local.
+    /// - Throws: A `CocoaError` if the resource value cannot be read (e.g. the
+    ///   directory does not exist or is inaccessible).
+    public static func isLocalVolume(at url: URL) throws -> Bool {
+        let directory = url.deletingLastPathComponent()
+        let values = try directory.resourceValues(forKeys: [.volumeIsLocalKey])
+        return values.volumeIsLocal ?? true
     }
 }

@@ -44,6 +44,18 @@ import WebSocketExecAdapter
 import WebSocketPortForwardAdapter
 import YamsKubeconfigAdapter
 
+// MARK: - BootstrapError
+
+/// Unrecoverable errors detected during app bootstrap (ADR-0042).
+enum BootstrapError: Error, Sendable {
+    /// The application's storage directory resides on a network volume.
+    ///
+    /// SQLite WAL locking is unreliable on network filesystems (NFS, SMB, AFP,
+    /// WebDAV). The app must refuse to open the database on such volumes and
+    /// prompt the operator to choose a local path (ADR-0042 §Network-volume rejection).
+    case nonLocalStorageVolume(path: String)
+}
+
 // MARK: - Entry point
 
 @main
@@ -82,6 +94,23 @@ struct K8sManagerApp: App {
             log.error("Single-instance lock error: \(error). Proceeding without enforcement.")
         }
 
+        // ADR-0042 §Network-volume rejection: probe storage directory filesystem
+        // type before opening any SQLite connection. A non-local volume (NFS, SMB,
+        // AFP, WebDAV) causes unreliable POSIX advisory locks and silent WAL
+        // corruption. Surface a blocking alert and exit rather than opening the DB.
+        do {
+            let isLocal = try ApplicationPaths.isLocalVolume(at: ApplicationPaths.storageURL)
+            if !isLocal {
+                Self.rejectNonLocalVolume(path: ApplicationPaths.storageURL.path)
+                self.openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
+                return
+            }
+        } catch {
+            // If the probe itself fails the volume is inaccessible; treat conservatively.
+            let log = Logger(label: "K8sManagerApp.volumeCheck")
+            log.warning("Volume locality probe failed: \(error). Proceeding with caution.")
+        }
+
         let openTabsActor = OpenTabsActor(persistenceURL: Self.openTabsPersistenceURL)
         self.openTabsActor = openTabsActor
 
@@ -118,6 +147,29 @@ private extension K8sManagerApp {
             existing.activate(options: [.activateAllWindows])
         }
         DispatchQueue.main.async { NSApp.terminate(nil) }
+    }
+
+    /// Shows a blocking NSAlert for network-volume rejection, then terminates.
+    ///
+    /// Mapped to `FailureCatalogue` entry F20 (non-local storage volume). The
+    /// alert is modal so no main window appears before the process exits or the
+    /// operator chooses a local location.
+    ///
+    /// - Parameter path: Human-readable storage path shown in the alert detail.
+    nonisolated static func rejectNonLocalVolume(path: String) {
+        let log = Logger(label: "K8sManagerApp.volumeCheck")
+        log.critical("Storage path resides on a non-local volume — refusing to open database. path=\(path)")
+        DispatchQueue.main.sync {
+            let alert = NSAlert()
+            alert.messageText = "Network Volume Detected"
+            alert.informativeText =
+                "K8sManager cannot use a network volume for its configuration storage. "
+                + "Please move the storage directory to a local volume.\n\nPath: \(path)"
+            alert.alertStyle = .critical
+            alert.addButton(withTitle: "Quit")
+            alert.runModal()
+            NSApp.terminate(nil)
+        }
     }
 }
 
