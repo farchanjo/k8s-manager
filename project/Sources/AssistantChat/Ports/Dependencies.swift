@@ -29,8 +29,10 @@ public extension DependencyValues {
 // MARK: - PromptInjectionFilterPortKey
 
 /// `DependencyKey` for `PromptInjectionFilterPort`.
+///
+/// `liveValue` is the concrete `ContentFilterGateway` actor (ADR-0048, Layer 3).
 public enum PromptInjectionFilterPortKey: DependencyKey {
-    public static let liveValue: any PromptInjectionFilterPort = UnimplementedPromptInjectionFilterPort()
+    public static let liveValue: any PromptInjectionFilterPort = ContentFilterGateway()
     public static let testValue: any PromptInjectionFilterPort = UnimplementedPromptInjectionFilterPort()
 }
 

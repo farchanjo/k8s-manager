@@ -107,16 +107,34 @@ public actor AssistantSessionActor {
 
     // MARK: - User message
 
-    /// Sanitises the user text via the injection filter, persists it, and
-    /// appends it to the in-memory history.
+    // MARK: - Sanitization pipeline
+
+    /// Layer-1 sanitizer — stateless, safe to capture by value in Tasks.
+    private let sanitizer = PromptSanitizerService()
+
+    /// Layer-2 context builder — stateless, safe to capture by value in Tasks.
+    private let contextBuilder = PromptContextBuilder()
+
+    // MARK: - User message
+
+    /// Sanitises the user text via the ADR-0048 three-layer pipeline,
+    /// persists it, and appends it to the in-memory history.
+    ///
+    /// Pipeline order (ADR-0048):
+    /// 1. `PromptSanitizerService` — strip control chars, NFC-normalise, clip.
+    /// 2. `PromptContextBuilder` — wrap in structural tags (operator messages
+    ///    pass through without tags).
+    /// 3. `PromptInjectionFilterPort` — score against denial patterns.
     ///
     /// - Parameter userMessage: Raw text authored by the operator.
     /// - Returns: The persisted `ChatMessage` for the user turn.
     /// - Throws: `AssistantSessionError.promptInjectionDenied` when the filter
     ///   blocks the payload; `ChatRepositoryError` on persistence failure.
     public func append(userMessage text: String) async throws -> ChatMessage {
+        let sanitized = sanitizer.sanitize(text).sanitized
+        let tagged = contextBuilder.build(sanitizedValue: sanitized, source: .operatorMessage)
         let filterInput = FilterInput(
-            payload: text,
+            payload: tagged,
             source: "user_input",
             sessionId: session.id
         )
