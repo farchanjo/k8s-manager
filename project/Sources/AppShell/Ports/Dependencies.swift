@@ -1,6 +1,7 @@
 // Ports/Dependencies.swift — app_shell bounded context
 // DDD role: Dependency key registry + Unimplemented defaults
-// ADR ref: ADR-0050 (tab system — openTabsActor)
+// ADR ref: ADR-0050 (tab system — openTabsActor),
+//          ADR-0073 (inspector trailing column — inspectorViewModel)
 
 // MARK: - AppShellDependencies
 
@@ -39,6 +40,10 @@ public struct AppShellDependencies: Sendable {
     /// Inline docked YAML editor pane actor (ADR-0064). Single instance per workspace
     /// window. `nil` only in previews/tests that do not exercise the docked editor.
     public let dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor?
+    /// Inspector trailing column view model (ADR-0073). Single instance per window,
+    /// owned by the scene root and distributed via `AppShellDependencies`.
+    /// `nil` only in previews/tests that do not exercise the Inspector surface.
+    public let inspectorViewModel: ResourceInspectorViewModel?
 
     public init(
         translationCatalog: any TranslationCatalogPort,
@@ -49,7 +54,8 @@ public struct AppShellDependencies: Sendable {
         navigationHistoryActor: NavigationHistoryActor? = nil,
         codeEditor: any CodeEditorPort = UnimplementedCodeEditor(),
         dockedTerminalPaneActor: DockedTerminalPaneActor? = nil,
-        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil
+        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil,
+        inspectorViewModel: ResourceInspectorViewModel? = nil
     ) {
         self.translationCatalog = translationCatalog
         self.toastEmitter = toastEmitter
@@ -60,6 +66,7 @@ public struct AppShellDependencies: Sendable {
         self.codeEditor = codeEditor
         self.dockedTerminalPaneActor = dockedTerminalPaneActor
         self.dockedYAMLEditorPaneActor = dockedYAMLEditorPaneActor
+        self.inspectorViewModel = inspectorViewModel
     }
 
     // MARK: - Unimplemented defaults

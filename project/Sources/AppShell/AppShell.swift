@@ -57,7 +57,8 @@ public struct K8sManagerRootScene: Scene {
         workspaceTabsActor: WorkspaceTabsActor? = nil,
         navigationHistoryActor: NavigationHistoryActor? = nil,
         dockedTerminalPaneActor: DockedTerminalPaneActor? = nil,
-        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil
+        dockedYAMLEditorPaneActor: DockedYAMLEditorPaneActor? = nil,
+        inspectorViewModel: ResourceInspectorViewModel? = nil
     ) {
         let toastAggregate = ToastStackAggregate(
             initial: DomainToastStack(id: UUID().uuidString)
@@ -83,6 +84,9 @@ public struct K8sManagerRootScene: Scene {
         let resolvedYAMLPane = dockedYAMLEditorPaneActor ?? DockedYAMLEditorPaneActor(
             persistenceURL: ApplicationPaths.dockedYAMLEditorPaneURL
         )
+        // Inspector view model — single instance per window. Wave 3 creates it
+        // unconditionally; future waves may allow nil when the feature is toggled off.
+        let resolvedInspector = inspectorViewModel ?? ResourceInspectorViewModel()
         appShellDeps = AppShellDependencies(
             translationCatalog: BundleTranslationCatalog(bundle: .main),
             toastEmitter: ToastDomainEmitter(aggregate: toastAggregate),
@@ -92,7 +96,8 @@ public struct K8sManagerRootScene: Scene {
             navigationHistoryActor: resolvedNavHistory,
             codeEditor: codeEditor,
             dockedTerminalPaneActor: resolvedTerminalPane,
-            dockedYAMLEditorPaneActor: resolvedYAMLPane
+            dockedYAMLEditorPaneActor: resolvedYAMLPane,
+            inspectorViewModel: resolvedInspector
         )
     }
 
