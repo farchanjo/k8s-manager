@@ -1,6 +1,7 @@
 // K8sManagerApp.swift — composition root.
 // Wires concrete adapter implementations against domain ports via pointfreeco/swift-dependencies.
 // ADR-0020: composition root is the only target that imports both domain cores AND adapters.
+import AppKit
 import SwiftUI
 import AppShell
 import Dependencies
@@ -40,6 +41,9 @@ import CodeEditorAdapter
 
 @main
 struct K8sManagerApp: App {
+    @NSApplicationDelegateAdaptor(AppActivationDelegate.self)
+    private var appDelegate
+
     init() {
         let loader = YamsKubeconfigLoader()
         let resolver = Self.buildResolver(using: loader)
@@ -55,6 +59,17 @@ struct K8sManagerApp: App {
 
     var body: some Scene {
         K8sManagerRootScene()
+    }
+}
+
+/// Promotes a `swift run` invocation (no bundle, no Info.plist) into a
+/// regular foreground macOS app — sets the activation policy and brings
+/// the window to the front. Without this, the process runs but no window
+/// appears on top of other apps.
+final class AppActivationDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }
 
