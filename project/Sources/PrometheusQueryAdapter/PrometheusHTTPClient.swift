@@ -8,6 +8,15 @@ import Foundation
 import Logging
 import MetricsObservability
 
+// MARK: - Base64 helper (no Foundation.Data.base64EncodedString import needed)
+
+private extension String {
+    /// Encodes the UTF-8 representation of `self` as Base64.
+    var base64Encoded: String {
+        Data(utf8).base64EncodedString()
+    }
+}
+
 // MARK: - PrometheusHTTPClient
 
 /// Executes PromQL instant and range queries against a Prometheus HTTP API.
@@ -139,19 +148,43 @@ private extension PrometheusHTTPClient {
     }
 }
 
-// MARK: - Request builder and executor
+// MARK: - Request builder
 
-private extension PrometheusHTTPClient {
+// `buildRequest` is `internal` (not `private`) so that `@testable import`
+// can expose it for isolated header-injection tests (AuthStrategyTests).
+extension PrometheusHTTPClient {
 
+    /// Constructs an `HTTPClientRequest` for `url`, applying the authentication
+    /// strategy declared on `endpoint`.
+    ///
+    /// - `.none`: No `Authorization` header.
+    /// - `.bearerInherit`: No header added here; session boundary injects it.
+    /// - `.bearer(token:)`: Emits `Authorization: Bearer <token>`.
+    /// - `.basic(username:password:)`: Emits `Authorization: Basic <b64>`.
     func buildRequest(url: String, endpoint: PrometheusEndpoint) -> HTTPClientRequest {
         var request = HTTPClientRequest(url: url)
         request.method = .GET
         request.headers.add(name: "Accept", value: "application/json")
-        // Auth header injection is the caller's responsibility when using
-        // bearerInherit or bearerExplicit — the adapter reserves the slot.
-        _ = endpoint.authStrategy
+        switch endpoint.authStrategy {
+        case .none:
+            break
+        case .bearerInherit:
+            // Token injection for bearerInherit is performed at the session
+            // boundary (outside this adapter). No header added here.
+            break
+        case .bearer(let token):
+            request.headers.add(name: "Authorization", value: "Bearer \(token)")
+        case .basic(let username, let password):
+            let credentials = "\(username):\(password)".base64Encoded
+            request.headers.add(name: "Authorization", value: "Basic \(credentials)")
+        }
         return request
     }
+}
+
+// MARK: - Request executor
+
+private extension PrometheusHTTPClient {
 
     func execute(_ request: HTTPClientRequest) async throws -> Data {
         let response: HTTPClientResponse
