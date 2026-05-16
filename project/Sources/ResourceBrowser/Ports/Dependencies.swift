@@ -92,3 +92,23 @@ public extension DependencyValues {
         set { self[ResourceWatchPortKey.self] = newValue }
     }
 }
+
+// MARK: - WatchStreamCoordinatorKey
+
+/// `DependencyKey` for `WatchStreamCoordinator`.
+///
+/// Both `liveValue` and `testValue` are fresh instances with the default budget.
+/// The composition root registers a singleton via `prepareDependencies` at
+/// startup (ADR-0020) so the same coordinator is shared across the process.
+public enum WatchStreamCoordinatorKey: DependencyKey {
+    public static let liveValue: WatchStreamCoordinator = WatchStreamCoordinator()
+    public static let testValue: WatchStreamCoordinator = WatchStreamCoordinator()
+}
+
+public extension DependencyValues {
+    /// The coordinator that owns tab-level watch stream lifecycle.
+    var watchStreamCoordinator: WatchStreamCoordinator {
+        get { self[WatchStreamCoordinatorKey.self] }
+        set { self[WatchStreamCoordinatorKey.self] = newValue }
+    }
+}
