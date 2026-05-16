@@ -87,17 +87,14 @@ public struct ActiveTabContentView: View {
         case .logs:
             placeholderView(title: "Logs", icon: "text.alignleft")
 
-        case .exec:
-            placeholderView(title: "Terminal", icon: "terminal")
+        case .exec(let clusterId, let podRef, let container):
+            PodExecTab(clusterId: clusterId, podRef: podRef, container: container)
+
+        case .nodeDebug(let clusterId, let nodeRef):
+            NodeDebugTab(clusterId: clusterId, nodeRef: nodeRef)
 
         case .events(let clusterId, let scope):
-            EventsListView(
-                clusterId: clusterId,
-                namespace: scope.flatMap {
-                    if case .namespace(let ns) = $0 { return ns }
-                    return nil
-                }
-            )
+            EventsTimelineView(clusterId: clusterId, scope: scope)
 
         case .helmRelease(let clusterId, let releaseName, let namespace):
             HelmReleaseDetailView(
@@ -109,8 +106,12 @@ public struct ActiveTabContentView: View {
         case .namespaces(let clusterId):
             NamespacesListView(clusterId: clusterId)
 
-        case .portForward:
-            placeholderView(title: "Port Forward", icon: "arrow.left.arrow.right")
+        case .portForward(let clusterId, let forwardId):
+            if forwardId == DocumentTab.portForwardListSentinel {
+                PortForwardListView(clusterId: clusterId)
+            } else {
+                PortForwardDetailView(clusterId: clusterId, forwardId: forwardId)
+            }
 
         case .customResource(let clusterId, let gvr):
             CustomResourceListView(clusterId: clusterId, gvr: gvr)

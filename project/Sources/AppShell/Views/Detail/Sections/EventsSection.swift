@@ -15,9 +15,12 @@ import ResourceBrowser
 public struct EventsSection: View {
 
     public let events: [EventRow]
+    /// Called when the user taps "View all events" to open the full timeline tab.
+    public let onViewAll: (() -> Void)?
 
-    public init(events: [EventRow]) {
+    public init(events: [EventRow], onViewAll: (() -> Void)? = nil) {
         self.events = events
+        self.onViewAll = onViewAll
     }
 
     public var body: some View {
@@ -30,9 +33,18 @@ public struct EventsSection: View {
     // MARK: Private views
 
     private var sectionHeader: some View {
-        Text("Events (\(events.count))")
-            .font(.headline)
-            .padding(.bottom, 4)
+        HStack {
+            Text("Events (\(events.count))")
+                .font(.headline)
+            Spacer()
+            if let onViewAll {
+                Button("View all", action: onViewAll)
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder

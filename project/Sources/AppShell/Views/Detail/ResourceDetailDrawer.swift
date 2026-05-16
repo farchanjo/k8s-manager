@@ -82,7 +82,15 @@ public struct ResourceDetailDrawer: View {
                     Divider()
                     VolumesSection(volumes: viewModel.volumes)
                     Divider()
-                    EventsSection(events: viewModel.events)
+                    EventsSection(
+                        events: viewModel.events,
+                        onViewAll: {
+                            onOpenTab(.events(
+                                clusterId: clusterId,
+                                scope: .resource(ref)
+                            ))
+                        }
+                    )
                 }
                 .padding(16)
             }
