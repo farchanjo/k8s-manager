@@ -485,3 +485,77 @@ Common teardown scenarios:
 
 No manual unsubscribe call is ever required. The invariant is: lifetime of subscription == lifetime
 of the consuming Task.
+
+---
+
+### flow-tab-open
+
+An operator clicks a sidebar tree node that has no existing tab. `OpenTabsActor` creates the tab,
+starts the watch stream, and emits `TabOpened`. `analytics_dashboard` and `app_shell` observe the
+event for metrics and status bar updates respectively.
+
+```mermaid
+sequenceDiagram
+    participant OP as Operator
+    participant SB as Sidebar Tree
+    participant OTA as OpenTabsActor
+    participant CSA as ClusterSessionActor
+    participant BUS as DomainEventBusActor
+    participant TB as TabBarViewModel
+    participant AD as analytics_dashboard
+
+    OP->>SB: click Deployments node (namespace=production)
+    SB->>OTA: openTab(clusterId, resourceList, namespace=production, kindName=Deployment)
+    OTA-->>OTA: check identity tuple uniqueness
+    OTA-->>OTA: tab is new — add DocumentTab to ordered list
+    OTA->>CSA: WatchPort.watch(gvr=deployments/apps/v1, namespace=production, rv=current)
+    CSA-->>OTA: AsyncThrowingStream started, Task stored in watcher registry
+
+    OTA->>BUS: publish(TabOpened{tabId, clusterId, tabKind=resourceList, kindName, namespace})
+    BUS->>AD: AsyncStream.yield(TabOpened envelope)
+    BUS->>TB: AsyncStream.yield(TabOpened envelope)
+
+    OTA-->>TB: AsyncStream<[DocumentTab]> emits updated tab list
+    TB-->>TB: TabBarViewModel.tabsForActiveCluster updated
+
+    AD-->>AD: increment open tab count metric
+
+    Note over OTA,CSA: Watch events now flow from CSA to tab content area
+    CSA-->>OTA: ADDED/MODIFIED/DELETED events via AsyncThrowingStream
+    OTA-->>TB: content area view model receives events and renders list
+```
+
+### flow-tab-close
+
+An operator closes an unpinned tab. `OpenTabsActor` cancels the watch Task and emits `TabClosed`.
+`analytics_dashboard` and `app_shell` observe the event.
+
+```mermaid
+sequenceDiagram
+    participant OP as Operator
+    participant TB as TabBarViewModel
+    participant OTA as OpenTabsActor
+    participant CSA as ClusterSessionActor
+    participant BUS as DomainEventBusActor
+    participant AD as analytics_dashboard
+
+    OP->>TB: click close button on tab chip (tabId=xyz)
+    TB->>OTA: closeTab(tabId=xyz)
+    OTA-->>OTA: verify tab is not pinned
+    OTA-->>OTA: retrieve watch Task from watcher registry[tabId]
+    OTA->>CSA: Task.cancel() on watch Task
+    CSA-->>CSA: AsyncThrowingStream exits for-await loop on CancellationError
+    CSA-->>CSA: HTTP/2 stream released, FD returned to pool
+
+    OTA-->>OTA: remove tab from ordered list and watcher registry
+    OTA-->>OTA: schedule open-tabs.json write (debounced 500 ms)
+
+    OTA->>BUS: publish(TabClosed{tabId, clusterId, tabKind, closedAt, closeReason=user})
+    BUS->>AD: AsyncStream.yield(TabClosed envelope)
+    BUS->>TB: AsyncStream.yield(TabClosed envelope)
+
+    OTA-->>TB: AsyncStream<[DocumentTab]> emits updated tab list
+    TB-->>TB: TabBarViewModel removes tab chip from bar
+
+    AD-->>AD: decrement open tab count metric
+```
