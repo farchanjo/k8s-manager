@@ -245,6 +245,26 @@ Tab state is persisted to:
 
 The JSON schema is defined in `contexts/app_shell/schemas/open_tabs_state.cue`.
 
+> **Addendum — Onda 3 implementation note (2026-05-16).** The first production wiring of
+> `OpenTabsActor` (commit landing alongside ADR-0053) persists a SINGLE process-wide tab list at
+> `~/Library/Application Support/K8sManager/workspace/open-tabs.json` rather than per-cluster. The
+> shared port is registered once at the composition root and routes every `openTab(_:)` call to the
+> same actor instance, regardless of `DocumentTab.clusterId`.
+>
+> This deviates from the per-cluster contract above. It is accepted as a transitional state because
+> the single-active-cluster session model (ADR-0025) currently guarantees only one cluster is
+> being inspected at a time, so cross-cluster tab corruption cannot occur at runtime. The deviation
+> will be closed in the next onda by:
+>
+> 1. Introducing a `OpenTabsRegistry` actor that lazily creates one `OpenTabsActor` per `ClusterId`
+>    with the canonical per-cluster persistence path.
+> 2. Routing `openTab(_:)` through the registry based on `DocumentTab.clusterId`.
+> 3. Updating the canvas tab bar to scope its visible tabs to the active cluster's actor instance.
+>
+> Until that work lands, restoring tabs after a cluster switch will surface the union of tabs from
+> all clusters in the single file. A code TODO marks the deviation at the registration site in
+> `K8sManagerApp.swift`.
+
 ### Consequences
 
 Positive:

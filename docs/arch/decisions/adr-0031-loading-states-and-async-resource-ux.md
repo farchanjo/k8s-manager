@@ -356,3 +356,79 @@ at the point they are relevant.
 - `contexts/app_shell/schemas/loading_state.cue` — CUE schema for `#AsyncResource`,
   `#LoadingPresentation`, `#EmptyState`.
 - `contexts/app_shell/features/loading-states.feature` — BDD coverage.
+
+## Addendum — Onda 3 implementation (2026-05-16)
+
+The presentation components that this ADR specified were authored in this onda:
+
+- `Sources/AppShell/Views/LoadingStates/ShimmerModifier.swift` — `.shimmering()`
+  ViewModifier. The first implementation also applied `.redacted(reason: .placeholder)`
+  on top of skeleton rows that already drew their own `RoundedRectangle` placeholders;
+  the double-redaction produced a jittery layered effect and was removed in a follow-up.
+  The current implementation overlays a slow (2.5 s) horizontal gradient band with
+  ≤ 8 % primary opacity and degrades to a static low-opacity tint when
+  `accessibilityReduceMotion` is on (preserving the ADR-0031 §"Accessibility" contract).
+- `Sources/AppShell/Views/LoadingStates/SkeletonRow.swift` — three skeleton variants:
+  `WorkloadListSkeleton(rowCount: 8)`, `SidebarSkeleton(rowCount: 4)`,
+  `DetailHeaderSkeleton()`. All wrap their template layout in `.shimmering()`.
+- `Sources/AppShell/Views/LoadingStates/EmptyStateView.swift` — uniform empty state
+  with icon / title / message / optional action button. Replaces the ad-hoc
+  `ContentUnavailableView` calls that crept in before this ADR landed.
+- `Sources/AppShell/Views/LoadingStates/ErrorStateView.swift` — uniform error state
+  with `exclamationmark.triangle.fill` icon, `DisclosureGroup`-gated details, Retry
+  (when `retryable`) and Dismiss buttons.
+
+### `AsyncResource<T>` shape — current vs. ADR
+
+The Swift type currently shipped in `Sources/AppShell/State/AsyncResource.swift`
+is the simplified four-case form (`.idle | .loading | .success(T) | .failure(Error)`)
+without the timestamp / `retryable` metadata the ADR body sketched. Adding the
+richer metadata would require updating every call site across 30+ view models in a
+single sweep, which is deferred to a future onda; the simpler form already covers
+every UI requirement listed above. The richer shape is preserved in the ADR body
+as the target end-state and tracked here as deferred work.
+
+### 200 ms throttle — `AsyncLoader.run(…)`
+
+The throttle pattern documented in §"200 ms transition throttle" is implemented
+as a generic helper in `Sources/AppShell/State/AsyncLoader.swift` (`@MainActor
+public static func run<T: Sendable>(setLoading:operation:onSuccess:onFailure:)`).
+It races a 200 ms `Task.sleep` against the underlying operation via
+`withTaskGroup`; if the operation completes first, the `setLoading` callback is
+never invoked, so sub-200 ms loads never flash a skeleton. The helper is used by
+the 8 workload list view models (Pods, Deployments, StatefulSets, DaemonSets,
+ReplicaSets, ReplicationControllers, Jobs, CronJobs).
+
+### Layout-stability fixes (2026-05-16)
+
+Two layout regressions surfaced during the first end-to-end test of the canvas
+header and the workload list views — both interacted with this ADR's component
+boundaries and are documented here for future reference:
+
+1. **Header bar height oscillation.** `SidebarCanvasView.headerBar` initially
+   rendered an empty branch when `activeClusterId == nil` and a `HStack` containing
+   `GlobalNamespacePicker` when set. The two branches had different intrinsic
+   heights, so the tab bar (and everything below it) jumped vertically each
+   time the strip transitioned. Fix: render the strip unconditionally with a
+   fixed `minHeight: 40`, swapping only the inner picker/placeholder content.
+
+2. **`ResourceListContainer` toolbar shrinking.** The trailing slot showed a
+   `ProgressView` while loading and a `Button` (refresh icon) otherwise. The two
+   controls reported different intrinsic widths, causing the title / count /
+   search row to shift horizontally on every load transition — visible as
+   "bar sumindo e aparecendo" when reloads happened in rapid succession. Fix:
+   wrap both controls in a fixed 20 × 20 `ZStack` slot so the toolbar geometry
+   never changes between `.loading` and `.success`.
+
+### `ClusterStripActor.loadFromDisk` — broadcast required (2026-05-16)
+
+`ClusterStripActor.loadFromDisk()` (ADR-0051) mutates `pins` and
+`activeClusterId` from JSON. The first implementation did not call
+`broadcast()` after the mutation, on the assumption that subscribers would
+fetch the current state at subscribe time via `stateStream()`'s initial yield.
+That assumption breaks under a race: when `AppShellView.task` subscribes
+BEFORE `wireAsync` finishes restoring state, the initial yield carries the
+empty pre-load state (`pins=[]`, `activeClusterId=nil`) and the subscriber
+never observes the loaded snapshot — producing intermittent
+"no cluster selected" flicker. Fix: `loadFromDisk()` now calls `broadcast()`
+on the way out, matching every other mutating method on the actor.
