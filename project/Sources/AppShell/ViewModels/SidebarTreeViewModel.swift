@@ -1,11 +1,13 @@
 // ViewModels/SidebarTreeViewModel.swift — app_shell bounded context
 // DDD role: ViewModel
-// ADR ref: ADR-0050 (sidebar taxonomy + tab system), ADR-0051 (cluster strip)
+// ADR ref: ADR-0050 (sidebar taxonomy + tab system), ADR-0051 (cluster strip),
+//          ADR-0052 (CRD dynamic sidebar nodes)
 
 import Foundation
 import SwiftUI
 import Dependencies
 import Logging
+import ResourceBrowser
 import SharedKernel
 
 private let log = Logger(label: "k8smgr.app_shell.sidebar_tree")
@@ -91,6 +93,14 @@ public final class SidebarTreeViewModel {
     /// Set of group nodes that are currently expanded.
     public var expandedGroups: Set<SidebarNode> = []
 
+    /// Dynamic CRD group nodes derived from the latest `CRDCatalog` snapshot.
+    ///
+    /// Keyed by API group string; values are `customResourceKind` leaf nodes.
+    public var crdGroups: [String: [SidebarNode]] = [:]
+
+    /// Sorted API group keys for the custom resources section.
+    public var crdGroupKeys: [String] { crdGroups.keys.sorted() }
+
     // MARK: Dependencies
 
     @ObservationIgnored
@@ -98,6 +108,9 @@ public final class SidebarTreeViewModel {
 
     @ObservationIgnored
     @Dependency(\.openTabs) private var openTabs
+
+    @ObservationIgnored
+    @Dependency(\.crdDiscovery) private var crdDiscovery
 
     // MARK: Init
 
@@ -113,7 +126,33 @@ public final class SidebarTreeViewModel {
         log.info("SidebarTreeViewModel.start — subscribing to cluster strip")
         for await snapshot in clusterStrip.stateStream() {
             apply(snapshot: snapshot)
+            if let cid = snapshot.activeClusterId {
+                await startCRDWatch(clusterId: cid)
+            }
         }
+    }
+
+    // MARK: - Private — CRD catalog watch
+
+    /// Watches the CRD catalog for `clusterId` and updates `crdGroups`.
+    ///
+    /// Silently swallows discovery errors so the sidebar remains functional
+    /// even when the service account lacks CRD list permission.
+    private func startCRDWatch(clusterId: ClusterId) async {
+        do {
+            let catalog = try await crdDiscovery.discoverCRDs(clusterId: clusterId)
+            applyCatalog(catalog)
+        } catch {
+            log.warning("CRD initial discovery failed — \(error)")
+        }
+    }
+
+    private func applyCatalog(_ catalog: CRDCatalog) {
+        let grouped = catalog.groupedByAPIGroup()
+        crdGroups = grouped.mapValues { entries in
+            entries.map { .customResourceKind($0.id) }
+        }
+        log.info("CRD catalog applied — \(crdGroups.keys.count) group(s)")
     }
 
     // MARK: - Intents
