@@ -54,6 +54,37 @@ public actor OpenAICompatibleStreamingAdapter: LLMStreamingPort {
         self.logger = logger
     }
 
+    /// Creates an adapter from a ``ProviderProfile``.
+    ///
+    /// Runs ADR-0045 endpoint validation before constructing the client.
+    /// Throws ``EndpointValidationError`` when the profile's `baseURL` violates
+    /// the network-topology policy for its `localOnly` setting.
+    ///
+    /// - Parameter profile: The operator-configured provider profile.
+    /// - Throws: ``EndpointValidationError`` on policy violation.
+    public init(
+        profile: ProviderProfile,
+        logger: Logger = Logger(label: "OpenAICompatibleStreamingAdapter")
+    ) throws {
+        try profile.validateEndpoint()
+
+        let url = profile.baseURL ?? URL(string: "http://localhost:11434")!
+        let scheme = url.scheme ?? "http"
+        let host = url.host ?? "localhost"
+        let resolvedPort = url.port ?? (scheme == "https" ? 443 : 80)
+
+        let apiKey: String? = nil  // resolved at request time via LLMKeyStorePort
+        let config = OpenAI.Configuration(
+            token: apiKey,
+            host: host,
+            port: resolvedPort,
+            scheme: scheme
+        )
+        self.client = OpenAI(configuration: config)
+        self.model = profile.modelId
+        self.logger = logger
+    }
+
     // MARK: LLMStreamingPort
 
     /// Opens a streaming completion against the configured compatible endpoint.
