@@ -282,6 +282,10 @@ graph TB
   row left of assistant button; replaces canvas-header dropdown; Config view models wired to
   `NamespaceFilterActor`). Accepted (ratified 2026-05-16). Supersedes ADR-0053. Refines ADR-0021,
   ADR-0051.
+- **ADR-0070** — Sidebar selection and active tab bidirectional sync (`selectedNode` is derived from
+  `OpenTabsActor.activeTabId` via `subscribeToOpenTabs()` subscription; `SidebarNode.from(documentTab:)`
+  inverse mapping; eager write in `activate(_:)` for instant visual feedback). Accepted (ratified
+  2026-05-16). Refines ADR-0034, ADR-0050.
 
 ## Status lifecycle
 
