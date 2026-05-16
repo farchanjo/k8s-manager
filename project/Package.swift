@@ -898,6 +898,17 @@ let package = Package(
             path: "Tests/KubeconfigContextNavigationAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
+
+        .testTarget(
+            name: "CodeEditorAdapterTests",
+            dependencies: [
+                "CodeEditorAdapter",
+                "AppShell",
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/CodeEditorAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

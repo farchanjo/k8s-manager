@@ -84,8 +84,8 @@ final class CodeEditorAdapterTests: XCTestCase {
                 await Task.yield()
                 await Task.yield()
                 // Trigger makeEditor which resets text.
-                _ = await MainActor.run {
-                    adapter2.makeEditor(initial: "apiVersion: v1\n", language: .yaml, theme: .system)
+                await MainActor.run {
+                    _ = adapter2.makeEditor(initial: "apiVersion: v1\n", language: .yaml, theme: .system)
                 }
                 await Task.yield()
                 await Task.yield()
@@ -96,8 +96,8 @@ final class CodeEditorAdapterTests: XCTestCase {
                 // Drive a simulated text change via the internal binding path.
                 // We use the reflection-free public-observable surface: calling makeEditor
                 // with the new text as `initial` then checking dirty==false.
-                _ = await MainActor.run {
-                    adapter2.makeEditor(initial: editedText, language: .yaml, theme: .system)
+                await MainActor.run {
+                    _ = adapter2.makeEditor(initial: editedText, language: .yaml, theme: .system)
                 }
                 _ = s   // suppress unused warning
                 _ = activeStream
