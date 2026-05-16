@@ -242,7 +242,7 @@ private extension K8sManagerApp {
         let db = try openDatabase()
         let (
             chatRepo, providerRepo, clusterStore, auditChain,
-            terminalRepo, secretRevealAudit, prometheusEndpointRepo, persistenceActor
+            terminalRepo, secretRevealAudit, prometheusEndpointRepo, portForwardRepo, persistenceActor
         ) = wirePersistence(db: db, keyManager: keyManager)
         let (loader, kubeApi, resourceList, discoveryAdapter) = wireKubernetes()
         let contextRepo = KubeconfigContextRepository(loader: loader, metadataStore: clusterStore)
@@ -320,8 +320,12 @@ private extension K8sManagerApp {
             // HelmManagement extras — live adapters (ADR-0015, ADR-0046)
             wireHelmManagementExtras(db: db, into: &values)
 
-            // PortForwarding extras — unimplemented sentinels until adapters land
-            wirePortForwardingExtras(into: &values)
+            // PortForwarding extras — live adapters (ADR-0007)
+            wirePortForwardingExtras(
+                portForwardRepo: portForwardRepo,
+                clusterStrip: clusterStripActor,
+                into: &values
+            )
 
             // MetricsObservability — real GRDB-backed repository (ADR-0016)
             values.prometheusEndpointRepository = prometheusEndpointRepo
@@ -346,13 +350,23 @@ private extension K8sManagerApp {
         values.auditLog = GRDBHelmAuditLogAdapter(db: db)
     }
 
-    /// Registers PortForwarding ports that have no live adapter yet.
+    /// Registers PortForwarding ports with live adapters (ADR-0007).
     ///
-    /// - `serviceEndpointReader`: EndpointSlice query adapter — deferred.
-    /// - `portForwardRepository`: GRDB session store — deferred (ADR-0007).
-    nonisolated static func wirePortForwardingExtras(into values: inout DependencyValues) {
-        values.serviceEndpointReader = UnimplementedServiceEndpointReaderPort()
-        values.portForwardRepository = UnimplementedPortForwardRepositoryPort()
+    /// - `serviceEndpointReader`: `SwiftkubeServiceEndpointReaderAdapter` —
+    ///   resolves the active cluster via `clusterStrip.activeClusterId`.
+    /// - `portForwardRepository`: `GRDBPortForwardRepository` backed by the shared queue.
+    nonisolated static func wirePortForwardingExtras(
+        portForwardRepo: GRDBPortForwardRepository,
+        clusterStrip: ClusterStripActor,
+        into values: inout DependencyValues
+    ) {
+        let loader = YamsKubeconfigLoader()
+        let resolver = buildResolver(using: loader)
+        values.serviceEndpointReader = SwiftkubeServiceEndpointReaderAdapter(
+            resolver: resolver,
+            clusterIdProvider: { await clusterStrip.activeClusterId }
+        )
+        values.portForwardRepository = portForwardRepo
     }
 
     /// Registers cloud cluster discovery adapters keyed by ``CloudProvider`` (ADR-0055).
@@ -495,6 +509,7 @@ private extension K8sManagerApp {
         GRDBTerminalRepository,
         GRDBSecretRevealAudit,
         GRDBPrometheusEndpointRepository,
+        GRDBPortForwardRepository,
         PersistenceActor
     ) {
         let keyProvider = makeSyncKeyProvider(keyManager)
@@ -505,10 +520,11 @@ private extension K8sManagerApp {
         let terminalRepo = GRDBTerminalRepository(db: db)
         let secretRevealAudit = GRDBSecretRevealAudit(db: db, keyProvider: keyProvider)
         let prometheusEndpointRepo = GRDBPrometheusEndpointRepository(db: db)
+        let portForwardRepo = GRDBPortForwardRepository(db: db)
         let persistenceActor = PersistenceActor(writer: GRDBWriterAdapter(writer: db))
         return (
             chatRepo, providerRepo, clusterStore, auditChain,
-            terminalRepo, secretRevealAudit, prometheusEndpointRepo, persistenceActor
+            terminalRepo, secretRevealAudit, prometheusEndpointRepo, portForwardRepo, persistenceActor
         )
     }
     // swiftlint:enable large_tuple

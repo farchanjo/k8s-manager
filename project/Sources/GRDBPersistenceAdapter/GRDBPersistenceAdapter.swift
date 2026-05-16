@@ -4,9 +4,10 @@
 import Foundation
 import GRDB
 import LocalPersistence
-import MetricsObservability
-import TerminalSession
 import Logging
+import MetricsObservability
+import PortForwarding
+import TerminalSession
 
 // MARK: - GRDBPersistenceAdapter
 
@@ -18,7 +19,7 @@ public enum GRDBPersistenceAdapter: Sendable {
 
     // MARK: - PersistenceBundle
 
-    /// All five GRDB repository adapters wired to the same `DatabaseQueue`.
+    /// All GRDB repository adapters wired to the same `DatabaseQueue`.
     ///
     /// The bundle owns the `DatabaseQueue` lifecycle. Pass individual properties
     /// into `prepareDependencies { }` at the composition root.
@@ -37,6 +38,8 @@ public enum GRDBPersistenceAdapter: Sendable {
         public let secretRevealAudit: GRDBSecretRevealAudit
         /// GRDB-backed Prometheus endpoint config store (ADR-0016).
         public let prometheusEndpointRepository: GRDBPrometheusEndpointRepository
+        /// GRDB-backed port-forward session store (ADR-0007).
+        public let portForwardRepository: GRDBPortForwardRepository
     }
 
     // MARK: - Factory
@@ -62,7 +65,8 @@ public enum GRDBPersistenceAdapter: Sendable {
             auditChainStore: GRDBAuditChainStore(db: db, keyProvider: keyProvider),
             terminalRepository: GRDBTerminalRepository(db: db),
             secretRevealAudit: GRDBSecretRevealAudit(db: db, keyProvider: keyProvider),
-            prometheusEndpointRepository: GRDBPrometheusEndpointRepository(db: db)
+            prometheusEndpointRepository: GRDBPrometheusEndpointRepository(db: db),
+            portForwardRepository: GRDBPortForwardRepository(db: db)
         )
     }
 }

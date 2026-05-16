@@ -63,6 +63,7 @@ public enum SchemaMigrator {
         migrator.registerMigration("v3_secret_reveal_audit", migrate: v3SecretRevealAudit)
         migrator.registerMigration("v4_helm_audit_log", migrate: v4HelmAuditLog)
         migrator.registerMigration("v5_prometheus_endpoint", migrate: v5PrometheusEndpoint)
+        migrator.registerMigration("v6_port_forward_session", migrate: v6PortForwardSession)
         try migrator.migrate(queue)
         logger.info("SchemaMigrator: all migrations applied")
     }
@@ -105,6 +106,17 @@ public enum SchemaMigrator {
         try v3SecretRevealAudit(db)
         try v4HelmAuditLog(db)
         try v5PrometheusEndpoint(db)
+    }
+
+    /// Exposed for in-memory test helpers that target the `port_forward_session` table.
+    /// Runs v1 through v6 so the schema is fully consistent.
+    public static func _runV6(_ db: Database) throws {
+        try v1InitialSchema(db)
+        try v2TerminalSession(db)
+        try v3SecretRevealAudit(db)
+        try v4HelmAuditLog(db)
+        try v5PrometheusEndpoint(db)
+        try v6PortForwardSession(db)
     }
 
     // swiftlint:disable function_body_length
@@ -286,6 +298,34 @@ public enum SchemaMigrator {
         try db.execute(sql: """
             CREATE INDEX IF NOT EXISTS idx_helm_audit_log_action_time
                 ON helm_audit_log(action, timestamp)
+            """)
+    }
+
+    // MARK: v6 — port_forward_session table (ADR-0007)
+
+    /// Stores ``PortForwardSession`` aggregates as JSON blobs.
+    ///
+    /// Scalar columns (`id`, `kubernetes_context_id`, `status`, `created_at`) are
+    /// indexed for fast filtering. The full aggregate is in `payload_json` for
+    /// round-trip fidelity without normalising the nested `ForwardTarget` and
+    /// `PortMapping` types into additional columns.
+    private static func v6PortForwardSession(_ db: Database) throws {
+        try db.execute(sql: """
+            CREATE TABLE IF NOT EXISTS port_forward_session (
+                id TEXT PRIMARY KEY NOT NULL,
+                kubernetes_context_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            )
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_port_forward_session_context_created
+                ON port_forward_session(kubernetes_context_id, created_at)
+            """)
+        try db.execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_port_forward_session_status
+                ON port_forward_session(status)
             """)
     }
 
