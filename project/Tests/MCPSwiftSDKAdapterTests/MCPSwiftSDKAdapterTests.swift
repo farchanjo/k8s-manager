@@ -165,8 +165,7 @@ struct MCPSwiftSDKAdapterTests {
 
     @Test("MCPSwiftSDKAdapter module is accessible")
     func moduleAccessible() {
-        // Verifies the module marker type is reachable from the test target.
-        let version = MCPSwiftSDKAdapter.moduleVersion
-        #expect(!version.isEmpty)
+        // Verifies the module version constant is reachable from the test target.
+        #expect(!mcpSwiftSDKAdapterVersion.isEmpty)
     }
 }
