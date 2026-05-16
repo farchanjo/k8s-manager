@@ -108,6 +108,9 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
     /// Interactive exec-into-container tab.
     case exec(clusterId: ClusterId, podRef: ResourceRef, container: String?)
 
+    /// Node-level debug shell tab (ephemeral debug Pod via `kubectl debug node`).
+    case nodeDebug(clusterId: ClusterId, nodeRef: ResourceRef)
+
     /// Kubernetes events tab, optionally scoped.
     case events(clusterId: ClusterId, scope: EventScope?)
 
@@ -166,6 +169,7 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .yamlEditor(let c, _, _):      return c
         case .logs(let c, _, _, _):         return c
         case .exec(let c, _, _):            return c
+        case .nodeDebug(let c, _):          return c
         case .events(let c, _):             return c
         case .helmRelease(let c, _, _):     return c
         case .portForward(let c, _):        return c
@@ -194,6 +198,8 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
             return container.map { "\(pod.name): \($0)" } ?? "\(pod.name) logs"
         case .exec(_, let pod, let container):
             return container.map { "\(pod.name): \($0)" } ?? "exec: \(pod.name)"
+        case .nodeDebug(_, let node):
+            return "debug: \(node.name)"
         case .events(_, let scope):
             guard let scope else { return "Events" }
             switch scope {
@@ -218,6 +224,7 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
         case .yamlEditor:       return "pencil.and.outline"
         case .logs:             return "text.alignleft"
         case .exec:             return "terminal"
+        case .nodeDebug:        return "server.rack"
         case .events:           return "calendar.badge.clock"
         case .helmRelease:      return "shippingbox"
         case .namespaces:       return "folder"
@@ -258,6 +265,8 @@ public enum DocumentTab: Sendable, Identifiable, Hashable {
             return "logs:\(c):\(refKey(pod)):\(container ?? "*")"
         case .exec(_, let pod, let container):
             return "exec:\(c):\(refKey(pod)):\(container ?? "*")"
+        case .nodeDebug(_, let node):
+            return "nodedebug:\(c):\(refKey(node))"
         case .events(_, let scope):
             return "events:\(c):\(scopeKey(scope))"
         case .helmRelease(_, let name, let ns):
@@ -297,6 +306,7 @@ extension DocumentTab: Codable {
         case kind
         case namespace
         case ref
+        case nodeRef
         case draft
         case container
         case follow
@@ -308,7 +318,7 @@ extension DocumentTab: Codable {
 
     private enum TypeTag: String, Codable {
         case overview, applications, nodes, resourceList, resourceDetail
-        case yamlEditor, logs, exec, events, helmRelease, namespaces
+        case yamlEditor, logs, exec, nodeDebug, events, helmRelease, namespaces
         case portForward, customResource, securityOverview, apiResources
         case applyYAML, diagnostics
     }
@@ -346,6 +356,9 @@ extension DocumentTab: Codable {
             let ref = try c.decode(ResourceRef.self, forKey: .ref)
             let container = try c.decodeIfPresent(String.self, forKey: .container)
             self = .exec(clusterId: cid, podRef: ref, container: container)
+        case .nodeDebug:
+            let nref = try c.decode(ResourceRef.self, forKey: .nodeRef)
+            self = .nodeDebug(clusterId: cid, nodeRef: nref)
         case .events:
             let scope = try c.decodeIfPresent(EventScope.self, forKey: .scope)
             self = .events(clusterId: cid, scope: scope)
@@ -402,6 +415,9 @@ extension DocumentTab: Codable {
             try c.encode(TypeTag.exec, forKey: .type)
             try c.encode(pod, forKey: .ref)
             try c.encodeIfPresent(container, forKey: .container)
+        case .nodeDebug(_, let nref):
+            try c.encode(TypeTag.nodeDebug, forKey: .type)
+            try c.encode(nref, forKey: .nodeRef)
         case .events(_, let scope):
             try c.encode(TypeTag.events, forKey: .type)
             try c.encodeIfPresent(scope, forKey: .scope)
@@ -417,6 +433,19 @@ extension DocumentTab: Codable {
             try c.encode(gvr, forKey: .gvr)
         }
     }
+}
+
+// MARK: - DocumentTab + portForward list sentinel
+
+extension DocumentTab {
+    /// A well-known UUID used as `forwardId` to indicate a port-forward list tab
+    /// (no specific session targeted).
+    ///
+    /// Convention: `portForward(clusterId:, forwardId: DocumentTab.portForwardListSentinel)`
+    /// renders `PortForwardListView`; any other UUID renders `PortForwardDetailView`.
+    public static let portForwardListSentinel: UUID = UUID(
+        uuidString: "00000000-0000-0000-0000-000000000000"
+    )!
 }
 
 // MARK: - DocumentTab + watchTarget
