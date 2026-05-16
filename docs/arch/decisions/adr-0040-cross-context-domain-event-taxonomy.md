@@ -5,6 +5,9 @@
 - Deciders — Fabricio Fonseca
 - Consulted — (none yet)
 - Informed — (none yet)
+- Refined by — ADR-0050 (tab open/close/focus events added to app_shell taxonomy), ADR-0051 (cluster
+  strip pin/unpin events added to app_shell taxonomy), ADR-0052 (CRDCatalogUpdated event added to
+  resource_browser taxonomy)
 - Tags — ddd, events, async-stream, fan-out, observability, sendable, taxonomy
 
 ## Context and problem statement
@@ -312,5 +315,78 @@ Neutral:
 - ADR-0034 — Observation framework + `AsyncStream` for domain ports; Combine is banned.
 - ADR-0035 — Reactive stack integration; `bufferingOldest(64)` as the standard backpressure policy.
 - ADR-0027 — Self-monitoring; the `DomainEventDropped` meta-event feeds the diagnostics surface.
+
+---
+
+## Addendum — Tab navigation and cluster strip events (2026-05-16, ADR-0050/0051/0052 refinements)
+
+ADR-0050, ADR-0051, and ADR-0052 introduce new cross-context domain events. The following events are
+added to the taxonomy and must be registered in `contexts/_shared/schemas/domain_events.cue`.
+
+### app_shell events (tab navigation)
+
+```
+app_shell.TabOpened
+  payload: { tabId, clusterId, tabKind, namespace?, kindName?, resourceName?, openedAt }
+
+app_shell.TabClosed
+  payload: { tabId, clusterId, tabKind, closedAt, closeReason: "user" | "evicted" | "session_closed" }
+
+app_shell.TabFocused
+  payload: { tabId, clusterId, previousTabId? }
+```
+
+**Consumers**: `analytics_dashboard` (tab usage metrics); `local_persistence` (tab close projected
+to close the associated watch audit entry); `app_shell` self (cross-tab state updates).
+
+**Emission point**: `OpenTabsActor` emits `TabOpened` after a tab's watch stream is established;
+`TabClosed` after the watch Task is cancelled and the tab is removed from the registry; `TabFocused`
+after the active tab index is updated.
+
+### app_shell events (cluster strip)
+
+```
+app_shell.ClusterStripPinned
+  payload: { clusterId, displayName, pinOrder, colorIndex, providerKind, pinnedAt }
+
+app_shell.ClusterStripUnpinned
+  payload: { clusterId, unpinnedAt }
+
+app_shell.ClusterStripReordered
+  payload: { clusterId, newPinOrder, reorderedAt }
+```
+
+**Consumers**: `analytics_dashboard` (workspace usage metrics); `local_persistence` (pin state is
+persisted to `workspace/cluster-strip-pins.json` by `ClusterStripActor`, not via this event; these
+events are observability-only for the dashboard).
+
+**Emission point**: `ClusterStripActor` emits these events after mutating the pin list and
+persisting the change to the filesystem.
+
+### resource_browser events (CRD catalog)
+
+```
+resource_browser.CRDCatalogUpdated
+  payload: {
+    clusterId,
+    addedGroups: [string],
+    removedGroups: [string],
+    addedKinds: [{ group, kind, preferredVersion }],
+    removedKinds: [{ group, kind }],
+    catalogVersion: int
+  }
+```
+
+**Consumers**: `app_shell` (refreshes the Custom Resources sidebar section without reconnection);
+`analytics_dashboard` (updates CRD count metrics if tracked).
+
+**Emission point**: `ResourceDescriptorRegistry` in `resource_browser`, triggered by every WATCH
+event on the `CustomResourceDefinition` API endpoint.
+
+All new events conform to `DomainEvent` with `EventEnvelope` as defined in this ADR. Event types use
+the dot-qualified naming convention `"<sourceContext>.<EventName>"`. The Rego policy
+`event_bus_policy.rego` must be extended to allow these new `sourceContext` / `eventType`
+combinations.
+
 - `contexts/_shared/schemas/domain_events.cue` — CUE schema defining `#EventEnvelope` and all 23
   event types.
