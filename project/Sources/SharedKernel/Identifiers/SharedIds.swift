@@ -9,6 +9,26 @@
 // Both wrappers use RawRepresentable<String> so callers can initialise with a
 // plain String literal without importing Foundation just for UUID.
 
+// MARK: - TabId
+
+/// Deterministic, stable identifier for an open document tab.
+///
+/// Derived from the tab's associated values so that two tabs representing the same
+/// resource in the same cluster carry the same `TabId`, triggering focus rather than
+/// a duplicate open. Lives in `shared_kernel` so both `AppShell` and `ResourceBrowser`
+/// can reference it without a circular module dependency.
+public struct TabId: Hashable, Sendable, Codable {
+    /// Raw stable string built from tab discriminant + cluster + resource coordinates.
+    public let raw: String
+
+    /// Designated initialiser.
+    ///
+    /// - Parameter raw: A stable, deterministic string derived from tab associated values.
+    public init(raw: String) {
+        self.raw = raw
+    }
+}
+
 // MARK: - ProviderProfileId
 
 /// Uniquely identifies an LLM provider profile stored in local persistence.
