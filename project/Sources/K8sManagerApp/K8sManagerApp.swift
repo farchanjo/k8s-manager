@@ -285,12 +285,25 @@ private extension K8sManagerApp {
 
     /// Wires adapters requiring async construction.
     ///
-    /// Registers: `MCPInProcessTransport`, `LLMProviderRouter` for all provider kinds.
+    /// Registers: `MCPInProcessTransport`, `LLMProviderRouter`, and the
+    /// `WatchStreamCoordinator` singleton.
     nonisolated static func wireAsync() {
         Task.detached(priority: .userInitiated) {
             await wireMCP()
             await wireLLM()
+            await wireWatchCoordinator()
         }
+    }
+
+    /// Constructs `WatchStreamCoordinator` and registers it as `\.watchStreamCoordinator`.
+    ///
+    /// The coordinator singleton is registered here so the whole process shares
+    /// one instance. `OpenTabsActor` integration is wired separately at cluster
+    /// session creation time via `OpenTabsActor.registerWatcher(for:task:)` and
+    /// `stateStream()` subscription.
+    nonisolated static func wireWatchCoordinator() async {
+        let coordinator = WatchStreamCoordinator()
+        prepareDependencies { $0.watchStreamCoordinator = coordinator }
     }
 
     /// Constructs `MCPInProcessTransport` and registers it as `\.mcpTransport`.
