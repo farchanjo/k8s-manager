@@ -160,6 +160,7 @@ let package = Package(
         .target(
             name: "SharedKernel",
             dependencies: [
+                .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/SharedKernel",
