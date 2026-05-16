@@ -424,6 +424,10 @@ let package = Package(
                 "ClusterConnectivity",
                 // SotoCore is brought in transitively by SotoSTS (soto monorepo).
                 .product(name: "SotoSTS", package: "soto"),
+                // ADR-0055 — EKS cluster discovery uses SotoEKS for list/describe;
+                // SotoEC2 enumerates opted-in regions when no scope hint is given.
+                .product(name: "SotoEKS", package: "soto"),
+                .product(name: "SotoEC2", package: "soto"),
                 .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/AWSExecCredentialAdapter",
@@ -850,9 +854,33 @@ let package = Package(
                 "AWSExecCredentialAdapter",
                 "ClusterConnectivity",
                 .product(name: "SotoSTS", package: "soto"),
+                .product(name: "SotoEKS", package: "soto"),
                 .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
             ],
             path: "Tests/AWSExecCredentialAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "AzureExecCredentialAdapterTests",
+            dependencies: [
+                "AzureExecCredentialAdapter",
+                "ClusterConnectivity",
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/AzureExecCredentialAdapterTests",
+            swiftSettings: strictConcurrencySettings
+        ),
+
+        .testTarget(
+            name: "GCPExecCredentialAdapterTests",
+            dependencies: [
+                "GCPExecCredentialAdapter",
+                "ClusterConnectivity",
+                .product(name: "JWTKit", package: "jwt-kit"),
+                .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
+            ],
+            path: "Tests/GCPExecCredentialAdapterTests",
             swiftSettings: strictConcurrencySettings
         ),
 
