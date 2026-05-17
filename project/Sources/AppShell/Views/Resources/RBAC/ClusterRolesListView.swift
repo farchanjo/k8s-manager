@@ -97,15 +97,6 @@ public struct ClusterRolesListView: View {
         ) {
             content
         }
-        .modifier(ExportMenuContainer(
-            kind: "ClusterRole",
-            rows: viewModel.filteredRows.map { item in
-                ResourceListRow(values: [
-                    item.name, item.namespace ?? "", ageLabel(item.ageSeconds),
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task { await viewModel.start(clusterId: clusterId) }
     }
 

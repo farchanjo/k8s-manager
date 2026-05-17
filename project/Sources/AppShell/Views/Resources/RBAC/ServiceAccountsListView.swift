@@ -102,16 +102,6 @@ public struct ServiceAccountsListView: View {
         ) {
             content
         }
-        .modifier(ExportMenuContainer(
-            kind: "ServiceAccount",
-            rows: viewModel.filteredRows.map { item in
-                ResourceListRow(values: [
-                    item.name, item.namespace ?? "", item.status,
-                    ageLabel(item.ageSeconds),
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task { await viewModel.start(clusterId: clusterId, namespace: nil) }
     }
 

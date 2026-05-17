@@ -1,7 +1,8 @@
 // Views/Resources/RowActionMenu.swift — app_shell bounded context
 // DDD role: View + ValueObject — uniform per-row action menu
-// ADR ref: ADR-0061 (row action menu uniform shape)
+// ADR ref: ADR-0061 (row action menu uniform shape), ADR-0074 (Change E — Export in row menu)
 
+import AppKit
 import SwiftUI
 
 // MARK: - KindFamily
@@ -227,6 +228,29 @@ public struct RowActionMenuBuilder: Sendable {
     }
 }
 
+// MARK: - ExportContext
+
+/// Carries the list-level data needed to render an Export submenu inside
+/// `RowActionMenu` per ADR-0074 Change E.
+///
+/// Passed from the containing list view so the per-row menu can trigger
+/// a full-list CSV export via `NSSavePanel` — the same action previously
+/// handled by `ExportMenuContainer` in the window toolbar.
+public struct ExportContext: Sendable {
+    /// Kubernetes kind string used for the filename template.
+    public let kind: String
+    /// Cluster display name embedded in the filename.
+    public let clusterDisplayName: String
+    /// Full filtered row list at the time the menu is opened.
+    public let rows: [ResourceListRow]
+
+    public init(kind: String, clusterDisplayName: String = "cluster", rows: [ResourceListRow]) {
+        self.kind = kind
+        self.clusterDisplayName = clusterDisplayName
+        self.rows = rows
+    }
+}
+
 // MARK: - RowActionMenu (SwiftUI)
 
 /// Reusable three-dot menu button with the canonical ADR-0061 action set.
@@ -234,24 +258,42 @@ public struct RowActionMenuBuilder: Sendable {
 /// Callers supply a `RowActionContext` and an `onAction` closure. The menu
 /// builds its items via `RowActionMenuBuilder` and calls `onAction` for every
 /// item the operator selects.
+///
+/// Optional `exportContext` adds an "Export…" submenu (ADR-0074 Change E)
+/// that triggers a full-list CSV export via `NSSavePanel`. When `nil`, the
+/// export section is omitted and the menu shape is unchanged.
 public struct RowActionMenu: View {
 
     private let context: RowActionContext
+    private let exportContext: ExportContext?
     private let onAction: (RowAction) -> Void
+
+    @State private var isExporting = false
 
     /// Creates a row action menu.
     ///
     /// - Parameters:
     ///   - context: Kind, namespace, family, and RBAC permissions for the row.
+    ///   - exportContext: Optional list-level export data. When provided, an
+    ///     "Export…" submenu is rendered below the canonical action set.
     ///   - onAction: Called with the selected `RowAction` when the operator picks an item.
-    public init(context: RowActionContext, onAction: @escaping (RowAction) -> Void) {
+    public init(
+        context: RowActionContext,
+        exportContext: ExportContext? = nil,
+        onAction: @escaping (RowAction) -> Void
+    ) {
         self.context = context
+        self.exportContext = exportContext
         self.onAction = onAction
     }
 
     public var body: some View {
         Menu {
             menuItems
+            if let export = exportContext {
+                Divider()
+                exportSubmenu(for: export)
+            }
         } label: {
             Image(systemName: "ellipsis.circle")
                 .imageScale(.medium)
@@ -284,6 +326,58 @@ public struct RowActionMenu: View {
                     Text(action.label)
                 }
             }
+        }
+    }
+
+    /// Renders the Export submenu with CSV and Excel-CSV options.
+    ///
+    /// The submenu triggers a full-list export of `exportContext.rows` via
+    /// `NSSavePanel`. Matching the functionality previously provided by
+    /// `ExportMenuContainer` in the window toolbar (ADR-0074 Change E).
+    @ViewBuilder
+    private func exportSubmenu(for export: ExportContext) -> some View {
+        Menu {
+            Button {
+                performExport(export, addBOM: false)
+            } label: {
+                Label("Export as CSV\u{2026}", systemImage: "tablecells")
+            }
+            Button {
+                performExport(export, addBOM: true)
+            } label: {
+                Label("Export as CSV (Excel)\u{2026}", systemImage: "tablecells.badge.ellipsis")
+            }
+        } label: {
+            Label("Export\u{2026}", systemImage: "arrow.down.circle")
+        }
+        .disabled(isExporting || export.rows.isEmpty)
+    }
+
+    private func performExport(_ export: ExportContext, addBOM: Bool) {
+        let config = KindExportConfig.config(forKind: export.kind)
+        let service = ListExportService()
+        let ts = ISO8601DateFormatter().string(from: .now)
+        guard let data = try? service.csvData(
+            from: export.rows,
+            config: config,
+            addBOM: addBOM,
+            refreshTimestamp: ts
+        ) else { return }
+        let filename = CSVFilenameTemplate.filename(
+            kind: export.kind,
+            clusterDisplayName: export.clusterDisplayName
+        )
+        isExporting = true
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = filename
+        panel.directoryURL = FileManager.default.urls(
+            for: .downloadsDirectory, in: .userDomainMask
+        ).first
+        panel.canCreateDirectories = true
+        panel.begin { response in
+            defer { isExporting = false }
+            guard response == .OK, let url = panel.url else { return }
+            try? data.write(to: url, options: .atomic)
         }
     }
 }

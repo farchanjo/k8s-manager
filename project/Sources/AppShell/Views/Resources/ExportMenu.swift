@@ -112,41 +112,6 @@ public struct ExportMenu: View {
     }
 }
 
-// MARK: - ExportMenuContainer
-
-/// Convenience overlay modifier that injects `ExportMenu` into a list container
-/// without coupling the container to the export domain model.
-///
-/// Apply via `.modifier(ExportMenuContainer(...))` or inline overlay.
-public struct ExportMenuContainer: ViewModifier {
-    private let kind: String
-    private let clusterDisplayName: String
-    private let rows: [ResourceListRow]
-    private let isHidden: Bool
-
-    public init(
-        kind: String,
-        clusterDisplayName: String = "cluster",
-        rows: [ResourceListRow],
-        isHidden: Bool = false
-    ) {
-        self.kind = kind
-        self.clusterDisplayName = clusterDisplayName
-        self.rows = rows
-        self.isHidden = isHidden
-    }
-
-    public func body(content: Content) -> some View {
-        content
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    ExportMenu(
-                        kind: kind,
-                        clusterDisplayName: clusterDisplayName,
-                        rows: rows,
-                        isHidden: isHidden
-                    )
-                }
-            }
-    }
-}
+// ExportMenuContainer has been removed per ADR-0074 Change E.
+// Export functionality is now accessible via RowActionMenu(exportContext:) —
+// pass an ExportContext with the filtered row list when constructing RowActionMenu.

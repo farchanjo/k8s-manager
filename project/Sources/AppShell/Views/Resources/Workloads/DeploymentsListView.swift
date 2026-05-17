@@ -59,16 +59,6 @@ public struct DeploymentsListView: View {
                 }
             )
         }
-        .modifier(ExportMenuContainer(
-            kind: "Deployment",
-            rows: viewModel.filteredRows.map { row in
-                ResourceListRow(values: [
-                    row.name, row.namespace, row.podsReady,
-                    "\(row.replicas)", "\(row.available)", row.age,
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }

@@ -97,15 +97,6 @@ public struct CertificateSigningRequestsListView: View {
         ) {
             content
         }
-        .modifier(ExportMenuContainer(
-            kind: "CertificateSigningRequest",
-            rows: viewModel.filteredRows.map { item in
-                ResourceListRow(values: [
-                    item.name, item.status, ageLabel(item.ageSeconds),
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task { await viewModel.start(clusterId: clusterId) }
     }
 

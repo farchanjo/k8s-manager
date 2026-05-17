@@ -34,16 +34,6 @@ public struct DaemonSetsListView: View {
         ) {
             tableContent
         }
-        .modifier(ExportMenuContainer(
-            kind: "DaemonSet",
-            rows: viewModel.filteredRows.map { row in
-                ResourceListRow(values: [
-                    row.name, row.namespace, "\(row.desired)", "\(row.upToDate)",
-                    "\(row.available)", row.age,
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }

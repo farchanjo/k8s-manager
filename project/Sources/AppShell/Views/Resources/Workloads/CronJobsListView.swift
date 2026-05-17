@@ -34,17 +34,6 @@ public struct CronJobsListView: View {
         ) {
             tableContent
         }
-        .modifier(ExportMenuContainer(
-            kind: "CronJob",
-            rows: viewModel.filteredRows.map { row in
-                ResourceListRow(values: [
-                    row.name, row.namespace, row.schedule,
-                    row.isSuspended ? "True" : "False",
-                    "\(row.activeCount)", row.lastSchedule ?? "—", row.age,
-                ])
-            },
-            isHidden: viewModel.filteredRows.isEmpty
-        ))
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
