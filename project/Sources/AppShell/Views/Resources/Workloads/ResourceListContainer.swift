@@ -86,7 +86,17 @@ public struct ResourceListContainer<Content: View>: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .frame(minHeight: 36)
+        // Fixed height (NOT minHeight) — pins the toolbar to exactly 36 pt so
+        // SwiftUI never grows the HStack when the search field's intrinsic
+        // height resolves slightly larger during a skeleton→Table content-
+        // width renegotiation. With `minHeight: 36` the HStack treats 36 as
+        // a floor, and the searchField's flexible frame can push the row to
+        // ~42 pt under certain layout passes — which made the count badge,
+        // search field, AND refresh slot all bounce ~6 px vertically on
+        // every load/reload (the "refresh passa pra cima e baixo" artifact).
+        // The 20-pt ZStack + 6-pt vertical padding sits comfortably inside
+        // 36 pt — clipping is not a concern.
+        .frame(height: 36)
     }
 
     /// Always-present count badge whose visibility is toggled via opacity.
