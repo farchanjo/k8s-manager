@@ -43,7 +43,7 @@ public struct TopRightChrome: View {
             if let clusterId = activeClusterId {
                 GlobalNamespacePill(clusterId: clusterId)
             } else {
-                Color.clear.frame(width: 200, height: 26)
+                Color.clear.frame(width: 160, height: 26)
             }
 
             AssistantToggleButton(isOpen: viewModel.assistantPanelOpen) {

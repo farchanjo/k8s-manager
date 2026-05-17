@@ -43,7 +43,7 @@ public struct GlobalNamespacePill: View {
             refreshButton
         }
         .padding(.horizontal, 8)
-        .frame(minWidth: 180, maxWidth: 220, minHeight: 26, maxHeight: 26)
+        .frame(minWidth: 140, maxWidth: 180, minHeight: 26, maxHeight: 26)
         .background(.regularMaterial, in: Capsule())
         .task(id: clusterId) { await bootstrap() }
         .accessibilityLabel(accessibilityLabel)
@@ -56,7 +56,10 @@ public struct GlobalNamespacePill: View {
         Menu {
             namespaceMenuItems
         } label: {
-            Text(selection ?? "All namespaces")
+            // ADR-0074 Change B: when no namespace is explicitly selected, display
+            // "default" as the compact pill label. The "All namespaces" option
+            // remains in the menu for operators who want unfiltered results.
+            Text(selection ?? "default")
                 .font(.system(size: 12))
                 .lineLimit(1)
                 .foregroundStyle(.primary)
@@ -110,7 +113,7 @@ public struct GlobalNamespacePill: View {
     }
 
     private var accessibilityLabel: String {
-        "Namespace filter: \(selection ?? "All namespaces")"
+        "Namespace filter: \(selection ?? "default")"
     }
 
     private static let quickNamespaces: [String] = [
