@@ -139,6 +139,19 @@ public final class DeploymentsListViewModel {
         log.info("delete requested ids=\(ids.count) (stub)")
     }
 
+    /// Opens a `resourceDetail` tab for the given deployment row (ADR-0073 "Open in Tab").
+    ///
+    /// This is the explicit escape hatch for side-by-side comparison. Routes through
+    /// `OpenTabsActor` preserving the ADR-0070 sync invariant.
+    public func openDetailTab(clusterId: ClusterId, row: DeploymentRow) async {
+        let ref = ResourceRef(
+            kind: ResourceKind(group: "apps", version: "v1", kind: "Deployment"),
+            namespace: row.namespace.isEmpty ? nil : row.namespace,
+            name: row.name
+        )
+        await openTabs.openTab(.resourceDetail(clusterId: clusterId, ref: ref))
+    }
+
     private static func project(_ item: ResourceListItem) -> DeploymentRow {
         DeploymentRow(
             id: item.uid,

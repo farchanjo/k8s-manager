@@ -1,6 +1,7 @@
 // Views/Resources/Workloads/DeploymentsListView.swift — app_shell bounded context
 // DDD role: View — Deployments resource list (Onda 2)
 // ADR ref: ADR-0050 (resource navigation taxonomy)
+// ADR ref: ADR-0073 (inspector trailing column — row tap routes to inspector)
 
 import SwiftUI
 import SharedKernel
@@ -9,18 +10,20 @@ import SharedKernel
 
 /// Kubernetes Deployment list view with per-row:
 /// Name / Namespace / Pods / Replicas / Available / Age columns.
+///
+/// Row selection routes to the Inspector trailing column per ADR-0073.
+/// The "Open in Tab" context-menu item is the explicit escape hatch for
+/// side-by-side comparison via `DocumentTab.resourceDetail`.
 public struct DeploymentsListView: View {
 
     public let clusterId: ClusterId
     public let namespace: String?
 
     @State private var viewModel = DeploymentsListViewModel()
-    @Environment(\.onResourceSelect) private var onResourceSelect
 
-    /// `apps/v1/Deployment` is the GVK for every row in this view; cached as a
-    /// constant so the `.onChange` handler can build a `ResourceRef` without
-    /// reaching into the view model.
-    private static let deploymentKind = ResourceKind(group: "apps", version: "v1", kind: "Deployment")
+    /// Inspector view model injected from the environment (ADR-0073).
+    /// `nil` when the Inspector is not wired (e.g. Xcode previews).
+    @Environment(\.resourceInspector) private var inspector
 
     public init(clusterId: ClusterId, namespace: String?) {
         self.clusterId = clusterId
@@ -69,27 +72,30 @@ public struct DeploymentsListView: View {
         .task(id: clusterId) {
             await viewModel.start(clusterId: clusterId, namespace: namespace)
         }
+        // ADR-0073 §"Row tap routing": selection → Inspector (no new tab opened).
         .onChange(of: viewModel.selectedId) { _, newValue in
-            propagateSelection(uid: newValue)
+            routeSelectionToInspector(uid: newValue)
         }
     }
 
-    /// Lifts the table selection into the surrounding tab content view via
-    /// the `\.onResourceSelect` environment closure so `ResourceDetailDrawer`
-    /// (owned by `ActiveTabContentView`) can present without each list view
-    /// re-implementing inspector lifecycle.
-    private func propagateSelection(uid: String?) {
+    /// Routes a deployment row selection to the Inspector trailing column (ADR-0073).
+    ///
+    /// Builds an `InspectorKey` from the selected row and calls
+    /// `inspector.setSelection(_:)`, which surfaces the Inspector if hidden.
+    /// Passing `nil` clears the Inspector selection without closing the panel.
+    private func routeSelectionToInspector(uid: String?) {
         guard let uid,
               let row = viewModel.filteredRows.first(where: { $0.id == uid }) else {
-            onResourceSelect(nil)
+            inspector?.selectedKey = nil
             return
         }
-        let ref = ResourceRef(
-            kind: Self.deploymentKind,
-            namespace: row.namespace.isEmpty ? nil : row.namespace,
-            name: row.name
+        let key = InspectorKey(
+            clusterId: clusterId,
+            kind: "Deployment",
+            name: row.name,
+            namespace: row.namespace.isEmpty ? nil : row.namespace
         )
-        onResourceSelect(ref)
+        inspector?.setSelection(key)
     }
 
     private var emptyStateMessage: String {
@@ -150,6 +156,19 @@ public struct DeploymentsListView: View {
 
     @ViewBuilder
     private func deploymentContextMenuItems(ids: Set<String>) -> some View {
+        // ADR-0073 §"Row tap routing": "Open in Tab" is the explicit escape hatch
+        // for side-by-side comparison. Routes through OpenTabsActor, preserving
+        // the ADR-0070 bidirectional sync invariant.
+        if let uid = ids.first,
+           let row = viewModel.filteredRows.first(where: { $0.id == uid }) {
+            Button {
+                Task { await viewModel.openDetailTab(clusterId: clusterId, row: row) }
+            } label: {
+                Label("Open in Tab", systemImage: "plus.rectangle.on.rectangle")
+            }
+            Divider()
+        }
+
         let actions = RowActionMenuBuilder.actions(for: RowActionContext(
             kind: "Deployment", name: ids.first ?? "", family: .workloads
         ))

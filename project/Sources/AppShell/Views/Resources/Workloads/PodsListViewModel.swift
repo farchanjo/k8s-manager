@@ -177,6 +177,20 @@ public final class PodsListViewModel {
         await openTabs.openTab(.applyYAML(clusterId: clusterId))
     }
 
+    /// Opens a `resourceDetail` tab for the given pod row (ADR-0073 "Open in Tab").
+    ///
+    /// This is the explicit escape hatch allowing operators to open a side-by-side
+    /// comparison tab even though row-tap now routes to the Inspector column.
+    /// Routes through `OpenTabsActor` preserving the ADR-0070 sync invariant.
+    public func openDetailTab(clusterId: ClusterId, row: PodRow) async {
+        let ref = ResourceRef(
+            kind: ResourceKind(group: "", version: "v1", kind: "Pod"),
+            namespace: row.namespace.isEmpty ? nil : row.namespace,
+            name: row.name
+        )
+        await openTabs.openTab(.resourceDetail(clusterId: clusterId, ref: ref))
+    }
+
     /// Confirms and executes deletion for the given row IDs (stub — Onda 3).
     public func confirmDelete(ids: Set<String>) {
         log.info("delete requested ids=\(ids.count) (stub)")
