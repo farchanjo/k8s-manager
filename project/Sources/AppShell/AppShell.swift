@@ -215,23 +215,6 @@ public struct AppShellView: View {
                         NavigationHistoryToolbar(historyActor: historyActor)
                     }
                 }
-                // Cluster-strip toggle (ADR-0072 §"Change 4"). Sits between
-                // the nav arrows and the trailing chrome so the operator can
-                // reclaim ~56 pt of horizontal canvas width when needed.
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        clusterStripVisible.toggle()
-                    } label: {
-                        Image(systemName: clusterStripVisible
-                            ? "rectangle.lefthalf.inset.filled"
-                            : "rectangle.lefthalf.inset.filled.arrow.left")
-                    }
-                    .help(clusterStripVisible ? "Hide cluster strip" : "Show cluster strip")
-                    .accessibilityLabel(clusterStripVisible
-                        ? "Hide cluster strip"
-                        : "Show cluster strip")
-                    .accessibilityIdentifier("AppShell.ClusterStripToggle")
-                }
                 // Inspector toggle (ADR-0073 §"Inspector visibility").
                 // SF Symbol follows WWDC23 "Inspectors in SwiftUI" demo pattern.
                 // Placed as a `.primaryAction` item to the left of TopRightChrome

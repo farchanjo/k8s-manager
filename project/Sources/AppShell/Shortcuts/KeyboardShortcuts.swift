@@ -23,6 +23,13 @@ public struct K8sManagerCommands: Commands {
     @Binding var isPaletteVisible: Bool
     @Binding var selectedFeature: Feature?
 
+    /// Mirrors `AppShellView.clusterStripVisible` via shared `@AppStorage` key.
+    ///
+    /// SwiftUI shares `@AppStorage` across views using the same key so both
+    /// the Commands graph and the view tree read and write the same persisted
+    /// flag without prop-drilling (ADR-0074 Change C).
+    @AppStorage("appShell.clusterStripVisible") private var clusterStripVisible = true
+
     public init(
         isPaletteVisible: Binding<Bool>,
         selectedFeature: Binding<Feature?>
@@ -113,6 +120,22 @@ public struct K8sManagerCommands: Commands {
             }
             .keyboardShortcut("r", modifiers: .command)
             .accessibilityLabel("Refresh current view")
+        }
+
+        CommandMenu("View") {
+            // ⌘⇧K — toggle cluster-strip column (ADR-0074 Change C).
+            // Moved from the window toolbar into the View menu so the toolbar
+            // stays within the ≤7 item HIG ceiling. The cluster strip and the
+            // NavigationSplitView sidebar are deliberately independent toggles:
+            // cluster strip = cross-cluster selector; sidebar = per-cluster
+            // resource tree (see Change F comments in AppShell.swift).
+            Button(clusterStripVisible ? "Hide Cluster Strip" : "Show Cluster Strip") {
+                clusterStripVisible.toggle()
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .accessibilityLabel(clusterStripVisible
+                ? "Hide cluster strip column"
+                : "Show cluster strip column")
         }
 
         CommandGroup(replacing: .appSettings) {
