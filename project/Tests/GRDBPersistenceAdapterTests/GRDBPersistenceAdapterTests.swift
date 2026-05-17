@@ -31,7 +31,8 @@ final class GRDBPersistenceAdapterTests: XCTestCase {
             clusterMetadataStore: GRDBClusterMetadataStore(db: queue),
             auditChainStore: GRDBAuditChainStore(db: queue, keyProvider: { key }),
             terminalRepository: GRDBTerminalRepository(db: queue),
-            secretRevealAudit: GRDBSecretRevealAudit(db: queue, keyProvider: { key })
+            secretRevealAudit: GRDBSecretRevealAudit(db: queue, keyProvider: { key }),
+            prometheusEndpointRepository: GRDBPrometheusEndpointRepository(db: queue)
         )
     }
 

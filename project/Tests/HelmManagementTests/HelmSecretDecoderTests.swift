@@ -111,8 +111,8 @@ final class UnimplementedReleaseDecoderPortSentinelTests: XCTestCase {
         }
     }
 
-    func test_dependencyKey_defaultIsUnimplemented() {
-        withDependencies {
+    func test_dependencyKey_defaultIsUnimplemented() throws {
+        try withDependencies { _ in
             // No override — uses default liveValue
         } operation: {
             @Dependency(\.releaseDecoder) var decoder

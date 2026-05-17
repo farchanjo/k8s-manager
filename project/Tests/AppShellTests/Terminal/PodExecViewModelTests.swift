@@ -22,7 +22,7 @@ final class PodExecViewModelTests: XCTestCase {
             let sut = PodExecViewModel()
             let podKind = ResourceKind(group: "", version: "v1", kind: "Pod")
             let ref = ResourceRef(kind: podKind, namespace: "staging", name: "api-pod")
-            await sut.connect(clusterId: ClusterId(rawValue: "test-cluster"), podRef: ref, container: "main")
+            await sut.connect(clusterId: ClusterId("test-cluster"), podRef: ref, container: "main")
             XCTAssertEqual(spy.lastRequest?.namespace, "staging")
             XCTAssertEqual(spy.lastRequest?.podName, "api-pod")
             XCTAssertEqual(spy.lastRequest?.containerName, "main")
@@ -41,7 +41,7 @@ final class PodExecViewModelTests: XCTestCase {
             let podKind = ResourceKind(group: "", version: "v1", kind: "Pod")
             let ref = ResourceRef(kind: podKind, namespace: "default", name: "test-pod")
             await sut.connect(
-                clusterId: ClusterId(rawValue: "cluster-1"),
+                clusterId: ClusterId("cluster-1"),
                 podRef: ref,
                 container: nil
             )
@@ -59,7 +59,7 @@ final class PodExecViewModelTests: XCTestCase {
             let podKind = ResourceKind(group: "", version: "v1", kind: "Pod")
             let ref = ResourceRef(kind: podKind, namespace: "default", name: "bad-pod")
             await sut.connect(
-                clusterId: ClusterId(rawValue: "cluster-1"),
+                clusterId: ClusterId("cluster-1"),
                 podRef: ref,
                 container: nil
             )
@@ -103,7 +103,7 @@ final class PodExecViewModelTests: XCTestCase {
             let podKind = ResourceKind(group: "", version: "v1", kind: "Pod")
             let ref = ResourceRef(kind: podKind, namespace: "default", name: "pod-x")
             await sut.connect(
-                clusterId: ClusterId(rawValue: "cluster-1"),
+                clusterId: ClusterId("cluster-1"),
                 podRef: ref,
                 container: nil
             )
@@ -128,7 +128,7 @@ final class PodExecViewModelTests: XCTestCase {
             let ref = ResourceRef(kind: podKind, namespace: "default", name: "multi-pod")
             sut.outputBuffer = "old output"
             await sut.connect(
-                clusterId: ClusterId(rawValue: "cluster-1"),
+                clusterId: ClusterId("cluster-1"),
                 podRef: ref,
                 container: "sidecar"
             )

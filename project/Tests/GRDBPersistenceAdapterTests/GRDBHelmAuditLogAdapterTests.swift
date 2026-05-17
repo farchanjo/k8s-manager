@@ -44,7 +44,7 @@ final class GRDBHelmAuditLogAdapterTests: XCTestCase {
         let entry = makeEntry(action: .rollbackSucceeded)
         try await adapter.record(entry)
 
-        let count = try queue.read { db in
+        let count = try await queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM helm_audit_log") ?? 0
         }
         XCTAssertEqual(count, 1)
@@ -97,7 +97,7 @@ final class GRDBHelmAuditLogAdapterTests: XCTestCase {
         try await adapter.record(makeEntry(action: .rollbackFailed))
         try await adapter.record(makeEntry(action: .rollbackContention, detail: "holder-abc"))
 
-        let count = try queue.read { db in
+        let count = try await queue.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM helm_audit_log") ?? 0
         }
         XCTAssertEqual(count, 3)
@@ -112,7 +112,7 @@ final class GRDBHelmAuditLogAdapterTests: XCTestCase {
         try await adapter.record(makeEntry(releaseId: targetId, action: .rollbackFailed))
         try await adapter.record(makeEntry(releaseId: otherId, action: .rollbackSucceeded))
 
-        let count = try queue.read { db in
+        let count = try await queue.read { db in
             try Int.fetchOne(
                 db,
                 sql: "SELECT COUNT(*) FROM helm_audit_log WHERE release_id = ?",

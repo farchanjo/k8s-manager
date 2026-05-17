@@ -159,6 +159,37 @@ final class SidebarTreeViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Inverse tab mapping (ADR-0070)
+
+    func test_from_resourceListPods_returnsWorkloadKindPods() {
+        let clusterId = ClusterId("c")
+        let tab = DocumentTab.resourceList(clusterId: clusterId, kind: .pods, namespace: nil)
+        let node = SidebarNode.from(documentTab: tab)
+        XCTAssertEqual(node, .workloadKind(.pods))
+    }
+
+    func test_from_applications_returnsApplications() {
+        let tab = DocumentTab.applications(clusterId: ClusterId("c"))
+        XCTAssertEqual(SidebarNode.from(documentTab: tab), .applications)
+    }
+
+    func test_from_events_returnsEvents() {
+        let tab = DocumentTab.events(clusterId: ClusterId("c"), scope: nil)
+        XCTAssertEqual(SidebarNode.from(documentTab: tab), .events)
+    }
+
+    func test_from_yamlEditor_returnsNil() {
+        let ref = ResourceRef(kind: .pods, namespace: "default", name: "my-pod")
+        let tab = DocumentTab.yamlEditor(clusterId: ClusterId("c"), ref: ref, draft: "")
+        XCTAssertNil(SidebarNode.from(documentTab: tab),
+            "YAML editor tabs have no sidebar leaf representation")
+    }
+
+    func test_from_securityOverview_returnsSecurityOverviewEntry() {
+        let tab = DocumentTab.securityOverview(clusterId: ClusterId("c"))
+        XCTAssertEqual(SidebarNode.from(documentTab: tab), .securityOverviewEntry)
+    }
+
     // MARK: - No active cluster: activation is a no-op
 
     func test_activate_withNoCluster_isNoOp() async throws {
@@ -204,6 +235,10 @@ private actor SpyOpenTabsPort: OpenTabsPort {
     func openTab(_ tab: DocumentTab) async {
         openedTabs.append(tab)
     }
+
+    nonisolated func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+        AsyncStream { _ in }
+    }
 }
 
 /// Spy that records tabs in insertion order (used to verify ordering guarantees).
@@ -212,5 +247,9 @@ private actor OrderedCallSpy: OpenTabsPort {
 
     func openTab(_ tab: DocumentTab) async {
         openedTabs.append(tab)
+    }
+
+    nonisolated func stateStream() -> AsyncStream<OpenTabsSnapshot> {
+        AsyncStream { _ in }
     }
 }
