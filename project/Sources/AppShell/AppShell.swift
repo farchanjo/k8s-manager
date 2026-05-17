@@ -215,26 +215,29 @@ public struct AppShellView: View {
                         NavigationHistoryToolbar(historyActor: historyActor)
                     }
                 }
-                // Inspector toggle (ADR-0073 §"Inspector visibility").
-                // SF Symbol follows WWDC23 "Inspectors in SwiftUI" demo pattern.
-                // Placed as a `.primaryAction` item to the left of TopRightChrome
-                // so the toggle is reachable without crossing the full toolbar width.
+                ToolbarItem(placement: .primaryAction) {
+                    TopRightChrome(activeClusterId: activeClusterId)
+                }
+                // Inspector toggle (ADR-0073 §"Inspector visibility", ADR-0074 Change D).
+                // Placed AFTER TopRightChrome so it lands at the far-trailing edge of the
+                // toolbar — the canonical position per Apple HIG canonical productivity apps.
+                // `sidebar.trailing` is the WWDC23 recommended symbol; foreground color
+                // differentiates open/closed state to match the icon-only pattern from
+                // Change A (no background fill, accentColor when active, secondary when closed).
                 ToolbarItem(placement: .primaryAction) {
                     if let inspector = deps.inspectorViewModel {
                         Button {
                             inspector.toggle()
                         } label: {
-                            Image(systemName: inspector.isVisible
-                                ? "sidebar.right"
-                                : "sidebar.right")
+                            Image(systemName: "sidebar.trailing")
+                                .foregroundStyle(inspector.isVisible
+                                    ? Color.accentColor
+                                    : Color.secondary)
                         }
-                        .help(inspector.isVisible ? "Hide Inspector" : "Show Inspector (⌘⌥0)")
+                        .help(inspector.isVisible ? "Hide Inspector (⌘⌥0)" : "Show Inspector (⌘⌥0)")
                         .accessibilityLabel(inspector.isVisible ? "Hide Inspector" : "Show Inspector")
                         .accessibilityIdentifier("AppShell.InspectorToggle")
                     }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    TopRightChrome(activeClusterId: activeClusterId)
                 }
             }
         }
