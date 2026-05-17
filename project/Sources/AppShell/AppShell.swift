@@ -178,13 +178,34 @@ public struct AppShellView: View {
         HStack(spacing: 0) {
             // Cluster strip (ADR-0051) — operator-toggleable per ADR-0072.
             // Default visible so the one-click cluster-switch UX is preserved
-            // for existing operators; collapsible via the window toolbar
-            // button (`Cmd-Shift-K` shortcut wired in K8sManagerCommands).
+            // for existing operators.
+            //
+            // ADR-0074 Change F — sidebar toggle separation:
+            // ┌──────────────────────────────────────────────────────────────┐
+            // │ Cmd-Shift-K (View → Show/Hide Cluster Strip)                 │
+            // │   Toggles ClusterStripView — the leftmost column that lists  │
+            // │   pinned clusters and allows one-click cluster selection.    │
+            // │   Purpose: cross-cluster selection column.                   │
+            // │                                                              │
+            // │ Cmd-Ctrl-S (NavigationSplitView built-in sidebar toggle)     │
+            // │   Provided automatically by SwiftUI's NavigationSplitView.   │
+            // │   Hides/shows the resource-tree sidebar column ONLY.         │
+            // │   Purpose: per-cluster resource navigation tree.             │
+            // │                                                              │
+            // │ The two toggles are deliberately independent. ClusterStrip   │
+            // │ is a sibling HStack child of NavigationSplitView, so the     │
+            // │ built-in sidebar binding does not control it. Unifying them   │
+            // │ would require hooking NavigationSplitView's undocumented      │
+            // │ columnVisibility binding — not worth the API risk.           │
+            // └──────────────────────────────────────────────────────────────┘
             if clusterStripVisible {
                 ClusterStripView()
             }
 
-            // NavigationSplitView: hierarchical sidebar tree | canvas (ADR-0050/0051)
+            // NavigationSplitView: hierarchical sidebar tree | canvas (ADR-0050/0051).
+            // The built-in Cmd-Ctrl-S toolbar toggle (auto-injected by SwiftUI on
+            // macOS 13+) controls only the sidebar tree column — not ClusterStripView.
+            // See ADR-0074 Change F sidebar toggle separation comment above.
             // The canvas detail column carries `.inspector(isPresented:)` per
             // ADR-0073 §"NavigationSplitView extension to three columns".
             NavigationSplitView {
