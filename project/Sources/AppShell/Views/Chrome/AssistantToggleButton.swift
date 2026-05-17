@@ -1,6 +1,6 @@
 // Views/Chrome/AssistantToggleButton.swift — app_shell bounded context
 // DDD role: Leaf view — assistant panel toggle chrome button
-// ADR ref: ADR-0051 (top-right chrome)
+// ADR ref: ADR-0051 (top-right chrome), ADR-0074 (Change A — icon-only style)
 
 import SwiftUI
 
@@ -8,8 +8,9 @@ import SwiftUI
 
 /// 28 × 28 chrome button that toggles the assistant slide-out panel.
 ///
-/// Displays a sparkles icon and "PRISM AI" label. Active state renders
-/// with the accent background and white text; inactive uses secondary fill.
+/// Icon-only sparkles button matching the uniform icon style of bell and avatar
+/// buttons per ADR-0074 Change A. Active state uses `Color.accentColor`
+/// foreground; inactive uses `Color.secondary`. No background fill.
 ///
 /// Tooltip: "Toggle Assistant (⌘\)"
 @MainActor
@@ -36,26 +37,10 @@ public struct AssistantToggleButton: View {
     // MARK: Private
 
     private var label: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 12, weight: .medium))
-            Text("PRISM AI")
-                .font(.system(size: 11, weight: .semibold))
-        }
-        .foregroundStyle(isOpen ? Color.white : Color.primary)
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
-    private var background: some View {
-        Group {
-            if isOpen {
-                RoundedRectangle(cornerRadius: 6).fill(Color.accentColor)
-            } else {
-                RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.15))
-            }
-        }
+        Image(systemName: "sparkles")
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(isOpen ? Color.accentColor : Color.secondary)
+            .frame(width: 28, height: 28)
+            .contentShape(Rectangle())
     }
 }
