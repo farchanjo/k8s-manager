@@ -282,3 +282,16 @@ Negative:
 - ADR-0051 — Multi-cluster workspace; the chrome row extended here is documented in
   §"Top-right chrome" as the canonical location for persistent cluster-scoped controls.
 - ADR-0053 — Superseded. Decision rationale preserved for historical reference.
+
+## Amendments
+
+### ADR-0074 — 2026-05-16 — Pill width narrowed; resting label changed to "default"
+
+ADR-0074 (Apple HIG toolbar header consolidation) amends §"Pill shape" of this ADR. The pill
+frame width is narrowed from 180–220 pt to 140–180 pt. The resting label when `selection == nil`
+changes from "All namespaces" to "default"; "All namespaces" is retained as a menu item label
+only. The `Color.clear` layout placeholder is reduced from 200 pt to 160 pt to match the narrowed
+frame. All other pill behaviour — actor wiring, subscription idiom, refresh button, and menu
+construction — is unchanged.
+
+Forward reference: ADR-0074.

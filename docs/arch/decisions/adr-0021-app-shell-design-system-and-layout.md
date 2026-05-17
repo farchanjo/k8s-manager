@@ -570,3 +570,14 @@ preferences menu are added to the unified toolbar's trailing group.
 The design token system (color, materials, typography, WCAG requirements) and operator-configurable
 knobs specified in this ADR remain unchanged. ADR-0051 governs layout structure; this ADR remains
 the canonical reference for design tokens and accessibility requirements.
+
+## Amendments
+
+### ADR-0074 — 2026-05-16 — Toolbar density ceiling enforced
+
+ADR-0074 (Apple HIG toolbar header consolidation) refines the toolbar invariant stated in
+§"Toolbar and sidebar conventions". The toolbar ceiling is fixed at seven interactive items:
+two leading (back/forward arrows, built-in sidebar toggle) and five trailing (namespace pill,
+assistant, notifications, avatar, inspector toggle). Any future addition to the primary window
+toolbar requires a new ADR ratified by the deciders. The design-system requirement for
+icon-only chrome buttons is now enforced by the toolbar ceiling invariant in ADR-0074.

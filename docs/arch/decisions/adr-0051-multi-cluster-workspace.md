@@ -317,3 +317,15 @@ Additionally, the §Detail drawer (slide-in right panel) specification is retire
 column. The `⌘⇧I` shortcut is reassigned to the Inspector toggle.
 
 Forward references: ADR-0072 (Change 4), ADR-0073 (Inspector trailing column).
+
+### Amendment 2 — Top-right chrome composition updated; inspector at far-trailing edge (2026-05-16)
+
+ADR-0074 (Apple HIG toolbar header consolidation) amends the top-right chrome contract defined in
+§"Top-right chrome". The chrome trailing group now consists of five items in declaration order:
+namespace pill, assistant toggle (icon-only, no text label), notifications, avatar, inspector
+toggle. The inspector toggle is declared last in the toolbar block so it renders at the far-trailing
+edge per the WWDC23 canonical pattern. The cluster-strip toggle previously added by ADR-0072 is
+moved to the View menu (⌘⇧K). The ExportMenu toolbar injection is removed across all list views;
+export is accessible via the RowActionMenu Export… submenu on every resource row.
+
+Forward reference: ADR-0074.

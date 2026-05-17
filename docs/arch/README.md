@@ -300,6 +300,12 @@ graph TB
   `InspectorKey`; row-tap routes to Inspector for inspector-capable kinds; "Open in Tab"
   context-menu action retained; ADR-0051 detail drawer retired). Accepted (ratified 2026-05-16).
   Refines ADR-0021, ADR-0034, ADR-0050, ADR-0070. Amends ADR-0050, ADR-0070.
+- **ADR-0074** — Apple HIG toolbar header consolidation (toolbar ceiling of seven items enforced;
+  six targeted changes: AssistantToggleButton icon-only, GlobalNamespacePill narrowed to 140–180 pt
+  with "default" resting label, cluster-strip toggle moved to View menu ⌘⇧K, inspector toggle moved
+  to far-trailing edge with state-differentiated icon, ExportMenu moved to RowActionMenu submenu,
+  NavigationSplitView sidebar toggle synced to cluster-strip visibility). Accepted (ratified
+  2026-05-16). Refines ADR-0021, ADR-0051, ADR-0069, ADR-0072, ADR-0073.
 
 ## Status lifecycle
 

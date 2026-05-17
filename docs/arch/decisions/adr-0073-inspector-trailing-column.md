@@ -283,4 +283,13 @@ The following file paths are stubs; exact line numbers are filled by the impleme
 
 ## Amendments
 
-*(This section will be appended by future ADRs that refine this decision.)*
+### ADR-0074 — 2026-05-16 — Inspector toggle moved to far-trailing edge; icon differentiates state
+
+ADR-0074 (Apple HIG toolbar header consolidation) amends §"Inspector visibility" of this ADR.
+The inspector toggle `ToolbarItem` is now declared last in the window toolbar block (after all
+`TopRightChrome` items) so that macOS places it at the rightmost edge of the toolbar, matching the
+WWDC23 "Inspectors in SwiftUI" canonical pattern. The icon is differentiated: `sidebar.trailing.fill`
+when the inspector is open, `sidebar.trailing` when closed. The keyboard shortcut ⌘⌥0 and the
+`WindowLayout.mainWindow.inspectorVisible` persistence field are unchanged.
+
+Forward reference: ADR-0074.

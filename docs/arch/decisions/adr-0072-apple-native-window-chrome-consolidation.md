@@ -373,4 +373,14 @@ The following file paths are stubs; exact line numbers are filled by the impleme
 
 ## Amendments
 
-*(This section will be appended by future ADRs that refine this decision.)*
+### ADR-0074 — 2026-05-16 — Change 4 amended: cluster-strip toggle moves to View menu
+
+ADR-0074 (Apple HIG toolbar header consolidation) amends §"Change 4 — ClusterStripView becomes
+operator-toggleable" of this ADR. The `ToolbarItem(placement: .primaryAction)` added by Change 4
+to toggle cluster-strip visibility is removed from the toolbar. The toggle is now exposed as a
+View menu item ("Show Cluster Strip", shortcut ⌘⇧K) via `K8sManagerCommands`. The compact cluster
+avatar `ToolbarItem` (shown when the strip is hidden) is moved into the `NavigationSplitView`
+sidebar header instead of the toolbar. The `WindowLayout.mainWindow.clusterStripVisible` field,
+default state (visible), and keyboard shortcut ⌘⇧K are all unchanged.
+
+Forward reference: ADR-0074.
